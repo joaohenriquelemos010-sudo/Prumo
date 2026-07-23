@@ -129,6 +129,25 @@ de outro (sem IDOR):
 - `verificacaoStatus` do médico é informativo (modo demonstração); não bloqueia
   recursos ainda.
 
+## Vínculo médico↔paciente (compartilhamento por link/QR)
+
+O acesso do médico aos dados de um paciente exige um **vínculo consentido**, criado
+quando um lado aceita o link/QR do outro (**ambos podem iniciar**):
+
+- O convite é um **token aleatório** (32 hex) com **validade de 7 dias** e uso único;
+  quem criou não pode aceitar o próprio convite.
+- Só um **médico** aceita convite de paciente e só um **paciente** aceita convite de
+  médico (papéis validados).
+- Com o vínculo, o médico acessa exames/prontuário/consultas/vacinas **apenas** daquele
+  paciente, via `server/services/acesso.ts` (`resolveCrianca` — própria criança OU
+  médico com vínculo **ativo**). Verificado: médico sem vínculo → **403**; ao **revogar**
+  (o paciente sempre pode), o acesso cai para **403** na hora.
+- Médico e paciente **compartilham o registro do bebê**: exames anexados pelo médico
+  aparecem para o paciente e vice-versa.
+
+**CRM**: agora é **opcional e não validado** no cadastro (o **CPF é validado** por
+dígitos + nome obrigatório). A verificação oficial de CRM (CFM) fica para depois.
+
 ## Exames e consultas (dados de saúde)
 
 - **Arquivos de exame** ficam no **GridFS** do próprio MongoDB/Atlas (sem serviço

@@ -4,7 +4,6 @@ import { Share2, Copy, Check, QrCode, Link2, UserMinus, ShieldCheck } from 'luci
 import { api } from '@/lib/api/client'
 import { useAuth } from '@/lib/stores/auth'
 import { Button } from '@/components/Button'
-import { EmptyState } from '@/components/EmptyState'
 
 interface Vinculo {
   id: string
