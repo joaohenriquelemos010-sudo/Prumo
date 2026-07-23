@@ -1,25 +1,38 @@
 import { Router } from 'express'
 import { isValidObjectId } from 'mongoose'
+import type { HydratedDocument } from 'mongoose'
 import { requireAuth } from '../auth.js'
 import { Prestador } from '../models/Prestador.js'
 import { Solicitacao } from '../models/Solicitacao.js'
+import type { SolicitacaoDoc } from '../models/Solicitacao.js'
 import { solicitacaoCreateSchema } from '../validation.js'
 import { normalizeField } from '../sanitize.js'
 
 export const solicitacoesRouter = Router()
 
-// GET /api/solicitacoes — the family's own requests.
+function serialize(s: HydratedDocument<SolicitacaoDoc>) {
+  return {
+    id: String(s._id),
+    prestadorNome: s.prestadorNome,
+    objetivo: s.objetivo,
+    modalidade: s.modalidade,
+    status: s.status,
+    criadaEm: s.createdAt.toISOString(),
+  }
+}
+
+solicitacoesRouter.param('id', (_req, res, next, id) => {
+  if (!isValidObjectId(id)) {
+    res.status(404).json({ error: 'Não encontramos essa solicitação.' })
+    return
+  }
+  next()
+})
+
+// GET /api/solicitacoes — all of the family's own requests (current + past).
 solicitacoesRouter.get('/', requireAuth, async (req, res) => {
   const solicitacoes = await Solicitacao.find({ usuario: req.user!.id }).sort({ createdAt: -1 })
-  res.json({
-    solicitacoes: solicitacoes.map((s) => ({
-      id: String(s._id),
-      prestadorNome: s.prestadorNome,
-      objetivo: s.objetivo,
-      modalidade: s.modalidade,
-      status: s.status,
-    })),
-  })
+  res.json({ solicitacoes: solicitacoes.map(serialize) })
 })
 
 // POST /api/solicitacoes — request an exam/consultation. Confirmation simulated.
@@ -51,13 +64,21 @@ solicitacoesRouter.post('/', requireAuth, async (req, res) => {
     status: 'pendente',
   })
 
-  res.status(201).json({
-    solicitacao: {
-      id: String(solicitacao._id),
-      prestadorNome: solicitacao.prestadorNome,
-      objetivo: solicitacao.objetivo,
-      modalidade: solicitacao.modalidade,
-      status: solicitacao.status,
-    },
-  })
+  res.status(201).json({ solicitacao: serialize(solicitacao) })
+})
+
+// DELETE /api/solicitacoes/:id — the family cancels their own request.
+solicitacoesRouter.delete('/:id', requireAuth, async (req, res) => {
+  const solicitacao = await Solicitacao.findById(req.params.id)
+  if (!solicitacao || solicitacao.usuario !== req.user!.id) {
+    res.status(404).json({ error: 'Não encontramos essa solicitação.' })
+    return
+  }
+  if (solicitacao.status === 'cancelada') {
+    res.json({ solicitacao: serialize(solicitacao) })
+    return
+  }
+  solicitacao.status = 'cancelada'
+  await solicitacao.save()
+  res.json({ solicitacao: serialize(solicitacao) })
 })

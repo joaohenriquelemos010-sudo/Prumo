@@ -15,7 +15,7 @@ const solicitacaoSchema = new Schema(
     objetivo: { type: String, enum: ['exame', 'consulta-gestante', 'consulta-crianca'], required: true },
     modalidade: { type: String, enum: ['teleconsulta', 'presencial', 'domiciliar'], default: 'presencial' },
     mensagem: { type: String, default: '', maxlength: 500 },
-    status: { type: String, enum: ['pendente', 'confirmada'], default: 'pendente' },
+    status: { type: String, enum: ['pendente', 'confirmada', 'cancelada'], default: 'pendente' },
   },
   { timestamps: true },
 )

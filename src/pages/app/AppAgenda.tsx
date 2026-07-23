@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, Syringe, TestTube2, ArrowRight, Stethoscope } from 'lucide-react'
+import { CalendarDays, Syringe, TestTube2, ArrowRight, Stethoscope, X, MapPin, Video, Home as HomeIcon } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { usePerfil } from '@/lib/stores/perfil'
 import { DadosCrianca } from '@/features/clinico/DadosCrianca'
@@ -10,10 +10,47 @@ import { Skeleton } from '@/components/Skeleton'
 import { EmptyState } from '@/components/EmptyState'
 import { cn } from '@/lib/cn'
 
+interface Agendamento {
+  id: string
+  prestadorNome: string
+  objetivo: 'exame' | 'consulta-gestante' | 'consulta-crianca'
+  modalidade: 'teleconsulta' | 'presencial' | 'domiciliar'
+  status: 'pendente' | 'confirmada' | 'cancelada'
+  criadaEm: string
+}
+
+const OBJETIVO_LABEL: Record<Agendamento['objetivo'], string> = {
+  exame: 'Exame',
+  'consulta-gestante': 'Consulta (gestante)',
+  'consulta-crianca': 'Consulta (bebê)',
+}
+
+const MODALIDADE_ICON: Record<Agendamento['modalidade'], typeof MapPin> = {
+  presencial: MapPin,
+  teleconsulta: Video,
+  domiciliar: HomeIcon,
+}
+
+const MODALIDADE_LABEL: Record<Agendamento['modalidade'], string> = {
+  presencial: 'Presencial',
+  teleconsulta: 'Teleconsulta',
+  domiciliar: 'Em casa',
+}
+
+const STATUS_STYLE: Record<Agendamento['status'], { label: string; className: string }> = {
+  pendente: { label: 'Pendente', className: 'text-indigo bg-paper-2' },
+  confirmada: { label: 'Confirmada', className: 'text-success bg-paper-2' },
+  cancelada: { label: 'Cancelada', className: 'text-ink-mute bg-paper-2' },
+}
+
 export default function AppAgenda() {
   const perfil = usePerfil((s) => s.perfil)
   const [aplicadas, setAplicadas] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+
+  const [agendamentos, setAgendamentos] = useState<Agendamento[]>([])
+  const [carregandoAgendamentos, setCarregandoAgendamentos] = useState(true)
+  const [cancelandoId, setCancelandoId] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -26,6 +63,30 @@ export default function AppAgenda() {
       active = false
     }
   }, [])
+
+  useEffect(() => {
+    let active = true
+    api
+      .get<{ solicitacoes: Agendamento[] }>('/solicitacoes')
+      .then((d) => active && setAgendamentos(d.solicitacoes))
+      .catch(() => {})
+      .finally(() => active && setCarregandoAgendamentos(false))
+    return () => {
+      active = false
+    }
+  }, [])
+
+  async function cancelar(id: string) {
+    setCancelandoId(id)
+    try {
+      const { solicitacao } = await api.del<{ solicitacao: Agendamento }>(`/solicitacoes/${id}`)
+      setAgendamentos((atual) => atual.map((a) => (a.id === id ? solicitacao : a)))
+    } catch {
+      /* keep it in the list, unchanged — user can try again */
+    } finally {
+      setCancelandoId(null)
+    }
+  }
 
   const dataNascimentoIso = perfil?.dataNascimento ?? null
   const dob = dataNascimentoIso ? new Date(dataNascimentoIso) : null
@@ -66,7 +127,74 @@ export default function AppAgenda() {
       ) : (
         <AgendaBebe doses={proximasDoses} />
       )}
+
+      <MeusAgendamentos
+        agendamentos={agendamentos}
+        loading={carregandoAgendamentos}
+        cancelandoId={cancelandoId}
+        onCancelar={cancelar}
+      />
     </div>
+  )
+}
+
+function MeusAgendamentos({
+  agendamentos,
+  loading,
+  cancelandoId,
+  onCancelar,
+}: {
+  agendamentos: Agendamento[]
+  loading: boolean
+  cancelandoId: string | null
+  onCancelar: (id: string) => void
+}) {
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="font-display text-sm font-semibold text-indigo">Meus agendamentos</h2>
+      {loading ? (
+        <Skeleton className="h-20" />
+      ) : agendamentos.length === 0 ? (
+        <p className="rounded-xl bg-paper-2 p-md text-sm text-ink-soft">
+          Você ainda não tem nenhuma solicitação de consulta ou exame.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {agendamentos.map((a) => {
+            const ModalidadeIcon = MODALIDADE_ICON[a.modalidade]
+            const status = STATUS_STYLE[a.status]
+            const podeCancelar = a.status === 'pendente' || a.status === 'confirmada'
+            return (
+              <li key={a.id} className="flex items-center gap-3 rounded-xl border border-line bg-paper p-3 shadow-soft">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl [background-image:var(--grad-brand-soft)] text-indigo">
+                  <ModalidadeIcon className="size-5" aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-display font-semibold text-ink">{a.prestadorNome}</p>
+                  <p className="text-xs text-ink-mute">
+                    {OBJETIVO_LABEL[a.objetivo]} · {MODALIDADE_LABEL[a.modalidade]} · {formatarData(new Date(a.criadaEm))}
+                  </p>
+                </div>
+                <span className={cn('shrink-0 rounded-pill px-2.5 py-1 text-xs font-semibold', status.className)}>
+                  {status.label}
+                </span>
+                {podeCancelar && (
+                  <button
+                    type="button"
+                    onClick={() => onCancelar(a.id)}
+                    disabled={cancelandoId === a.id}
+                    aria-label="Cancelar agendamento"
+                    className="grid size-9 shrink-0 place-items-center rounded-lg text-ink-mute hover:bg-paper-2 hover:text-warn disabled:opacity-50"
+                  >
+                    <X className="size-4" aria-hidden />
+                  </button>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
   )
 }
 
