@@ -1,12 +1,12 @@
 import { Router } from 'express'
 import { isValidObjectId } from 'mongoose'
-import { requireAuth, requireRole } from '../auth'
-import { getOrCreateCrianca } from '../services/crianca'
-import { Duvida } from '../models/Duvida'
-import type { DuvidaDoc } from '../models/Duvida'
+import { requireAuth, requireRole } from '../auth.js'
+import { getOrCreateCrianca } from '../services/crianca.js'
+import { Duvida } from '../models/Duvida.js'
+import type { DuvidaDoc } from '../models/Duvida.js'
 import type { HydratedDocument } from 'mongoose'
-import { duvidaCreateSchema, duvidaUpdateSchema, respostaSchema } from '../validation'
-import { normalizeField } from '../sanitize'
+import { duvidaCreateSchema, duvidaUpdateSchema, respostaSchema } from '../validation.js'
+import { normalizeField } from '../sanitize.js'
 
 export const caderninhoRouter = Router()
 

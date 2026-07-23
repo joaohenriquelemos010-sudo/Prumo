@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import type { Request, Response, NextFunction } from 'express'
-import { env } from './env'
-import type { Papel } from './models/User'
-import type { SessionUser } from './types'
+import { env } from './env.js'
+import type { Papel } from './models/User.js'
+import type { SessionUser } from './types.js'
 
 const COOKIE_NAME = 'prumo_session'
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000

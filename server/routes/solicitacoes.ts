@@ -1,10 +1,10 @@
 import { Router } from 'express'
 import { isValidObjectId } from 'mongoose'
-import { requireAuth } from '../auth'
-import { Prestador } from '../models/Prestador'
-import { Solicitacao } from '../models/Solicitacao'
-import { solicitacaoCreateSchema } from '../validation'
-import { normalizeField } from '../sanitize'
+import { requireAuth } from '../auth.js'
+import { Prestador } from '../models/Prestador.js'
+import { Solicitacao } from '../models/Solicitacao.js'
+import { solicitacaoCreateSchema } from '../validation.js'
+import { normalizeField } from '../sanitize.js'
 
 export const solicitacoesRouter = Router()
 

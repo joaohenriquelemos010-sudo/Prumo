@@ -1,5 +1,5 @@
-import { Crianca } from '../models/Crianca'
-import type { CriancaDoc } from '../models/Crianca'
+import { Crianca } from '../models/Crianca.js'
+import type { CriancaDoc } from '../models/Crianca.js'
 import type { HydratedDocument } from 'mongoose'
 
 /** Returns the user's journey document, creating a default one if needed. */

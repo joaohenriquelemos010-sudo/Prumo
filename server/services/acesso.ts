@@ -1,11 +1,11 @@
 import { isValidObjectId } from 'mongoose'
 import type { HydratedDocument } from 'mongoose'
 import type { Request, Response } from 'express'
-import { Crianca } from '../models/Crianca'
-import type { CriancaDoc } from '../models/Crianca'
-import { Vinculo } from '../models/Vinculo'
-import { getOrCreateCrianca } from './crianca'
-import type { SessionUser } from '../types'
+import { Crianca } from '../models/Crianca.js'
+import type { CriancaDoc } from '../models/Crianca.js'
+import { Vinculo } from '../models/Vinculo.js'
+import { getOrCreateCrianca } from './crianca.js'
+import type { SessionUser } from '../types.js'
 
 /**
  * Resolves which Criança (patient journey) a request may act on.

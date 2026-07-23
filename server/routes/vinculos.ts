@@ -1,11 +1,11 @@
 import { Router } from 'express'
 import { isValidObjectId } from 'mongoose'
 import { randomBytes } from 'node:crypto'
-import { requireAuth } from '../auth'
-import { getOrCreateCrianca } from '../services/crianca'
-import { Crianca } from '../models/Crianca'
-import { Vinculo } from '../models/Vinculo'
-import { ConviteVinculo } from '../models/ConviteVinculo'
+import { requireAuth } from '../auth.js'
+import { getOrCreateCrianca } from '../services/crianca.js'
+import { Crianca } from '../models/Crianca.js'
+import { Vinculo } from '../models/Vinculo.js'
+import { ConviteVinculo } from '../models/ConviteVinculo.js'
 
 export const vinculosRouter = Router()
 

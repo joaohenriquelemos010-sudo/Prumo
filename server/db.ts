@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import { env } from './env'
+import { env } from './env.js'
 
 /**
  * Mongoose connection, cached on `globalThis`. In a serverless environment

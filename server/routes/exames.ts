@@ -1,14 +1,14 @@
 import { Router } from 'express'
 import { isValidObjectId } from 'mongoose'
 import multer from 'multer'
-import { requireAuth } from '../auth'
-import { resolveCriancaOr403 } from '../services/acesso'
-import { Exame } from '../models/Exame'
-import type { ExameDoc } from '../models/Exame'
+import { requireAuth } from '../auth.js'
+import { resolveCriancaOr403 } from '../services/acesso.js'
+import { Exame } from '../models/Exame.js'
+import type { ExameDoc } from '../models/Exame.js'
 import type { HydratedDocument } from 'mongoose'
-import { exameCreateSchema } from '../validation'
-import { normalizeField } from '../sanitize'
-import { uploadBuffer, streamToResponse, deleteFile, toObjectId } from '../storage/gridfs'
+import { exameCreateSchema } from '../validation.js'
+import { normalizeField } from '../sanitize.js'
+import { uploadBuffer, streamToResponse, deleteFile, toObjectId } from '../storage/gridfs.js'
 
 export const examesRouter = Router()
 

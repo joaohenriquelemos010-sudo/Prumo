@@ -1,7 +1,7 @@
 import { Router } from 'express'
-import { requireAuth } from '../auth'
-import { trilhaProgressSchema } from '../validation'
-import { getOrCreateCrianca } from '../services/crianca'
+import { requireAuth } from '../auth.js'
+import { trilhaProgressSchema } from '../validation.js'
+import { getOrCreateCrianca } from '../services/crianca.js'
 
 export const trilhaRouter = Router()
 

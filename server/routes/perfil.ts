@@ -1,8 +1,8 @@
 import { Router } from 'express'
-import { requireAuth } from '../auth'
-import { getOrCreateCrianca } from '../services/crianca'
-import { resolveCriancaOr403 } from '../services/acesso'
-import { perfilCriancaSchema } from '../validation'
+import { requireAuth } from '../auth.js'
+import { getOrCreateCrianca } from '../services/crianca.js'
+import { resolveCriancaOr403 } from '../services/acesso.js'
+import { perfilCriancaSchema } from '../validation.js'
 
 export const perfilRouter = Router()
 

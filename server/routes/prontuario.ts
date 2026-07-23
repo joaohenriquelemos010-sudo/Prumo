@@ -1,11 +1,11 @@
 import { Router } from 'express'
-import { requireAuth } from '../auth'
-import { resolveCriancaOr403 } from '../services/acesso'
-import { Prontuario } from '../models/Prontuario'
-import type { ProntuarioDoc } from '../models/Prontuario'
+import { requireAuth } from '../auth.js'
+import { resolveCriancaOr403 } from '../services/acesso.js'
+import { Prontuario } from '../models/Prontuario.js'
+import type { ProntuarioDoc } from '../models/Prontuario.js'
 import type { HydratedDocument, Types } from 'mongoose'
-import { prontuarioUpdateSchema, prontuarioEventoSchema } from '../validation'
-import { normalizeField } from '../sanitize'
+import { prontuarioUpdateSchema, prontuarioEventoSchema } from '../validation.js'
+import { normalizeField } from '../sanitize.js'
 
 export const prontuarioRouter = Router()
 

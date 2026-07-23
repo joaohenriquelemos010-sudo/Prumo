@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { PAPEIS } from './models/User'
-import { CATEGORIAS_EXAME } from './models/Exame'
-import { validarCPF, somenteDigitos, UFS } from './br-docs'
+import { PAPEIS } from './models/User.js'
+import { CATEGORIAS_EXAME } from './models/Exame.js'
+import { validarCPF, somenteDigitos, UFS } from './br-docs.js'
 
 /**
  * Server-side validation. The client validates too, but the server never trusts

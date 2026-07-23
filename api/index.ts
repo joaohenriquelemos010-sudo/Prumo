@@ -1,4 +1,4 @@
-import { createApp } from '../server/app'
+import { createApp } from '../server/app.js'
 
 /**
  * Vercel serverless entry. `vercel.json` rewrites /api/(.*) here; Vercel treats

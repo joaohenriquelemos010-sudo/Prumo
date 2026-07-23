@@ -1,10 +1,10 @@
 import { Router } from 'express'
-import { requireAuth } from '../auth'
-import { Prestador } from '../models/Prestador'
-import type { PrestadorDoc } from '../models/Prestador'
+import { requireAuth } from '../auth.js'
+import { Prestador } from '../models/Prestador.js'
+import type { PrestadorDoc } from '../models/Prestador.js'
 import type { HydratedDocument } from 'mongoose'
-import { ensurePrestadoresSeed } from '../seed/prestadores'
-import { distanciaKm } from '../geo'
+import { ensurePrestadoresSeed } from '../seed/prestadores.js'
+import { distanciaKm } from '../geo.js'
 
 export const prestadoresRouter = Router()
 

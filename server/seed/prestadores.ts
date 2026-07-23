@@ -1,4 +1,4 @@
-import { Prestador } from '../models/Prestador'
+import { Prestador } from '../models/Prestador.js'
 
 /**
  * Seed marketplace listings. Illustrative data for the prototype — exam brands

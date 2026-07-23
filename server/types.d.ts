@@ -1,4 +1,4 @@
-import type { Papel } from './models/User'
+import type { Papel } from './models/User.js'
 
 /** The authenticated session payload attached by requireAuth. */
 export interface SessionUser {

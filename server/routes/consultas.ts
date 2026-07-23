@@ -1,12 +1,12 @@
 import { Router } from 'express'
 import { isValidObjectId } from 'mongoose'
-import { requireAuth, requireRole } from '../auth'
-import { resolveCriancaOr403 } from '../services/acesso'
-import { Consulta } from '../models/Consulta'
-import type { ConsultaDoc } from '../models/Consulta'
+import { requireAuth, requireRole } from '../auth.js'
+import { resolveCriancaOr403 } from '../services/acesso.js'
+import { Consulta } from '../models/Consulta.js'
+import type { ConsultaDoc } from '../models/Consulta.js'
 import type { HydratedDocument } from 'mongoose'
-import { consultaCreateSchema } from '../validation'
-import { normalizeField } from '../sanitize'
+import { consultaCreateSchema } from '../validation.js'
+import { normalizeField } from '../sanitize.js'
 
 export const consultasRouter = Router()
 

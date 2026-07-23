@@ -1,7 +1,7 @@
 import { Router } from 'express'
-import { requireAuth } from '../auth'
-import { resolveCriancaOr403 } from '../services/acesso'
-import { vacinaToggleSchema } from '../validation'
+import { requireAuth } from '../auth.js'
+import { resolveCriancaOr403 } from '../services/acesso.js'
+import { vacinaToggleSchema } from '../validation.js'
 
 export const vacinasRouter = Router()
 
