@@ -41,6 +41,10 @@ interface AuthStore {
   register: (input: RegisterInput) => Promise<Result>
   login: (email: string, senha: string) => Promise<Result>
   logout: () => Promise<void>
+  /** Downloads a JSON file with everything Prumo holds for this account. */
+  exportarDados: () => Promise<Result>
+  /** Permanently deletes the account and all its data. Irreversible. */
+  excluirConta: () => Promise<Result>
 }
 
 function friendly(error: unknown): string {
@@ -92,5 +96,35 @@ export const useAuth = create<AuthStore>((set, get) => ({
       /* even if the network call fails, drop the local session */
     }
     set({ user: null, status: 'guest' })
+  },
+
+  exportarDados: async () => {
+    try {
+      const dados = await api.get<Record<string, unknown>>('/auth/exportar')
+      const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'prumo-meus-dados.json'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      emitAuditEvent('privacy.data_export_requested')
+      return { ok: true }
+    } catch (error) {
+      return { ok: false, error: friendly(error) }
+    }
+  },
+
+  excluirConta: async () => {
+    try {
+      await api.del('/auth/me')
+      emitAuditEvent('privacy.account_deletion_requested')
+      set({ user: null, status: 'guest' })
+      return { ok: true }
+    } catch (error) {
+      return { ok: false, error: friendly(error) }
+    }
   },
 }))

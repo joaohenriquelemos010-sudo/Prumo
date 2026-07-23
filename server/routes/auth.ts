@@ -5,9 +5,13 @@ import { Prontuario } from '../models/Prontuario.js'
 import { Duvida } from '../models/Duvida.js'
 import { Consulta } from '../models/Consulta.js'
 import { Exame } from '../models/Exame.js'
+import { Vinculo } from '../models/Vinculo.js'
+import { ConviteVinculo } from '../models/ConviteVinculo.js'
+import { Solicitacao } from '../models/Solicitacao.js'
 import { registerSchema, loginSchema, esqueciSenhaSchema } from '../validation.js'
 import { hashPassword, verifyPassword, issueSession, clearSession, requireAuth } from '../auth.js'
 import { rateLimit } from '../rate-limit.js'
+import { deleteFile, toObjectId } from '../storage/gridfs.js'
 import { env } from '../env.js'
 import type { SessionUser } from '../types.js'
 
@@ -172,4 +176,96 @@ authRouter.get('/me', requireAuth, async (req, res) => {
       verificacaoStatus: user.verificacaoStatus,
     },
   })
+})
+
+// GET /api/auth/exportar — a full, human-readable copy of everything Prumo
+// holds for this account (LGPD data portability). No CPF, no other patients'
+// data — only what this account owns or is directly connected to.
+authRouter.get('/exportar', requireAuth, async (req, res) => {
+  const userId = req.user!.id
+  const user = await User.findById(userId).lean()
+  if (!user) {
+    clearSession(res)
+    res.status(401).json({ error: 'Conta não encontrada.' })
+    return
+  }
+
+  const criancas = await Crianca.find({ responsavel: userId }).lean()
+  const criancaIds = criancas.map((c) => c._id)
+
+  const [prontuarios, consultas, exames, duvidas, vinculos, convites, solicitacoes] = await Promise.all([
+    Prontuario.find({ crianca: { $in: criancaIds } }).lean(),
+    Consulta.find({ crianca: { $in: criancaIds } }).sort({ data: 1 }).lean(),
+    Exame.find({ crianca: { $in: criancaIds } }).sort({ dataExame: 1 }).lean(),
+    Duvida.find({ crianca: { $in: criancaIds } }).sort({ createdAt: 1 }).lean(),
+    Vinculo.find({ $or: [{ pacienteId: userId }, { medicoId: userId }] }).lean(),
+    ConviteVinculo.find({ $or: [{ criadorId: userId }, { medicoId: userId }] }).lean(),
+    Solicitacao.find({ usuario: userId }).sort({ createdAt: 1 }).lean(),
+  ])
+
+  res.setHeader('Content-Disposition', 'attachment; filename="prumo-meus-dados.json"')
+  res.json({
+    exportadoEm: new Date().toISOString(),
+    conta: {
+      nome: user.nome,
+      email: user.email,
+      papel: user.papel,
+      crm: user.crm || undefined,
+      crmUf: user.crmUf || undefined,
+      verificacaoStatus: user.verificacaoStatus,
+      criadaEm: user.createdAt,
+    },
+    jornadas: criancas.map((c) => ({
+      nome: c.nome,
+      momento: c.momento,
+      dpp: c.dpp,
+      dataNascimento: c.dataNascimento,
+      etapasConcluidas: c.etapasConcluidas,
+      vacinasAplicadas: c.vacinasAplicadas,
+      prontuario: prontuarios.find((p) => String(p.crianca) === String(c._id)) ?? null,
+      consultas: consultas.filter((x) => String(x.crianca) === String(c._id)),
+      exames: exames
+        .filter((x) => String(x.crianca) === String(c._id))
+        .map(({ arquivoId: _arquivoId, ...meta }) => meta),
+      duvidas: duvidas.filter((x) => String(x.crianca) === String(c._id)),
+    })),
+    vinculos,
+    convitesEnviados: convites,
+    solicitacoes,
+  })
+})
+
+// DELETE /api/auth/me — permanently deletes the account and every record tied
+// to it (LGPD right to erasure): journeys, clinical records, uploaded exam
+// files, connections and invites. Irreversible.
+authRouter.delete('/me', requireAuth, async (req, res) => {
+  const userId = req.user!.id
+
+  const criancas = await Crianca.find({ responsavel: userId }).select('_id').lean()
+  const criancaIds = criancas.map((c) => c._id)
+
+  const exames = await Exame.find({ crianca: { $in: criancaIds }, arquivoId: { $ne: null } })
+    .select('arquivoId')
+    .lean()
+  await Promise.all(
+    exames.map((e) => {
+      const fileId = toObjectId(e.arquivoId)
+      return fileId ? deleteFile(fileId) : Promise.resolve()
+    }),
+  )
+
+  await Promise.all([
+    Prontuario.deleteMany({ crianca: { $in: criancaIds } }),
+    Consulta.deleteMany({ crianca: { $in: criancaIds } }),
+    Exame.deleteMany({ crianca: { $in: criancaIds } }),
+    Duvida.deleteMany({ crianca: { $in: criancaIds } }),
+    Vinculo.deleteMany({ $or: [{ crianca: { $in: criancaIds } }, { pacienteId: userId }, { medicoId: userId }] }),
+    ConviteVinculo.deleteMany({ $or: [{ crianca: { $in: criancaIds } }, { criadorId: userId }, { medicoId: userId }] }),
+    Solicitacao.deleteMany({ usuario: userId }),
+  ])
+  await Crianca.deleteMany({ responsavel: userId })
+  await User.deleteOne({ _id: userId })
+
+  clearSession(res)
+  res.status(204).end()
 })
