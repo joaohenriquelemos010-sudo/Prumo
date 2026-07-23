@@ -255,6 +255,195 @@ export function TrilhaDocument({ nodes, progresso, nome }: { nodes: TrilhaNodePD
   )
 }
 
+/* ------------------------------ Meus dados ------------------------------ */
+
+/** Mirrors the shape returned by GET /api/auth/exportar. */
+export interface MeusDadosExport {
+  exportadoEm: string
+  conta: {
+    nome: string
+    email: string
+    papel: string
+    crm?: string
+    crmUf?: string
+    verificacaoStatus?: string
+    criadaEm?: string
+  }
+  jornadas: {
+    nome?: string
+    momento: string
+    dpp?: string | null
+    dataNascimento?: string | null
+    etapasConcluidas: string[]
+    vacinasAplicadas: string[]
+    prontuario: {
+      tipoSanguineo?: string
+      alergias?: string
+      resumoGestacional?: string
+      condicoes?: string[]
+      eventos?: { _id: string; data: string; autorNome?: string; texto: string }[]
+    } | null
+    consultas: {
+      _id: string
+      data: string
+      tipo: string
+      subjetivo?: string
+      objetivo?: string
+      avaliacao?: string
+      plano?: string
+    }[]
+    exames: {
+      _id: string
+      nome: string
+      categoria: string
+      dataExame: string
+      observacoes?: string
+      arquivoNome?: string
+    }[]
+    duvidas: {
+      _id: string
+      texto: string
+      createdAt: string
+      respondida: boolean
+      respostaTexto?: string
+      respondidaPor?: string
+    }[]
+  }[]
+  vinculos: { pacienteNome?: string; medicoNome?: string; medicoId: string; pacienteId: string }[]
+  convitesEnviados: { criadorPapel: string; expiraEm: string; usado: boolean }[]
+  solicitacoes: { prestadorNome?: string; objetivo: string; modalidade: string; status: string; createdAt: string }[]
+}
+
+const PAPEL_LABEL: Record<string, string> = { gestante: 'Gestante', mae: 'Mãe ou pai', medico: 'Médico(a)' }
+
+function data(valor?: string | null): string {
+  return valor ? new Date(valor).toLocaleDateString('pt-BR') : '—'
+}
+
+export function MeusDadosDocument({ dados }: { dados: MeusDadosExport }) {
+  return (
+    <Document title="Meus dados — Prumo" author="Prumo">
+      <Shell titulo="Meus dados" sub={`Exportado em ${new Date(dados.exportadoEm).toLocaleString('pt-BR')}`}>
+        <Text style={s.section}>Conta</Text>
+        <View style={s.card}>
+          {campo('Nome', dados.conta.nome)}
+          {campo('E-mail', dados.conta.email)}
+          {campo('Perfil', PAPEL_LABEL[dados.conta.papel] ?? dados.conta.papel)}
+          {dados.conta.papel === 'medico' && campo('CRM', `${dados.conta.crm ?? '—'}${dados.conta.crmUf ? `/${dados.conta.crmUf}` : ''}`)}
+          {campo('Conta criada em', data(dados.conta.criadaEm))}
+        </View>
+
+        {dados.jornadas.map((j, i) => (
+          <View key={i}>
+            <Text style={s.section}>{j.nome || 'Sua jornada'}</Text>
+            <View style={s.card}>
+              {campo('Momento', j.momento)}
+              {j.dpp && campo('Data provável do parto', data(j.dpp))}
+              {j.dataNascimento && campo('Data de nascimento', data(j.dataNascimento))}
+              {campo('Etapas concluídas na trilha', String(j.etapasConcluidas.length))}
+              {campo('Doses de vacina aplicadas', String(j.vacinasAplicadas.length))}
+            </View>
+
+            {j.prontuario && (
+              <View wrap={false}>
+                <Text style={{ ...s.cardTitle, marginTop: 8, marginBottom: 4 }}>Prontuário</Text>
+                <View style={s.card}>
+                  {campo('Tipo sanguíneo', j.prontuario.tipoSanguineo ?? '')}
+                  {campo('Alergias', j.prontuario.alergias ?? '')}
+                  {campo('Resumo gestacional', j.prontuario.resumoGestacional ?? '')}
+                  {(j.prontuario.condicoes?.length ?? 0) > 0 && campo('Condições', j.prontuario.condicoes!.join(' · '))}
+                </View>
+              </View>
+            )}
+            {(j.prontuario?.eventos?.length ?? 0) > 0 && (
+              <View>
+                <Text style={{ ...s.cardTitle, marginTop: 4, marginBottom: 4 }}>Eventos do prontuário</Text>
+                {j.prontuario!.eventos!.map((e) => (
+                  <View key={e._id} style={s.card} wrap={false}>
+                    <Text>{e.texto}</Text>
+                    <Text style={s.small}>
+                      {data(e.data)}
+                      {e.autorNome ? ` · ${e.autorNome}` : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {j.consultas.length > 0 && (
+              <View>
+                <Text style={{ ...s.cardTitle, marginTop: 4, marginBottom: 4 }}>Consultas</Text>
+                {j.consultas.map((c) => (
+                  <View key={c._id} style={s.card} wrap={false}>
+                    <Text style={s.small}>
+                      {data(c.data)} · {c.tipo}
+                    </Text>
+                    {c.subjetivo && <Text>S: {c.subjetivo}</Text>}
+                    {c.objetivo && <Text>O: {c.objetivo}</Text>}
+                    {c.avaliacao && <Text>A: {c.avaliacao}</Text>}
+                    {c.plano && <Text>P: {c.plano}</Text>}
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {j.exames.length > 0 && (
+              <View>
+                <Text style={{ ...s.cardTitle, marginTop: 4, marginBottom: 4 }}>Exames</Text>
+                {j.exames.map((e) => (
+                  <View key={e._id} style={s.row}>
+                    <Text style={{ flex: 1 }}>
+                      {e.nome} · {e.categoria}
+                    </Text>
+                    <Text style={s.small}>{data(e.dataExame)}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {j.duvidas.length > 0 && (
+              <View>
+                <Text style={{ ...s.cardTitle, marginTop: 4, marginBottom: 4 }}>Dúvidas</Text>
+                {j.duvidas.map((d) => (
+                  <View key={d._id} style={s.card} wrap={false}>
+                    <Text>• {d.texto}</Text>
+                    {d.respondida && <Text style={s.small}>Resposta: {d.respostaTexto}</Text>}
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        ))}
+
+        {dados.vinculos.length > 0 && (
+          <View>
+            <Text style={s.section}>Conexões (vínculos)</Text>
+            {dados.vinculos.map((v, i) => (
+              <View key={i} style={s.row}>
+                <Text>{v.medicoNome || v.pacienteNome}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {dados.solicitacoes.length > 0 && (
+          <View>
+            <Text style={s.section}>Solicitações de agendamento</Text>
+            {dados.solicitacoes.map((sol, i) => (
+              <View key={i} style={s.row}>
+                <Text style={{ flex: 1 }}>
+                  {sol.prestadorNome} · {sol.objetivo}
+                </Text>
+                <Text style={s.small}>{sol.status}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </Shell>
+    </Document>
+  )
+}
+
 /* ----------------------------- Download button ----------------------------- */
 
 /** Shared styled download link. Renders as a soft outline button. */

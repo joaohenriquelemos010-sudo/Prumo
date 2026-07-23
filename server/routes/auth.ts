@@ -203,7 +203,6 @@ authRouter.get('/exportar', requireAuth, async (req, res) => {
     Solicitacao.find({ usuario: userId }).sort({ createdAt: 1 }).lean(),
   ])
 
-  res.setHeader('Content-Disposition', 'attachment; filename="prumo-meus-dados.json"')
   res.json({
     exportadoEm: new Date().toISOString(),
     conta: {

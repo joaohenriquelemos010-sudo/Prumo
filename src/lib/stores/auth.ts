@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { api, ApiError } from '@/lib/api/client'
 import { emitAuditEvent } from '@/lib/audit'
+import { gerarMeusDadosPdfBlob } from '@/features/pdf/meusDados'
+import type { MeusDadosExport } from '@/features/pdf/documents'
 
 export type Papel = 'gestante' | 'mae' | 'medico'
 export type VerificacaoStatus = 'nao_aplicavel' | 'pendente' | 'verificado'
@@ -41,7 +43,7 @@ interface AuthStore {
   register: (input: RegisterInput) => Promise<Result>
   login: (email: string, senha: string) => Promise<Result>
   logout: () => Promise<void>
-  /** Downloads a JSON file with everything Prumo holds for this account. */
+  /** Downloads a PDF with everything Prumo holds for this account. */
   exportarDados: () => Promise<Result>
   /** Permanently deletes the account and all its data. Irreversible. */
   excluirConta: () => Promise<Result>
@@ -100,12 +102,12 @@ export const useAuth = create<AuthStore>((set, get) => ({
 
   exportarDados: async () => {
     try {
-      const dados = await api.get<Record<string, unknown>>('/auth/exportar')
-      const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' })
+      const dados = await api.get<MeusDadosExport>('/auth/exportar')
+      const blob = await gerarMeusDadosPdfBlob(dados)
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = 'prumo-meus-dados.json'
+      link.download = 'prumo-meus-dados.pdf'
       document.body.appendChild(link)
       link.click()
       link.remove()
