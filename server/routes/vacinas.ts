@@ -1,13 +1,14 @@
 import { Router } from 'express'
 import { requireAuth } from '../auth'
-import { getOrCreateCrianca } from '../services/crianca'
+import { resolveCriancaOr403 } from '../services/acesso'
 import { vacinaToggleSchema } from '../validation'
 
 export const vacinasRouter = Router()
 
 // GET /api/vacinas — which doses are marked as applied.
 vacinasRouter.get('/', requireAuth, async (req, res) => {
-  const crianca = await getOrCreateCrianca(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
   res.json({ vacinasAplicadas: crianca.vacinasAplicadas })
 })
 
@@ -19,7 +20,8 @@ vacinasRouter.post('/', requireAuth, async (req, res) => {
     return
   }
   const { vacinaId, aplicada } = parsed.data
-  const crianca = await getOrCreateCrianca(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
 
   const set = new Set(crianca.vacinasAplicadas)
   if (aplicada) set.add(vacinaId)

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { PAPEIS } from './models/User'
 import { CATEGORIAS_EXAME } from './models/Exame'
-import { validarCPF, validarCRM, somenteDigitos, UFS } from './br-docs'
+import { validarCPF, somenteDigitos, UFS } from './br-docs'
 
 /**
  * Server-side validation. The client validates too, but the server never trusts
@@ -29,11 +29,10 @@ export const registerSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.papel !== 'medico') return
+    // CPF is validated (real check digits) + name required; CRM is optional and
+    // stored as-is for now (no official verification yet).
     if (!data.cpf || !validarCPF(data.cpf)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['cpf'], message: 'CPF inválido. Confere os números?' })
-    }
-    if (!data.crm || !data.crmUf || !validarCRM(data.crm, data.crmUf)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['crm'], message: 'Informe um CRM válido (número + UF).' })
     }
   })
   .transform((data) => ({

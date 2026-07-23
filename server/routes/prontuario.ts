@@ -1,19 +1,18 @@
 import { Router } from 'express'
 import { requireAuth } from '../auth'
-import { getOrCreateCrianca } from '../services/crianca'
+import { resolveCriancaOr403 } from '../services/acesso'
 import { Prontuario } from '../models/Prontuario'
 import type { ProntuarioDoc } from '../models/Prontuario'
-import type { HydratedDocument } from 'mongoose'
+import type { HydratedDocument, Types } from 'mongoose'
 import { prontuarioUpdateSchema, prontuarioEventoSchema } from '../validation'
 import { normalizeField } from '../sanitize'
 
 export const prontuarioRouter = Router()
 
-async function getOrCreateProntuario(userId: string): Promise<HydratedDocument<ProntuarioDoc>> {
-  const crianca = await getOrCreateCrianca(userId)
-  const existing = await Prontuario.findOne({ crianca: crianca._id })
+async function getOrCreateProntuario(criancaId: Types.ObjectId): Promise<HydratedDocument<ProntuarioDoc>> {
+  const existing = await Prontuario.findOne({ crianca: criancaId })
   if (existing) return existing
-  return Prontuario.create({ crianca: crianca._id })
+  return Prontuario.create({ crianca: criancaId })
 }
 
 function serialize(p: HydratedDocument<ProntuarioDoc>) {
@@ -37,7 +36,9 @@ function serialize(p: HydratedDocument<ProntuarioDoc>) {
 
 // GET /api/prontuario
 prontuarioRouter.get('/', requireAuth, async (req, res) => {
-  const prontuario = await getOrCreateProntuario(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
+  const prontuario = await getOrCreateProntuario(crianca._id)
   res.json({ prontuario: serialize(prontuario) })
 })
 
@@ -48,7 +49,9 @@ prontuarioRouter.put('/', requireAuth, async (req, res) => {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Confere os dados, por favor.' })
     return
   }
-  const prontuario = await getOrCreateProntuario(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
+  const prontuario = await getOrCreateProntuario(crianca._id)
   const { tipoSanguineo, alergias, resumoGestacional, condicoes } = parsed.data
   if (tipoSanguineo !== undefined) prontuario.tipoSanguineo = normalizeField(tipoSanguineo, 8)
   if (alergias !== undefined) prontuario.alergias = normalizeField(alergias, 500)
@@ -65,7 +68,9 @@ prontuarioRouter.post('/evento', requireAuth, async (req, res) => {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Escreva a anotação.' })
     return
   }
-  const prontuario = await getOrCreateProntuario(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
+  const prontuario = await getOrCreateProntuario(crianca._id)
   prontuario.eventos.push({
     data: new Date(),
     autorId: req.user!.id,
@@ -84,7 +89,9 @@ prontuarioRouter.put('/evento/:id', requireAuth, async (req, res) => {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Escreva a anotação.' })
     return
   }
-  const prontuario = await getOrCreateProntuario(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
+  const prontuario = await getOrCreateProntuario(crianca._id)
   const evento = prontuario.eventos.find((e) => String(e._id) === req.params.id)
   if (!evento) {
     res.status(404).json({ error: 'Não encontramos essa anotação.' })
@@ -101,7 +108,9 @@ prontuarioRouter.put('/evento/:id', requireAuth, async (req, res) => {
 
 // DELETE /api/prontuario/evento/:id — remove an annotation (author only).
 prontuarioRouter.delete('/evento/:id', requireAuth, async (req, res) => {
-  const prontuario = await getOrCreateProntuario(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
+  const prontuario = await getOrCreateProntuario(crianca._id)
   const evento = prontuario.eventos.find((e) => String(e._id) === req.params.id)
   if (!evento) {
     res.status(404).json({ error: 'Não encontramos essa anotação.' })

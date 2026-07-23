@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { isValidObjectId } from 'mongoose'
 import { requireAuth, requireRole } from '../auth'
-import { getOrCreateCrianca } from '../services/crianca'
+import { resolveCriancaOr403 } from '../services/acesso'
 import { Consulta } from '../models/Consulta'
 import type { ConsultaDoc } from '../models/Consulta'
 import type { HydratedDocument } from 'mongoose'
@@ -37,7 +37,8 @@ function serialize(c: HydratedDocument<ConsultaDoc>) {
 
 // GET /api/consultas — the current patient's consultations, newest first.
 consultasRouter.get('/', requireAuth, async (req, res) => {
-  const crianca = await getOrCreateCrianca(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
   const consultas = await Consulta.find({ crianca: crianca._id }).sort({ data: -1 })
   res.json({ consultas: consultas.map(serialize) })
 })
@@ -49,7 +50,8 @@ consultasRouter.post('/', requireAuth, requireRole('medico'), async (req, res) =
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Confere os dados.' })
     return
   }
-  const crianca = await getOrCreateCrianca(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
   const d = parsed.data
   const consulta = await Consulta.create({
     crianca: crianca._id,

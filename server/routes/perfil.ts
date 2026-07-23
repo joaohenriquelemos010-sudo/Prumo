@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../auth'
 import { getOrCreateCrianca } from '../services/crianca'
+import { resolveCriancaOr403 } from '../services/acesso'
 import { perfilCriancaSchema } from '../validation'
 
 export const perfilRouter = Router()
@@ -15,8 +16,10 @@ function serialize(c: Awaited<ReturnType<typeof getOrCreateCrianca>>) {
 }
 
 // GET /api/perfil — the journey profile (dates that drive the SUS schedule).
+// A linked doctor may read a connected patient's profile via ?crianca=<id>.
 perfilRouter.get('/', requireAuth, async (req, res) => {
-  const crianca = await getOrCreateCrianca(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
   res.json({ perfil: serialize(crianca) })
 })
 

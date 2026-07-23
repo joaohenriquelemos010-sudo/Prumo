@@ -12,6 +12,7 @@ const Seguranca = lazy(() => import('@/pages/Seguranca'))
 const Onboarding = lazy(() => import('@/pages/Onboarding'))
 const Entrar = lazy(() => import('@/pages/Entrar'))
 const EsqueciSenha = lazy(() => import('@/pages/EsqueciSenha'))
+const Vincular = lazy(() => import('@/pages/Vincular'))
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
@@ -26,6 +27,7 @@ const AppCaderninho = lazy(() => import('@/pages/app/AppCaderninho'))
 const AppExames = lazy(() => import('@/pages/app/AppExames'))
 const AppConsultas = lazy(() => import('@/pages/app/AppConsultas'))
 const AppProfissionais = lazy(() => import('@/pages/app/AppProfissionais'))
+const AppCompartilhar = lazy(() => import('@/pages/app/AppCompartilhar'))
 
 export const router = createBrowserRouter(
   [
@@ -40,6 +42,7 @@ export const router = createBrowserRouter(
         { path: '/onboarding', element: <Onboarding /> },
         { path: '/entrar', element: <Entrar /> },
         { path: '/esqueci-senha', element: <EsqueciSenha /> },
+        { path: '/vincular/:token', element: <Vincular /> },
         { path: '/painel', element: <Dashboard /> },
         { path: '*', element: <NotFound /> },
       ],
@@ -57,6 +60,7 @@ export const router = createBrowserRouter(
         { path: 'exames', element: <AppExames /> },
         { path: 'consultas', element: <AppConsultas /> },
         { path: 'profissionais', element: <AppProfissionais /> },
+        { path: 'compartilhar', element: <AppCompartilhar /> },
         { path: 'perfil', element: <AppPerfil /> },
       ],
     },

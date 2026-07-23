@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Stethoscope, Plus, ArrowLeft, ArrowRight, Check, Trash2, ClipboardList } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { useAuth } from '@/lib/stores/auth'
+import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
+import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
 import { Button } from '@/components/Button'
 import { EmptyState } from '@/components/EmptyState'
 import { Skeleton } from '@/components/Skeleton'
@@ -32,21 +34,23 @@ const slide = {
 export default function AppConsultas() {
   const papel = useAuth((s) => s.user?.papel)
   const isMedico = papel === 'medico'
+  const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
   const [consultas, setConsultas] = useState<Consulta[]>([])
   const [loading, setLoading] = useState(true)
   const [criando, setCriando] = useState(false)
 
   useEffect(() => {
     let active = true
+    setLoading(true)
     api
-      .get<{ consultas: Consulta[] }>('/consultas')
+      .get<{ consultas: Consulta[] }>(`/consultas${criancaQuery(criancaAtiva)}`)
       .then((d) => active && setConsultas(d.consultas))
       .catch(() => {})
       .finally(() => active && setLoading(false))
     return () => {
       active = false
     }
-  }, [])
+  }, [criancaAtiva])
 
   return (
     <div className="flex flex-col gap-lg">
@@ -66,6 +70,8 @@ export default function AppConsultas() {
           </Button>
         )}
       </header>
+
+      <SeletorPaciente />
 
       {criando && isMedico && (
         <NovaConsulta
@@ -115,6 +121,7 @@ const STEPS = [
 ] as const
 
 function NovaConsulta({ onCancel, onSaved }: { onCancel: () => void; onSaved: (c: Consulta) => void }) {
+  const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
   const [step, setStep] = useState(0)
   const [tipo, setTipo] = useState<'pre-natal' | 'pediatrica'>('pediatrica')
   const [campos, setCampos] = useState({ subjetivo: '', objetivo: '', avaliacao: '', plano: '' })
@@ -129,7 +136,7 @@ function NovaConsulta({ onCancel, onSaved }: { onCancel: () => void; onSaved: (c
     setErro(null)
     setSaving(true)
     try {
-      const { consulta } = await api.post<{ consulta: Consulta }>('/consultas', { tipo, ...campos, ...vitais })
+      const { consulta } = await api.post<{ consulta: Consulta }>(`/consultas${criancaQuery(criancaAtiva)}`, { tipo, ...campos, ...vitais })
       onSaved(consulta)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não consegui salvar a consulta.')

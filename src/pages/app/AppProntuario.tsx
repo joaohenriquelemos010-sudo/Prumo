@@ -2,6 +2,8 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { Activity, FileHeart, Plus, Baby, Save, Pencil, Trash2, X, Check } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { useAuth } from '@/lib/stores/auth'
+import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
+import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
 
 const BaixarProntuario = lazy(() =>
   import('@/features/pdf/documents').then((m) => ({ default: m.BaixarProntuario })),
@@ -31,21 +33,23 @@ interface Prontuario {
 export default function AppProntuario() {
   const papel = useAuth((s) => s.user?.papel)
   const nome = useAuth((s) => s.user?.nome)
+  const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
   const podeEditar = papel === 'medico'
   const [prontuario, setProntuario] = useState<Prontuario | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
+    setLoading(true)
     api
-      .get<{ prontuario: Prontuario }>('/prontuario')
+      .get<{ prontuario: Prontuario }>(`/prontuario${criancaQuery(criancaAtiva)}`)
       .then((d) => active && setProntuario(d.prontuario))
       .catch(() => {})
       .finally(() => active && setLoading(false))
     return () => {
       active = false
     }
-  }, [])
+  }, [criancaAtiva])
 
   return (
     <div className="flex flex-col gap-lg">
@@ -56,6 +60,8 @@ export default function AppProntuario() {
           Da gestação à pediatria, sem se perder. {podeEditar ? 'Você pode editar o resumo e registrar anotações.' : 'Você pode acompanhar e adicionar anotações.'}
         </p>
       </header>
+
+      <SeletorPaciente />
 
       {loading || !prontuario ? (
         <div className="flex flex-col gap-2">
@@ -85,6 +91,7 @@ function ResumoClinico({
   podeEditar: boolean
   onSaved: (p: Prontuario) => void
 }) {
+  const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
   const [editing, setEditing] = useState(false)
   const [tipoSanguineo, setTipo] = useState(prontuario.tipoSanguineo)
   const [alergias, setAlergias] = useState(prontuario.alergias)
@@ -94,7 +101,7 @@ function ResumoClinico({
   async function salvar() {
     setSaving(true)
     try {
-      const { prontuario: novo } = await api.put<{ prontuario: Prontuario }>('/prontuario', {
+      const { prontuario: novo } = await api.put<{ prontuario: Prontuario }>(`/prontuario${criancaQuery(criancaAtiva)}`, {
         tipoSanguineo,
         alergias,
         resumoGestacional: resumo,
@@ -187,6 +194,7 @@ function Campo({ termo, valor }: { termo: string; valor: string }) {
 
 function Eventos({ prontuario, onChange }: { prontuario: Prontuario; onChange: (p: Prontuario) => void }) {
   const userId = useAuth((s) => s.user?.id)
+  const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
   const [texto, setTexto] = useState('')
   const [saving, setSaving] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -201,7 +209,7 @@ function Eventos({ prontuario, onChange }: { prontuario: Prontuario; onChange: (
     }
     setSaving(true)
     try {
-      const { prontuario: novo } = await api.post<{ prontuario: Prontuario }>('/prontuario/evento', { texto })
+      const { prontuario: novo } = await api.post<{ prontuario: Prontuario }>(`/prontuario/evento${criancaQuery(criancaAtiva)}`, { texto })
       onChange(novo)
       setTexto('')
     } catch {
@@ -214,7 +222,7 @@ function Eventos({ prontuario, onChange }: { prontuario: Prontuario; onChange: (
   async function salvarEdicao(id: string) {
     if (editTexto.trim().length < 2) return
     try {
-      const { prontuario: novo } = await api.put<{ prontuario: Prontuario }>(`/prontuario/evento/${id}`, {
+      const { prontuario: novo } = await api.put<{ prontuario: Prontuario }>(`/prontuario/evento/${id}${criancaQuery(criancaAtiva)}`, {
         texto: editTexto,
       })
       onChange(novo)
@@ -226,7 +234,7 @@ function Eventos({ prontuario, onChange }: { prontuario: Prontuario; onChange: (
 
   async function remover(id: string) {
     try {
-      const { prontuario: novo } = await api.del<{ prontuario: Prontuario }>(`/prontuario/evento/${id}`)
+      const { prontuario: novo } = await api.del<{ prontuario: Prontuario }>(`/prontuario/evento/${id}${criancaQuery(criancaAtiva)}`)
       onChange(novo)
     } catch {
       /* ignore — the item stays */

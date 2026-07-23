@@ -6,6 +6,9 @@ const BaixarVacinacao = lazy(() =>
   import('@/features/pdf/documents').then((m) => ({ default: m.BaixarVacinacao })),
 )
 import { usePerfil } from '@/lib/stores/perfil'
+import type { Perfil } from '@/lib/stores/perfil'
+import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
+import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
 import { DadosCrianca } from '@/features/clinico/DadosCrianca'
 import {
   VACINAS_GESTANTE,
@@ -25,21 +28,34 @@ const STATUS_META: Record<DoseStatus, { label: string; className: string; icon: 
 }
 
 export default function AppVacinas() {
-  const perfil = usePerfil((s) => s.perfil)
+  const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
+  const perfilProprio = usePerfil((s) => s.perfil)
+  // When a doctor views a connected patient, the birth date comes from THAT
+  // patient's profile; otherwise it's the user's own (from the shared store).
+  const [perfilPaciente, setPerfilPaciente] = useState<Perfil | null>(null)
+  const perfil = criancaAtiva ? perfilPaciente : perfilProprio
   const [aplicadas, setAplicadas] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
-    api
-      .get<{ vacinasAplicadas: string[] }>('/vacinas')
-      .then((d) => active && setAplicadas(d.vacinasAplicadas))
+    setLoading(true)
+    const q = criancaQuery(criancaAtiva)
+    Promise.all([
+      api.get<{ vacinasAplicadas: string[] }>(`/vacinas${q}`),
+      criancaAtiva ? api.get<{ perfil: Perfil }>(`/perfil${q}`) : Promise.resolve(null),
+    ])
+      .then(([vac, per]) => {
+        if (!active) return
+        setAplicadas(vac.vacinasAplicadas)
+        if (per) setPerfilPaciente(per.perfil)
+      })
       .catch(() => {})
       .finally(() => active && setLoading(false))
     return () => {
       active = false
     }
-  }, [])
+  }, [criancaAtiva])
 
   const dataNascimentoIso = perfil?.dataNascimento ?? null
   const dob = dataNascimentoIso ? new Date(dataNascimentoIso) : null
@@ -65,7 +81,7 @@ export default function AppVacinas() {
     // Optimistic
     setAplicadas((prev) => (aplicada ? [...new Set([...prev, vacinaId])] : prev.filter((v) => v !== vacinaId)))
     try {
-      await api.post('/vacinas', { vacinaId, aplicada })
+      await api.post(`/vacinas${criancaQuery(criancaAtiva)}`, { vacinaId, aplicada })
     } catch {
       // revert on failure
       setAplicadas((prev) => (aplicada ? prev.filter((v) => v !== vacinaId) : [...prev, vacinaId]))
@@ -83,7 +99,9 @@ export default function AppVacinas() {
         </p>
       </header>
 
-      <DadosCrianca />
+      <SeletorPaciente />
+
+      {!criancaAtiva && <DadosCrianca />}
 
       {loading ? (
         <div className="flex flex-col gap-2">

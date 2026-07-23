@@ -10,7 +10,7 @@ import { Button } from '@/components/Button'
 import { Blob } from '@/components/Blob'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { normalizeField } from '@/lib/sanitize'
-import { validarCPF, validarCRM, formatarCPF, UFS } from '@/lib/br-docs'
+import { validarCPF, formatarCPF, UFS } from '@/lib/br-docs'
 import { cn } from '@/lib/cn'
 
 const slide = {
@@ -85,10 +85,7 @@ export default function OnboardingPage() {
         setErro('CPF inválido. Confere os números?')
         return
       }
-      if (!validarCRM(crm, crmUf)) {
-        setErro('Informe um CRM válido (número) e a UF.')
-        return
-      }
+      // CRM é opcional por enquanto (sem validação oficial).
     }
 
     setEnviando(true)
@@ -247,7 +244,7 @@ export default function OnboardingPage() {
                     </label>
                     <div className="grid grid-cols-[1fr_5.5rem] gap-2">
                       <label htmlFor="crm" className="flex flex-col gap-1.5">
-                        <span className="font-display text-sm font-semibold text-ink">CRM</span>
+                        <span className="font-display text-sm font-semibold text-ink">CRM (opcional)</span>
                         <input
                           id="crm"
                           type="text"
@@ -282,8 +279,8 @@ export default function OnboardingPage() {
                       </label>
                     </div>
                     <p className="text-xs text-ink-mute">
-                      Seu CRM passa por verificação antes de liberar recursos clínicos.
-                      Seus documentos ficam protegidos e nunca são exibidos publicamente.
+                      Validamos seu CPF. O CRM é opcional por enquanto. Seus documentos
+                      ficam protegidos e nunca são exibidos publicamente.
                     </p>
                   </>
                 )}

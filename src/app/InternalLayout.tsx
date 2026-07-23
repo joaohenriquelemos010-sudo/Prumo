@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Home, Route, CalendarDays, FileHeart, Syringe, LogOut, Activity, NotebookPen, FlaskConical, Stethoscope, MapPin } from 'lucide-react'
+import { Home, Route, CalendarDays, FileHeart, Syringe, LogOut, Activity, NotebookPen, FlaskConical, Stethoscope, MapPin, Link2 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { useAuth } from '@/lib/stores/auth'
 import type { Papel } from '@/lib/stores/auth'
@@ -25,6 +25,7 @@ const NAV_PACIENTE: NavItem[] = [
   { to: '/app/caderninho', label: 'Caderninho', icon: NotebookPen },
   { to: '/app/agenda', label: 'Agenda', icon: CalendarDays },
   { to: '/app/vacinas', label: 'Vacinas', icon: Syringe },
+  { to: '/app/compartilhar', label: 'Conectar', icon: Link2 },
 ]
 
 const NAV_MEDICO: NavItem[] = [
@@ -32,6 +33,7 @@ const NAV_MEDICO: NavItem[] = [
   { to: '/app/prontuario', label: 'Prontuário', icon: FileHeart },
   { to: '/app/consultas', label: 'Consultas', icon: Stethoscope },
   { to: '/app/exames', label: 'Exames', icon: FlaskConical },
+  { to: '/app/compartilhar', label: 'Pacientes', icon: Link2 },
   { to: '/app/caderninho', label: 'Dúvidas', icon: NotebookPen },
 ]
 

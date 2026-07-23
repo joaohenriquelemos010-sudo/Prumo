@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { FileText, Upload, Trash2, Paperclip, FlaskConical, ExternalLink } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { useAuth } from '@/lib/stores/auth'
+import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
+import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
 import { Button } from '@/components/Button'
 import { EmptyState } from '@/components/EmptyState'
 import { Skeleton } from '@/components/Skeleton'
@@ -37,20 +39,22 @@ const CAT_LABEL = Object.fromEntries(CATEGORIAS.map((c) => [c.value, c.label]))
 export default function AppExames() {
   const papel = useAuth((s) => s.user?.papel)
   const isMedico = papel === 'medico'
+  const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
   const [exames, setExames] = useState<Exame[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
+    setLoading(true)
     api
-      .get<{ exames: Exame[] }>('/exames')
+      .get<{ exames: Exame[] }>(`/exames${criancaQuery(criancaAtiva)}`)
       .then((d) => active && setExames(d.exames))
       .catch(() => {})
       .finally(() => active && setLoading(false))
     return () => {
       active = false
     }
-  }, [])
+  }, [criancaAtiva])
 
   return (
     <div className="flex flex-col gap-lg">
@@ -65,6 +69,8 @@ export default function AppExames() {
             : 'Guarde aqui cada exame. Quando você for a uma consulta, o médico vê tudo pela Prumo — nada se perde.'}
         </p>
       </header>
+
+      <SeletorPaciente />
 
       <NovoExame onCreated={(e) => setExames((prev) => [e, ...prev])} />
 
@@ -91,6 +97,7 @@ export default function AppExames() {
 }
 
 function NovoExame({ onCreated }: { onCreated: (e: Exame) => void }) {
+  const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
   const [nome, setNome] = useState('')
   const [categoria, setCategoria] = useState('outro')
   const [dataExame, setDataExame] = useState('')
@@ -115,7 +122,7 @@ function NovoExame({ onCreated }: { onCreated: (e: Exame) => void }) {
 
     setSaving(true)
     try {
-      const { exame } = await api.upload<{ exame: Exame }>('/exames', fd)
+      const { exame } = await api.upload<{ exame: Exame }>(`/exames${criancaQuery(criancaAtiva)}`, fd)
       onCreated(exame)
       setNome('')
       setCategoria('outro')
@@ -190,6 +197,7 @@ function NovoExame({ onCreated }: { onCreated: (e: Exame) => void }) {
 
 function ExameCard({ exame, onRemove }: { exame: Exame; onRemove: (id: string) => void }) {
   const userId = useAuth((s) => s.user?.id)
+  const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
   const meu = Boolean(userId) && exame.autorId === userId
   const data = useMemo(() => new Date(exame.dataExame).toLocaleDateString('pt-BR'), [exame.dataExame])
 
@@ -216,7 +224,7 @@ function ExameCard({ exame, onRemove }: { exame: Exame; onRemove: (id: string) =
         {exame.observacoes && <p className="mt-1 text-sm text-ink-soft">{exame.observacoes}</p>}
         {exame.temArquivo && (
           <a
-            href={`${API_BASE}/exames/${exame.id}/arquivo`}
+            href={`${API_BASE}/exames/${exame.id}/arquivo${criancaQuery(criancaAtiva)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-indigo hover:text-azul"

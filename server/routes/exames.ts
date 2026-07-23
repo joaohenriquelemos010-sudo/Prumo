@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { isValidObjectId } from 'mongoose'
 import multer from 'multer'
 import { requireAuth } from '../auth'
-import { getOrCreateCrianca } from '../services/crianca'
+import { resolveCriancaOr403 } from '../services/acesso'
 import { Exame } from '../models/Exame'
 import type { ExameDoc } from '../models/Exame'
 import type { HydratedDocument } from 'mongoose'
@@ -49,7 +49,8 @@ function serialize(e: HydratedDocument<ExameDoc>) {
 
 // GET /api/exames — the current patient's saved exams.
 examesRouter.get('/', requireAuth, async (req, res) => {
-  const crianca = await getOrCreateCrianca(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
   const exames = await Exame.find({ crianca: crianca._id }).sort({ dataExame: -1 })
   res.json({ exames: exames.map(serialize) })
 })
@@ -61,7 +62,8 @@ examesRouter.post('/', requireAuth, upload.single('arquivo'), async (req, res) =
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Confere os dados do exame.' })
     return
   }
-  const crianca = await getOrCreateCrianca(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
   const d = parsed.data
 
   let arquivoId = null
@@ -98,7 +100,8 @@ examesRouter.post('/', requireAuth, upload.single('arquivo'), async (req, res) =
 
 // GET /api/exames/:id/arquivo — stream the file (auth + scoped to own patient).
 examesRouter.get('/:id/arquivo', requireAuth, async (req, res) => {
-  const crianca = await getOrCreateCrianca(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
   const exame = await Exame.findById(req.params.id)
   if (!exame || String(exame.crianca) !== String(crianca._id) || !exame.arquivoId) {
     res.status(404).json({ error: 'Arquivo não encontrado.' })
