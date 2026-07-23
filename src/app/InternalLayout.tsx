@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Home, Route, CalendarDays, FileHeart, Syringe, LogOut, Activity, NotebookPen, FlaskConical, Stethoscope } from 'lucide-react'
+import { Home, Route, CalendarDays, FileHeart, Syringe, LogOut, Activity, NotebookPen, FlaskConical, Stethoscope, MapPin } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { useAuth } from '@/lib/stores/auth'
 import type { Papel } from '@/lib/stores/auth'
@@ -20,6 +20,7 @@ interface NavItem {
 const NAV_PACIENTE: NavItem[] = [
   { to: '/app', label: 'Início', icon: Home },
   { to: '/app/trilha', label: 'Trilha', icon: Route },
+  { to: '/app/profissionais', label: 'Agendar', icon: MapPin },
   { to: '/app/exames', label: 'Exames', icon: FlaskConical },
   { to: '/app/caderninho', label: 'Caderninho', icon: NotebookPen },
   { to: '/app/agenda', label: 'Agenda', icon: CalendarDays },

@@ -97,6 +97,17 @@ export const respostaSchema = z.object({
   texto: z.string().trim().min(2, 'Escreva a resposta.').max(1000),
 })
 
+export const solicitacaoCreateSchema = z.object({
+  prestadorId: z.string().trim().min(1),
+  objetivo: z.enum(['exame', 'consulta-gestante', 'consulta-crianca']),
+  modalidade: z.enum(['teleconsulta', 'presencial', 'domiciliar']).default('presencial'),
+  mensagem: z.string().trim().max(500).optional(),
+})
+
+export const esqueciSenhaSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Digite um e-mail válido.'),
+})
+
 const campoLongo = z.string().trim().max(3000).optional()
 
 export const consultaCreateSchema = z.object({

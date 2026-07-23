@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, Syringe, TestTube2, ArrowRight } from 'lucide-react'
+import { CalendarDays, Syringe, TestTube2, ArrowRight, Stethoscope } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { usePerfil } from '@/lib/stores/perfil'
 import { DadosCrianca } from '@/features/clinico/DadosCrianca'
@@ -109,6 +109,14 @@ function AgendaBebe({ doses }: { doses: ReturnType<typeof calcularDosesVacinas> 
       <Link to="/app/vacinas" className="mt-1 inline-flex items-center gap-1 font-display text-sm font-semibold text-indigo hover:text-azul">
         Ver a carteira completa <ArrowRight className="size-4" aria-hidden />
       </Link>
+
+      <Link
+        to="/app/profissionais?objetivo=consulta-crianca"
+        className="mt-2 inline-flex h-11 items-center gap-2 self-start rounded-pill px-5 font-display text-sm font-semibold text-white shadow-soft [background-image:var(--grad-brand)]"
+      >
+        <Stethoscope className="size-4" aria-hidden />
+        Contate um pediatra cadastrado
+      </Link>
     </section>
   )
 }
@@ -162,6 +170,14 @@ function AgendaGestante({ dpp }: { dpp: Date }) {
           </ul>
         </section>
       ))}
+
+      <Link
+        to="/app/profissionais?objetivo=consulta-gestante"
+        className="inline-flex h-11 items-center gap-2 self-start rounded-pill px-5 font-display text-sm font-semibold text-white shadow-soft [background-image:var(--grad-brand)]"
+      >
+        <Stethoscope className="size-4" aria-hidden />
+        Contate um obstetra ou enfermeira
+      </Link>
 
       <p className="rounded-xl bg-paper-2 p-md text-xs text-ink-mute">
         Fonte: {REFERENCIA_PRENATAL} Conteúdo informativo — a solicitação e a leitura dos exames são sempre da sua equipe.

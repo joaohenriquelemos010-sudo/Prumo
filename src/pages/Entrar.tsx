@@ -84,7 +84,13 @@ export default function EntrarPage() {
           </p>
         )}
 
-        <div className="mt-lg">
+        <div className="mt-2 text-right">
+          <Link to="/esqueci-senha" className="text-sm font-semibold text-indigo hover:text-azul">
+            Esqueci minha senha
+          </Link>
+        </div>
+
+        <div className="mt-md">
           <Button type="submit" size="lg" fullWidth loading={enviando}>
             Entrar
           </Button>

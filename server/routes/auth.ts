@@ -5,9 +5,10 @@ import { Prontuario } from '../models/Prontuario'
 import { Duvida } from '../models/Duvida'
 import { Consulta } from '../models/Consulta'
 import { Exame } from '../models/Exame'
-import { registerSchema, loginSchema } from '../validation'
+import { registerSchema, loginSchema, esqueciSenhaSchema } from '../validation'
 import { hashPassword, verifyPassword, issueSession, clearSession, requireAuth } from '../auth'
 import { rateLimit } from '../rate-limit'
+import { env } from '../env'
 import type { SessionUser } from '../types'
 
 /** For a doctor, seed a realistic (fictional) patient so the pages have content. */
@@ -132,6 +133,23 @@ authRouter.post('/login', rateLimit({ key: 'login', limit: 10, windowMs: 60_000 
 authRouter.post('/logout', (_req, res) => {
   clearSession(res)
   res.status(204).end()
+})
+
+// POST /api/auth/esqueci-senha — always answers the same, whether or not the
+// e-mail exists (no account enumeration). Sending the real reset e-mail needs an
+// e-mail provider (see SECURITY.md); here we accept the request and stub it.
+authRouter.post('/esqueci-senha', rateLimit({ key: 'esqueci', limit: 5, windowMs: 60_000 }), async (req, res) => {
+  const parsed = esqueciSenhaSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Digite um e-mail válido.' })
+    return
+  }
+  if (!env.isProd) {
+    const existe = await User.exists({ email: parsed.data.email })
+    console.info('[esqueci-senha] pedido para', parsed.data.email, existe ? '(conta existe)' : '(sem conta)')
+  }
+  // Same response regardless — never reveal whether the account exists.
+  res.json({ ok: true })
 })
 
 // GET /api/auth/me

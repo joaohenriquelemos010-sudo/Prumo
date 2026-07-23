@@ -11,6 +11,7 @@ const Medicos = lazy(() => import('@/pages/Medicos'))
 const Seguranca = lazy(() => import('@/pages/Seguranca'))
 const Onboarding = lazy(() => import('@/pages/Onboarding'))
 const Entrar = lazy(() => import('@/pages/Entrar'))
+const EsqueciSenha = lazy(() => import('@/pages/EsqueciSenha'))
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
@@ -24,6 +25,7 @@ const AppProntuario = lazy(() => import('@/pages/app/AppProntuario'))
 const AppCaderninho = lazy(() => import('@/pages/app/AppCaderninho'))
 const AppExames = lazy(() => import('@/pages/app/AppExames'))
 const AppConsultas = lazy(() => import('@/pages/app/AppConsultas'))
+const AppProfissionais = lazy(() => import('@/pages/app/AppProfissionais'))
 
 export const router = createBrowserRouter(
   [
@@ -37,6 +39,7 @@ export const router = createBrowserRouter(
         { path: '/seguranca', element: <Seguranca /> },
         { path: '/onboarding', element: <Onboarding /> },
         { path: '/entrar', element: <Entrar /> },
+        { path: '/esqueci-senha', element: <EsqueciSenha /> },
         { path: '/painel', element: <Dashboard /> },
         { path: '*', element: <NotFound /> },
       ],
@@ -53,6 +56,7 @@ export const router = createBrowserRouter(
         { path: 'caderninho', element: <AppCaderninho /> },
         { path: 'exames', element: <AppExames /> },
         { path: 'consultas', element: <AppConsultas /> },
+        { path: 'profissionais', element: <AppProfissionais /> },
         { path: 'perfil', element: <AppPerfil /> },
       ],
     },

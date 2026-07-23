@@ -141,6 +141,18 @@ de outro (sem IDOR):
   cross-conta (médico que atende a mãe vê os exames dela) será concedido via a
   **conexão** paciente↔profissional da Fase 7.
 
+## Recuperação de senha e marketplace
+
+- **Esqueci minha senha** (`POST /api/auth/esqueci-senha`): responde sempre igual,
+  exista ou não a conta (**sem enumeração de e-mail**), com rate limit. O envio real
+  do e-mail de redefinição depende de um **provedor de e-mail** (a integrar) — hoje o
+  pedido é aceito e registrado, sem enviar.
+- **Marketplace**: listagens de profissionais/clínicas são públicas ao usuário logado
+  (`requireAuth`); as solicitações de agendamento ficam escopadas ao usuário. Rotas de
+  direção usam **deep links** (Google Maps / Waze) — sem chave e sem rastrear o usuário;
+  a geolocalização é opcional (permissão do navegador) e só serve para ordenar por
+  distância, com fallback quando negada.
+
 ## Compatibilidade mobile (Capacitor)
 
 O código foi mantido web e preparado para virar app com Capacitor sem reescrever:
