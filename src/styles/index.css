@@ -1,0 +1,220 @@
+@import './tokens.css';
+
+/* Fonts are loaded via <link> in index.html (non-blocking, font-display: swap). */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    overflow-x: clip;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-style: normal;
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+    min-width: 0;
+    margin: 0;
+  }
+
+  p {
+    margin: 0;
+    max-width: 68ch;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button {
+    font-family: inherit;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  ::selection {
+    background: var(--color-lilas-soft);
+    color: var(--color-indigo);
+  }
+}
+
+@layer components {
+  .u-shell {
+    width: 100%;
+    max-width: var(--max-w-page, 1140px);
+    margin-inline: auto;
+    padding-inline: clamp(1.25rem, 5vw, 2.5rem);
+  }
+
+  .u-gradient-text {
+    background: var(--grad-brand);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .u-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--text-sm);
+    color: var(--color-indigo);
+  }
+
+  .input {
+    width: 100%;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-line);
+    background: var(--color-paper);
+    padding: 0.75rem 1rem;
+    font-size: var(--text-base);
+    color: var(--color-ink);
+    transition:
+      border-color var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out);
+  }
+
+  .input::placeholder {
+    color: var(--color-ink-mute);
+  }
+
+  .input:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+    border-color: var(--color-lilas);
+  }
+
+  /* Caderninho de Dúvidas — a real little-notebook feel: warm cream paper, soft
+     ruled lines, a margin line. Handwritten face on headings/dates; body stays
+     legible (Nunito). Works on mobile and PC. */
+  .caderno {
+    --caderno-paper: oklch(0.985 0.02 95);
+    --caderno-line: oklch(0.86 0.05 265);
+    --caderno-margin: oklch(0.72 0.16 20);
+    background-color: var(--caderno-paper);
+    background-image: repeating-linear-gradient(
+      var(--caderno-paper) 0,
+      var(--caderno-paper) 1.85rem,
+      var(--caderno-line) 1.85rem,
+      var(--caderno-line) calc(1.85rem + 1px)
+    );
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+  }
+
+  :root[data-theme='dark'] .caderno {
+    --caderno-paper: oklch(0.28 0.03 280);
+    --caderno-line: oklch(0.4 0.05 265);
+  }
+
+  .caderno-hand {
+    font-family: var(--font-hand);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  /* Section reveal — drives on-scroll narrative; collapses under reduced motion. */
+  .u-reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+      opacity var(--dur-slow) var(--ease-out),
+      transform var(--dur-slow) var(--ease-out);
+  }
+
+  .u-reveal[data-shown='true'] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes node-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.74 0.15 300 / 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 12px oklch(0.74 0.15 300 / 0);
+  }
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-10%) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(120vh) rotate(540deg);
+    opacity: 0;
+  }
+}
+
+.u-node-pulse {
+  animation: node-pulse 2.2s var(--ease-in-out) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .u-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

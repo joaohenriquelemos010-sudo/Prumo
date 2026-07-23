@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!--
+      Fallback CSP. The primary Content-Security-Policy MUST be served as an HTTP
+      header by the CDN / reverse proxy in production (see SECURITY.md). A meta CSP
+      cannot carry frame-ancestors or report-uri, so it is a defence-in-depth line,
+      not the whole wall.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; form-action 'self'; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'"
+    />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#b58bfd" />
+    <meta
+      name="description"
+      content="Prumo: a trilha contínua de saúde do seu bebê, da gestação à pediatria. Tudo sobre você e seu filho, num lugar só."
+    />
+
+    <link rel="icon" type="image/svg+xml" href="/img/logo_sem_fundo_so_com_desenho.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Nunito:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap"
+    />
+
+    <title>Prumo — a trilha do seu bebê, do pré-natal ao primeiro ano</title>
+
+    <!-- Sets data-theme before first paint (saved choice → OS pref → light). -->
+    <script src="/theme-init.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

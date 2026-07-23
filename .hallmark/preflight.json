@@ -1,0 +1,10 @@
+{
+  "lastScan": "2026-07-22",
+  "framework": "Vite + React 18 + TypeScript (fresh)",
+  "fontStack": "Outfit (display) + Nunito (body) — Google Fonts, display=swap",
+  "palette": "custom OKLCH tokens from /img SVGs — lilas #b58bfd, azul #5b81fb, indigo #36408c",
+  "motion": "framer-motion",
+  "spacing": "4pt scale via --space-* tokens",
+  "preserve": [],
+  "introduce": ["full token system", "macrostructure", "microinteraction discipline", "slop-test gates", "hero enrichment (Tier A)"]
+}

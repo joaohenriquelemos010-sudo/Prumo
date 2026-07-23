@@ -1,0 +1,82 @@
+/* Hallmark · portable design tokens — theme: custom "Prumo"
+ * This is the portable export of src/styles/tokens.css. Copy it into another
+ * project to carry the Prumo design system forward. Kept in sync by hand.
+ * vibe: "acolhimento materno fluindo para segurança clínica"
+ * axes: light / rounded-sans / cool · display Outfit + body Nunito
+ */
+
+:root {
+  /* Brand anchors (from the /img logo gradient) */
+  --color-lilas: oklch(0.74 0.15 300); /* #b58bfd */
+  --color-lilas-soft: oklch(0.9 0.07 300);
+  --color-azul: oklch(0.64 0.18 271); /* #5b81fb */
+  --color-azul-soft: oklch(0.86 0.08 265);
+  --color-indigo: oklch(0.4 0.12 273); /* #36408c */
+
+  /* Paper */
+  --color-paper: oklch(0.995 0.006 300);
+  --color-paper-2: oklch(0.975 0.012 295);
+  --color-paper-3: oklch(0.95 0.02 290);
+
+  /* Ink */
+  --color-ink: oklch(0.32 0.06 274);
+  --color-ink-soft: oklch(0.46 0.05 274);
+  --color-ink-mute: oklch(0.6 0.035 274);
+
+  /* Lines & feedback */
+  --color-line: oklch(0.9 0.02 290);
+  --color-success: oklch(0.66 0.14 155);
+  --color-warn: oklch(0.72 0.13 65);
+  --color-focus: oklch(0.55 0.19 285);
+
+  /* Narrative gradient */
+  --grad-brand: linear-gradient(135deg, var(--color-lilas) 0%, var(--color-azul) 100%);
+  --grad-brand-soft: linear-gradient(135deg, var(--color-lilas-soft) 0%, var(--color-azul-soft) 100%);
+
+  /* Typography */
+  --font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Nunito', ui-sans-serif, system-ui, sans-serif;
+  --font-hand: 'Caveat', 'Segoe Script', cursive;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: 2.875rem;
+  --text-display-s: 3.5rem;
+  --text-display: clamp(2.75rem, 6vw, 4.75rem);
+
+  /* Spacing (4pt) */
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1.25rem;
+  --space-lg: 2rem;
+  --space-xl: 3rem;
+  --space-2xl: 4.5rem;
+  --space-3xl: 7rem;
+
+  /* Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+  --radius-2xl: 2.25rem;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-soft: 0 4px 24px -8px oklch(0.4 0.12 273 / 0.14);
+  --shadow-lift: 0 14px 44px -14px oklch(0.4 0.12 273 / 0.22);
+  --shadow-glow: 0 0 0 6px oklch(0.74 0.15 300 / 0.12);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 140ms;
+  --dur-base: 240ms;
+  --dur-slow: 420ms;
+
+  --rule-hair: 1px;
+}

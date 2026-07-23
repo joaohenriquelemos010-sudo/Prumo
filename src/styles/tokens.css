@@ -1,0 +1,106 @@
+/* Hallmark · macrostructure: Marquee Hero · tone: soft/playful · anchor hue: violet→periwinkle
+ * theme: custom "Prumo" · vibe: "acolhimento materno fluindo para segurança clínica"
+ * paper oklch(99% 0.006 300) light · accent oklch(72% 0.15 300 → 63% 0.18 273) cool-violet
+ * display Outfit + body Nunito · axes: light / rounded-sans / cool
+ * Brand hex source (extracted from /img SVGs): lilás #b58bfd · azul #5b81fb · índigo #36408c
+ * Hallmark · pre-emit critique: P5 H4 E5 S5 R4 V4
+ */
+
+:root {
+  /* ---- Brand anchors (from the logo gradient) ---- */
+  --color-lilas: oklch(0.74 0.15 300); /* #b58bfd — acolhimento materno */
+  --color-lilas-soft: oklch(0.9 0.07 300);
+  --color-azul: oklch(0.64 0.18 271); /* #5b81fb — confiança clínica */
+  --color-azul-soft: oklch(0.86 0.08 265);
+  --color-indigo: oklch(0.4 0.12 273); /* #36408c — âncora / tipografia */
+
+  /* ---- Paper (surfaces) ---- */
+  --color-paper: oklch(0.995 0.006 300);
+  --color-paper-2: oklch(0.975 0.012 295);
+  --color-paper-3: oklch(0.95 0.02 290);
+
+  /* ---- Ink (text) ---- */
+  --color-ink: oklch(0.32 0.06 274);
+  --color-ink-soft: oklch(0.46 0.05 274);
+  --color-ink-mute: oklch(0.6 0.035 274);
+
+  /* ---- Lines & feedback ---- */
+  --color-line: oklch(0.9 0.02 290);
+  --color-success: oklch(0.66 0.14 155);
+  --color-warn: oklch(0.72 0.13 65);
+  --color-focus: oklch(0.55 0.19 285);
+
+  /* ---- The narrative gradient (violet → periwinkle) ---- */
+  --grad-brand: linear-gradient(135deg, var(--color-lilas) 0%, var(--color-azul) 100%);
+  --grad-brand-soft: linear-gradient(135deg, var(--color-lilas-soft) 0%, var(--color-azul-soft) 100%);
+  --grad-veil: linear-gradient(180deg, oklch(0.995 0.006 300 / 0) 0%, var(--color-paper) 100%);
+
+  /* ---- Typography ---- */
+  --font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Nunito', ui-sans-serif, system-ui, sans-serif;
+  --font-hand: 'Caveat', 'Segoe Script', cursive;
+
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: 2.875rem;
+  --text-display-s: 3.5rem;
+  --text-display: clamp(2.75rem, 6vw, 4.75rem);
+
+  /* ---- Spacing (4pt scale) ---- */
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1.25rem;
+  --space-lg: 2rem;
+  --space-xl: 3rem;
+  --space-2xl: 4.5rem;
+  --space-3xl: 7rem;
+
+  /* ---- Radius (generous, soft) ---- */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+  --radius-2xl: 2.25rem;
+  --radius-pill: 999px;
+
+  /* ---- Shadows (diffuse, low-contrast) ---- */
+  --shadow-soft: 0 4px 24px -8px oklch(0.4 0.12 273 / 0.14);
+  --shadow-lift: 0 14px 44px -14px oklch(0.4 0.12 273 / 0.22);
+  --shadow-glow: 0 0 0 6px oklch(0.74 0.15 300 / 0.12);
+
+  /* ---- Motion ---- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 140ms;
+  --dur-base: 240ms;
+  --dur-slow: 420ms;
+
+  --rule-hair: 1px;
+}
+
+/* Dark mode — applied by explicit choice (data-theme="dark"), set from the
+ * header toggle. Keeps the acolhedor soul: warm-tinted deep indigo paper, never
+ * a cold banking-app black. The brand gradient stays; only surfaces + ink flip. */
+:root[data-theme='dark'] {
+  --color-paper: oklch(0.24 0.035 285);
+  --color-paper-2: oklch(0.28 0.04 285);
+  --color-paper-3: oklch(0.33 0.045 285);
+  --color-ink: oklch(0.96 0.015 295);
+  --color-ink-soft: oklch(0.84 0.022 295);
+  --color-ink-mute: oklch(0.7 0.028 295);
+  --color-line: oklch(0.4 0.045 285);
+  --color-lilas-soft: oklch(0.52 0.11 300);
+  --color-azul-soft: oklch(0.48 0.12 271);
+  --color-focus: oklch(0.78 0.14 300);
+  --grad-brand-soft: linear-gradient(135deg, oklch(0.4 0.11 300) 0%, oklch(0.42 0.12 271) 100%);
+  --grad-veil: linear-gradient(180deg, oklch(0.24 0.035 285 / 0) 0%, var(--color-paper) 100%);
+  --shadow-soft: 0 4px 24px -8px oklch(0 0 0 / 0.45);
+  --shadow-lift: 0 14px 44px -14px oklch(0 0 0 / 0.55);
+  --shadow-glow: 0 0 0 6px oklch(0.74 0.15 300 / 0.22);
+}
