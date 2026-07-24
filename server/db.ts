@@ -46,13 +46,15 @@ export async function connectDB(): Promise<typeof mongoose> {
     )
   }
   cache.conn = await cache.promise
-  // Provision the administrator account once the connection is ready. Best-effort:
-  // a failure here must not take down request handling.
+  // Provision the administrator account before any request proceeds. Awaited so a
+  // request (e.g. the admin's own login, right after a cold start) can never race
+  // ahead of the account being created. Still best-effort: a seeding failure is
+  // logged, not thrown — it must not take down request handling.
   if (!cache.adminSeeded) {
-    cache.adminSeeded = seedAdmin()
-      .catch((err) => {
-        console.error('[seed] falha ao provisionar admin:', err)
-      })
+    cache.adminSeeded = seedAdmin().catch((err) => {
+      console.error('[seed] falha ao provisionar admin:', err)
+    })
   }
+  await cache.adminSeeded
   return cache.conn
 }
