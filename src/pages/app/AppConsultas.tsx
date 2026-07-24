@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Stethoscope, Plus, ArrowLeft, ArrowRight, Check, Trash2, ClipboardList } from 'lucide-react'
+import { Stethoscope, Plus, ArrowLeft, ArrowRight, Check, ClipboardList } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { useAuth } from '@/lib/stores/auth'
 import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
 import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
 import { Button } from '@/components/Button'
+import { BotaoExcluir } from '@/components/BotaoExcluir'
 import { EmptyState } from '@/components/EmptyState'
 import { Skeleton } from '@/components/Skeleton'
 
@@ -270,11 +271,7 @@ function ConsultaCard({ consulta, onRemove }: { consulta: Consulta; onRemove: (i
             </span>
           </span>
         </button>
-        {meu && (
-          <button type="button" onClick={remover} aria-label="Remover consulta" className="grid size-8 place-items-center rounded-lg text-ink-soft hover:bg-paper-2 hover:text-warn">
-            <Trash2 className="size-4" aria-hidden />
-          </button>
-        )}
+        {meu && <BotaoExcluir onConfirm={remover} titulo="Remover consulta" />}
       </div>
 
       {aberto && (

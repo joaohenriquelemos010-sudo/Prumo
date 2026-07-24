@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { FileText, Upload, Trash2, Paperclip, FlaskConical, ExternalLink } from 'lucide-react'
+import { FileText, Upload, Paperclip, FlaskConical, ExternalLink } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { useAuth } from '@/lib/stores/auth'
 import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
 import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
 import { Button } from '@/components/Button'
+import { BotaoExcluir } from '@/components/BotaoExcluir'
 import { EmptyState } from '@/components/EmptyState'
 import { Skeleton } from '@/components/Skeleton'
-import { cn } from '@/lib/cn'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
@@ -234,16 +234,7 @@ function ExameCard({ exame, onRemove }: { exame: Exame; onRemove: (id: string) =
           </a>
         )}
       </div>
-      {meu && (
-        <button
-          type="button"
-          onClick={remover}
-          aria-label="Remover exame"
-          className={cn('grid size-8 shrink-0 place-items-center rounded-lg text-ink-soft hover:bg-paper-2 hover:text-warn')}
-        >
-          <Trash2 className="size-4" aria-hidden />
-        </button>
-      )}
+      {meu && <BotaoExcluir onConfirm={remover} titulo="Remover exame" />}
     </li>
   )
 }

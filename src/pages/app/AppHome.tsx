@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, CalendarDays, Route, Syringe, ShieldQuestion, Stethoscope, FlaskConical } from 'lucide-react'
+import { ArrowRight, CalendarDays, Route, Syringe, ShieldQuestion, Stethoscope, FlaskConical, NotebookPen, X, Sparkles } from 'lucide-react'
 import { useAuth } from '@/lib/stores/auth'
 import { useTrilha } from '@/lib/stores/trilha'
+import { usePerfil } from '@/lib/stores/perfil'
 import { api } from '@/lib/api/client'
 import { Blob } from '@/components/Blob'
 import { Skeleton } from '@/components/Skeleton'
@@ -24,10 +25,14 @@ function PacienteHome() {
   const hydrate = useTrilha((s) => s.hydrate)
   const progress = useTrilha((s) => s.progress())
   const nodes = useTrilha((s) => s.nodes)
+  const perfil = usePerfil((s) => s.perfil)
+  const loadPerfil = usePerfil((s) => s.load)
+  const perfilLoaded = usePerfil((s) => s.loaded)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
+    if (!perfilLoaded) void loadPerfil()
     api
       .get<{ etapasConcluidas: string[] }>('/trilha')
       .then((data) => {
@@ -40,10 +45,11 @@ function PacienteHome() {
     return () => {
       active = false
     }
-  }, [hydrate])
+  }, [hydrate, loadPerfil, perfilLoaded])
 
   const atual = nodes.find((n) => n.status === 'atual')
   const primeiroNome = user?.nome?.split(' ')[0] ?? 'por aqui'
+  const proximo = calcularProximoPasso(perfil, atual?.titulo)
 
   return (
     <div className="relative flex flex-col gap-lg">
@@ -54,6 +60,24 @@ function PacienteHome() {
         <h1 className="text-3xl sm:text-4xl">Oi, {primeiroNome}</h1>
         <p className="text-ink-soft">Bom te ver. Veja por onde continuar hoje.</p>
       </header>
+
+      <OrientacaoInicial />
+
+      {/* One clear next step — the single most useful action, front and centre. */}
+      <Link
+        to={proximo.to}
+        className="group relative flex items-center gap-4 overflow-hidden rounded-2xl [background-image:var(--grad-brand)] p-lg text-white shadow-lift"
+      >
+        <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-white/20">
+          <proximo.icon className="size-7" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-white/85">Seu próximo passo</span>
+          <span className="block font-display text-xl font-bold">{proximo.titulo}</span>
+          <span className="block text-sm text-white/85">{proximo.desc}</span>
+        </span>
+        <ArrowRight className="size-6 shrink-0 transition-transform group-hover:translate-x-1" aria-hidden />
+      </Link>
 
       {/* Progress card */}
       <div className="rounded-2xl border border-line bg-paper p-lg shadow-soft">
@@ -173,6 +197,84 @@ function VerificacaoBanner() {
           verificação não conclui, você navega em modo demonstração com um paciente de exemplo.
         </p>
       </div>
+    </div>
+  )
+}
+
+interface ProximoPasso {
+  titulo: string
+  desc: string
+  to: string
+  icon: typeof Route
+}
+
+/** The single most useful next action for a patient, based on where they are. */
+function calcularProximoPasso(
+  perfil: { dataNascimento: string | null; dpp: string | null } | null,
+  atualTitulo?: string,
+): ProximoPasso {
+  if (perfil && !perfil.dataNascimento && !perfil.dpp) {
+    return {
+      titulo: 'Complete os dados do bebê',
+      desc: 'Assim montamos sua agenda e as vacinas certinhas.',
+      to: '/app/agenda',
+      icon: CalendarDays,
+    }
+  }
+  if (atualTitulo) {
+    return { titulo: atualTitulo, desc: 'Toque para ver o que fazer nesta etapa.', to: '/app/trilha', icon: Route }
+  }
+  return {
+    titulo: 'Você está em dia!',
+    desc: 'Que tal anotar uma dúvida para a próxima consulta?',
+    to: '/app/caderninho',
+    icon: NotebookPen,
+  }
+}
+
+/** Dismissible first-run orientation. The dismissal flag is a UI preference. */
+function OrientacaoInicial() {
+  const KEY = 'prumo.orientacao.v1'
+  const [visivel, setVisivel] = useState(() => {
+    try {
+      return localStorage.getItem(KEY) !== 'ok'
+    } catch {
+      return true
+    }
+  })
+  if (!visivel) return null
+  function dispensar() {
+    try {
+      localStorage.setItem(KEY, 'ok')
+    } catch {
+      /* storage off — it just shows again next time */
+    }
+    setVisivel(false)
+  }
+
+  return (
+    <div className="relative rounded-2xl border border-line bg-paper-2 p-lg">
+      <button
+        type="button"
+        onClick={dispensar}
+        aria-label="Dispensar orientação"
+        className="absolute right-3 top-3 grid size-8 place-items-center rounded-lg text-ink-mute hover:bg-paper"
+      >
+        <X className="size-4" aria-hidden />
+      </button>
+      <p className="u-eyebrow inline-flex items-center gap-2">
+        <Sparkles className="size-4" aria-hidden /> Bem-vinda à Prumo
+      </p>
+      <h2 className="mt-1 text-lg">Como usar, rapidinho</h2>
+      <ul className="mt-md grid gap-2 text-sm text-ink-soft sm:grid-cols-2">
+        <li>🧭 <strong className="text-ink">Trilha</strong> — seu caminho, passo a passo.</li>
+        <li>🧪 <strong className="text-ink">Exames</strong> — guarde e mostre ao médico.</li>
+        <li>📓 <strong className="text-ink">Caderninho</strong> — anote dúvidas para a consulta.</li>
+        <li>📍 <strong className="text-ink">Agendar</strong> — médicos e clínicas perto de você.</li>
+      </ul>
+      <button type="button" onClick={dispensar} className="mt-md text-sm font-semibold text-indigo underline underline-offset-4">
+        Entendi
+      </button>
     </div>
   )
 }

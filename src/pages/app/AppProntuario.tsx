@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Activity, FileHeart, Plus, Baby, Save, Pencil, Trash2, X, Check } from 'lucide-react'
+import { Activity, FileHeart, Plus, Baby, Save, Pencil, X, Check } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { useAuth } from '@/lib/stores/auth'
 import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
@@ -10,6 +10,7 @@ const BaixarProntuario = lazy(() =>
 )
 import { MARCOS, REFERENCIA_MARCOS, NOTA_MARCOS } from '@/features/clinico/sus-marcos'
 import { Button } from '@/components/Button'
+import { BotaoExcluir } from '@/components/BotaoExcluir'
 import { Skeleton } from '@/components/Skeleton'
 import { cn } from '@/lib/cn'
 
@@ -331,14 +332,7 @@ function Eventos({ prontuario, onChange }: { prontuario: Prontuario; onChange: (
                         >
                           <Pencil className="size-3.5" aria-hidden />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => remover(ev.id)}
-                          aria-label="Remover anotação"
-                          className="grid size-8 place-items-center rounded-lg text-ink-soft hover:bg-paper-2 hover:text-warn"
-                        >
-                          <Trash2 className="size-3.5" aria-hidden />
-                        </button>
+                        <BotaoExcluir onConfirm={() => remover(ev.id)} titulo="Remover anotação" />
                       </div>
                     )}
                   </div>

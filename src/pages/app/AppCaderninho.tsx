@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
-import { NotebookPen, Plus, Pencil, Trash2, Check, X, Share2, Download, Reply } from 'lucide-react'
+import { NotebookPen, Plus, Pencil, Check, X, Share2, Download, Reply } from 'lucide-react'
+import { BotaoExcluir } from '@/components/BotaoExcluir'
 import { api } from '@/lib/api/client'
 import { useAuth } from '@/lib/stores/auth'
 import { Button } from '@/components/Button'
@@ -258,7 +259,7 @@ function DuvidaCard({ duvida, isMedico, onChange, onRemove }: CardProps) {
                 <Share2 className="size-3.5" aria-hidden />
               </IconBtn>
               <IconBtn label="Editar" onClick={() => setEditando(true)}><Pencil className="size-3.5" aria-hidden /></IconBtn>
-              <IconBtn label="Remover" onClick={remover} tone="warn"><Trash2 className="size-3.5" aria-hidden /></IconBtn>
+              <BotaoExcluir onConfirm={remover} titulo="Remover dúvida" />
             </div>
           )}
         </div>
