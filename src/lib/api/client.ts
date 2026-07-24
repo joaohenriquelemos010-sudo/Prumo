@@ -43,6 +43,28 @@ function friendly(status: number): string {
 }
 
 /**
+ * Fires when the server says the session is gone on a call that assumed one.
+ * The auth store registers here (a callback, not an import, so this layer stays
+ * free of store dependencies) and drops the stale session — otherwise the
+ * person reads "sua sessão expirou" on a screen that offers no way back in.
+ */
+let onSessionExpired: (() => void) | null = null
+
+export function setSessionExpiredHandler(handler: () => void): void {
+  onSessionExpired = handler
+}
+
+/**
+ * On these, 401 is a normal answer ("wrong password", "not signed in yet"), not
+ * an expired session — they must never trigger the handler.
+ */
+const AUTH_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/me', '/auth/esqueci-senha']
+
+function isExpiredSession(status: number, path: string): boolean {
+  return status === 401 && !AUTH_ENDPOINTS.some((endpoint) => path.startsWith(endpoint))
+}
+
+/**
  * Prefer the server's own `error` message when present — every server error is
  * authored to be user-safe and specific (e.g. "e-mail já existe", "arquivo grande
  * demais"). Fall back to the generic map when there's no usable body.
@@ -103,6 +125,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
           attempt += 1
           continue
         }
+        if (isExpiredSession(response.status, path)) onSessionExpired?.()
         throw new ApiError(await messageFor(response), response.status)
       }
 
@@ -148,7 +171,10 @@ async function upload<T>(path: string, formData: FormData, timeoutMs = 30_000): 
       signal: controller.signal,
     })
     clearTimeout(timer)
-    if (!response.ok) throw new ApiError(await messageFor(response), response.status)
+    if (!response.ok) {
+      if (isExpiredSession(response.status, path)) onSessionExpired?.()
+      throw new ApiError(await messageFor(response), response.status)
+    }
     if (response.status === 204) return undefined as T
     return (await response.json()) as T
   } catch (error) {

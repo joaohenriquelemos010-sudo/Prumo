@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { HeartHandshake, Baby, Stethoscope, CalendarClock, Sprout, ArrowLeft } from 'lucide-react'
+import { HeartHandshake, Baby, Stethoscope, CalendarClock, Sprout, ArrowLeft, ArrowRight } from 'lucide-react'
 import { useOnboarding } from '@/lib/stores/onboarding'
 import type { MomentoGestacao, Perfil } from '@/lib/stores/onboarding'
 import { useAuth } from '@/lib/stores/auth'
 import { useTrilha } from '@/lib/stores/trilha'
 import { Button } from '@/components/Button'
+import { AlertaErro } from '@/components/AlertaErro'
 import { Blob } from '@/components/Blob'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { normalizeField } from '@/lib/sanitize'
@@ -31,7 +32,8 @@ export default function OnboardingPage() {
   const [cpf, setCpf] = useState('')
   const [crm, setCrm] = useState('')
   const [crmUf, setCrmUf] = useState('')
-  const [erro, setErro] = useState<string | null>(null)
+  /** `status` carries the HTTP code so we can offer the matching way out. */
+  const [erro, setErro] = useState<{ mensagem: string; status?: number } | null>(null)
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
@@ -59,30 +61,30 @@ export default function OnboardingPage() {
     setErro(null)
     const limite = checkRateLimit('onboarding-submit', 5, 60_000)
     if (!limite.allowed) {
-      setErro(`Muitas tentativas. Tente de novo em ${limite.retryAfter}s.`)
+      setErro({ mensagem: `Muitas tentativas. Tente de novo em ${limite.retryAfter}s.` })
       return
     }
 
     const nomeLimpo = normalizeField(nome, 80)
     if (nomeLimpo.length < 2) {
-      setErro('Conta pra gente como podemos te chamar.')
+      setErro({ mensagem: 'Conta pra gente como podemos te chamar.' })
       return
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setErro('Esse e-mail parece incompleto. Confere pra mim?')
+      setErro({ mensagem: 'Esse e-mail parece incompleto. Confere pra mim?' })
       return
     }
     if (senha.length < 8) {
-      setErro('Crie uma senha com pelo menos 8 caracteres.')
+      setErro({ mensagem: 'Crie uma senha com pelo menos 8 caracteres.' })
       return
     }
     if (!perfil) {
-      setErro('Volte e escolha por onde você entra.')
+      setErro({ mensagem: 'Volte e escolha por onde você entra.' })
       return
     }
     if (perfil === 'medico') {
       if (!validarCPF(cpf)) {
-        setErro('CPF inválido. Confere os números?')
+        setErro({ mensagem: 'CPF inválido. Confere os números?' })
         return
       }
       // CRM é opcional por enquanto (sem validação oficial).
@@ -99,7 +101,7 @@ export default function OnboardingPage() {
     setEnviando(false)
 
     if (!result.ok) {
-      setErro(result.error ?? 'Não foi possível criar sua conta.')
+      setErro({ mensagem: result.error ?? 'Não foi possível criar sua conta.', status: result.status })
       return
     }
 
@@ -287,9 +289,30 @@ export default function OnboardingPage() {
               </div>
 
               {erro && (
-                <p role="alert" className="mt-3 text-sm font-semibold text-warn">
-                  {erro}
-                </p>
+                <AlertaErro
+                  acao={
+                    erro.status === 409 ? (
+                      <>
+                        <Button
+                          size="md"
+                          iconRight={<ArrowRight className="size-4" aria-hidden />}
+                          onClick={() => navigate('/entrar', { state: { email: email.trim() } })}
+                        >
+                          Entrar com esse e-mail
+                        </Button>
+                        <Link
+                          to="/esqueci-senha"
+                          state={{ email: email.trim() }}
+                          className="text-sm font-semibold text-indigo underline underline-offset-4"
+                        >
+                          Esqueci minha senha
+                        </Link>
+                      </>
+                    ) : undefined
+                  }
+                >
+                  {erro.mensagem}
+                </AlertaErro>
               )}
 
               <div className="mt-lg">

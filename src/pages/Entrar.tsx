@@ -1,20 +1,27 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Blob } from '@/components/Blob'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/Button'
+import { AlertaErro } from '@/components/AlertaErro'
 import { useAuth } from '@/lib/stores/auth'
 import { useTrilha } from '@/lib/stores/trilha'
 import { checkRateLimit } from '@/lib/rate-limit'
 
 export default function EntrarPage() {
   const login = useAuth((s) => s.login)
+  const sessaoExpirada = useAuth((s) => s.sessaoExpirada)
   const resetDemo = useTrilha((s) => s.resetDemo)
   const navigate = useNavigate()
+  const location = useLocation()
 
-  const [email, setEmail] = useState('')
+  /** Carried over when someone tried to sign up with an e-mail that already has
+   * an account — they shouldn't have to type it again. */
+  const vindoDoCadastro = (location.state as { email?: string } | null)?.email ?? ''
+
+  const [email, setEmail] = useState(vindoDoCadastro)
   const [senha, setSenha] = useState('')
-  const [erro, setErro] = useState<string | null>(null)
+  const [erro, setErro] = useState<{ mensagem: string; status?: number } | null>(null)
   const [enviando, setEnviando] = useState(false)
 
   async function entrar(e: React.FormEvent) {
@@ -23,7 +30,7 @@ export default function EntrarPage() {
 
     const limite = checkRateLimit('login-submit', 8, 60_000)
     if (!limite.allowed) {
-      setErro(`Muitas tentativas. Tente de novo em ${limite.retryAfter}s.`)
+      setErro({ mensagem: `Muitas tentativas. Tente de novo em ${limite.retryAfter}s.` })
       return
     }
 
@@ -35,7 +42,7 @@ export default function EntrarPage() {
       resetDemo()
       navigate('/app')
     } else {
-      setErro(result.error ?? 'Não foi possível entrar.')
+      setErro({ mensagem: result.error ?? 'Não foi possível entrar.', status: result.status })
     }
   }
 
@@ -49,7 +56,13 @@ export default function EntrarPage() {
           <Logo variant="full" className="h-9" />
         </Link>
         <h1 className="mt-lg text-3xl">Que bom te ver de novo</h1>
-        <p className="mt-1 text-ink-soft">Entre para continuar sua trilha.</p>
+        <p className="mt-1 text-ink-soft">
+          {sessaoExpirada
+            ? 'Por segurança, sua sessão foi encerrada depois de um tempo parada. Entre de novo para continuar de onde parou.'
+            : vindoDoCadastro
+              ? 'Você já tem uma conta com esse e-mail. É só colocar a senha para continuar.'
+              : 'Entre para continuar sua trilha.'}
+        </p>
 
         <div className="mt-lg flex flex-col gap-3">
           <Field label="E-mail" htmlFor="email">
@@ -79,9 +92,29 @@ export default function EntrarPage() {
         </div>
 
         {erro && (
-          <p role="alert" className="mt-3 text-sm font-semibold text-warn">
-            {erro}
-          </p>
+          <AlertaErro
+            acao={
+              erro.status === 401 ? (
+                <>
+                  <Link
+                    to="/esqueci-senha"
+                    state={{ email: email.trim() }}
+                    className="text-sm font-semibold text-indigo underline underline-offset-4"
+                  >
+                    Recuperar minha senha
+                  </Link>
+                  <span aria-hidden className="text-ink-mute">
+                    ·
+                  </span>
+                  <Link to="/onboarding" className="text-sm font-semibold text-indigo underline underline-offset-4">
+                    Criar uma conta nova
+                  </Link>
+                </>
+              ) : undefined
+            }
+          >
+            {erro.mensagem}
+          </AlertaErro>
         )}
 
         <div className="mt-2 text-right">

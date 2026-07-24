@@ -9,9 +9,6 @@ para decidir rápido e com segurança.
 
 O nome vem de *estar no prumo*: equilíbrio, estabilidade, direção certa.
 
-<!-- Linha de teste: exemplo didático de commit/push -->
-
-
 Este repositório é o **site institucional + protótipo funcional**.
 
 ## Stack

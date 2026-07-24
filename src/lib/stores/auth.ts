@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { api, ApiError } from '@/lib/api/client'
+import { api, ApiError, setSessionExpiredHandler } from '@/lib/api/client'
 import { emitAuditEvent } from '@/lib/audit'
 import { gerarMeusDadosPdfBlob } from '@/features/pdf/meusDados'
 import type { MeusDadosExport } from '@/features/pdf/documents'
@@ -33,11 +33,21 @@ type Status = 'idle' | 'loading' | 'authed' | 'guest'
 interface Result {
   ok: boolean
   error?: string
+  /**
+   * HTTP status of the failure, so screens can offer the right way out
+   * (e.g. 409 on register means "this e-mail already has an account" → send
+   * the person to sign in instead of leaving them stuck).
+   */
+  status?: number
 }
 
 interface AuthStore {
   user: AuthUser | null
   status: Status
+  /** True when the session dropped mid-use, so the sign-in page can explain why. */
+  sessaoExpirada: boolean
+  /** Clears the notice above once it has been seen. */
+  limparAvisoSessao: () => void
   /** Loads the session once (from the httpOnly cookie). Safe to call repeatedly. */
   bootstrap: () => Promise<void>
   register: (input: RegisterInput) => Promise<Result>
@@ -54,9 +64,16 @@ function friendly(error: unknown): string {
   return 'Algo não funcionou aqui. Tenta de novo?'
 }
 
+function statusOf(error: unknown): number | undefined {
+  return error instanceof ApiError ? error.status : undefined
+}
+
 export const useAuth = create<AuthStore>((set, get) => ({
   user: null,
   status: 'idle',
+  sessaoExpirada: false,
+
+  limparAvisoSessao: () => set({ sessaoExpirada: false }),
 
   bootstrap: async () => {
     if (get().status !== 'idle') return
@@ -77,17 +94,17 @@ export const useAuth = create<AuthStore>((set, get) => ({
       return { ok: true }
     } catch (error) {
       emitAuditEvent('form.rejected', { form: 'register' })
-      return { ok: false, error: friendly(error) }
+      return { ok: false, error: friendly(error), status: statusOf(error) }
     }
   },
 
   login: async (email, senha) => {
     try {
       const { user } = await api.post<{ user: AuthUser }>('/auth/login', { email, senha })
-      set({ user, status: 'authed' })
+      set({ user, status: 'authed', sessaoExpirada: false })
       return { ok: true }
     } catch (error) {
-      return { ok: false, error: friendly(error) }
+      return { ok: false, error: friendly(error), status: statusOf(error) }
     }
   },
 
@@ -97,7 +114,7 @@ export const useAuth = create<AuthStore>((set, get) => ({
     } catch {
       /* even if the network call fails, drop the local session */
     }
-    set({ user: null, status: 'guest' })
+    set({ user: null, status: 'guest', sessaoExpirada: false })
   },
 
   exportarDados: async () => {
@@ -130,3 +147,13 @@ export const useAuth = create<AuthStore>((set, get) => ({
     }
   },
 }))
+
+/**
+ * A session that dies mid-use drops us back to guest, which makes ProtectedRoute
+ * route the person to sign-in with an explanation — instead of stranding them on
+ * a screen whose only feedback is "sua sessão expirou".
+ */
+setSessionExpiredHandler(() => {
+  if (useAuth.getState().status !== 'authed') return
+  useAuth.setState({ user: null, status: 'guest', sessaoExpirada: true })
+})

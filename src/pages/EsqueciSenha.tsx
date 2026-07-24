@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { MailCheck, ArrowLeft } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { Logo } from '@/components/Logo'
@@ -13,7 +13,9 @@ import { checkRateLimit } from '@/lib/rate-limit'
  * reveal whether the e-mail exists. (Real e-mail sending needs a provider.)
  */
 export default function EsqueciSenhaPage() {
-  const [email, setEmail] = useState('')
+  const location = useLocation()
+  // Carried over from sign-in / sign-up so nobody retypes their e-mail.
+  const [email, setEmail] = useState((location.state as { email?: string } | null)?.email ?? '')
   const [enviado, setEnviado] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
