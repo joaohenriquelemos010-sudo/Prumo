@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { PainelClinico } from '@/features/painel/PainelClinico'
+import { PainelClinicoDemo } from '@/features/painel/PainelClinicoDemo'
 import { Blob } from '@/components/Blob'
 
 /** Mocked dashboard — the doctor lands here after onboarding as a proof of concept. */
@@ -26,7 +26,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="mt-xl">
-          <PainelClinico />
+          <PainelClinicoDemo />
         </div>
       </div>
     </div>

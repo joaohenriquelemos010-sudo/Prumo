@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { emitAuditEvent } from '@/lib/audit'
 
 /** The fork at the top of onboarding decides tone and destination. */
-export type Perfil = 'gestante' | 'mae' | 'medico'
+export type Perfil = 'gestante' | 'mae' | 'pai' | 'medico'
 
 export type MomentoGestacao = 'planejando' | 'gestante' | 'ja-nasceu'
 

@@ -14,6 +14,9 @@ import { examesRouter } from './routes/exames.js'
 import { prestadoresRouter } from './routes/prestadores.js'
 import { solicitacoesRouter } from './routes/solicitacoes.js'
 import { vinculosRouter } from './routes/vinculos.js'
+import { familiaRouter } from './routes/familia.js'
+import { compartilhamentosRouter } from './routes/compartilhamentos.js'
+import { adminRouter } from './routes/admin.js'
 import { comunidadeRouter } from './routes/comunidade.js'
 import { MulterError } from 'multer'
 import { env } from './env.js'
@@ -63,6 +66,9 @@ export function createApp() {
   app.use('/api/prestadores', prestadoresRouter)
   app.use('/api/solicitacoes', solicitacoesRouter)
   app.use('/api/vinculos', vinculosRouter)
+  app.use('/api/familia', familiaRouter)
+  app.use('/api/compartilhamentos', compartilhamentosRouter)
+  app.use('/api/admin', adminRouter)
   app.use('/api/comunidade', comunidadeRouter)
 
   // 404 for unknown API routes.

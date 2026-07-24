@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { emitAuditEvent } from '@/lib/audit'
 import { api } from '@/lib/api/client'
+import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
 import { TRILHA_NODES } from '@/features/trilha/data'
 import type { NodeStatus, TrilhaNode } from '@/features/trilha/types'
 
@@ -72,8 +73,10 @@ export const useTrilha = create<TrilhaStore>((set, get) => ({
     })
 
     if (get().syncEnabled) {
-      // Optimistic — the UI already advanced; persist in the background.
-      api.post('/trilha', { etapaId: id, concluida: true }).catch(() => {
+      // Optimistic — the UI already advanced; persist in the background. Scope to
+      // the active journey (own, or a co-parented child) via the shared context.
+      const criancaAtiva = useMedicoContext.getState().criancaAtiva
+      api.post(`/trilha${criancaQuery(criancaAtiva)}`, { etapaId: id, concluida: true }).catch(() => {
         /* keep the optimistic state; a background retry lives in the API client */
       })
     }

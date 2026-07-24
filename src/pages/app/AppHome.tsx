@@ -8,6 +8,8 @@ import { api } from '@/lib/api/client'
 import { Blob } from '@/components/Blob'
 import { Skeleton } from '@/components/Skeleton'
 import { PainelClinico } from '@/features/painel/PainelClinico'
+import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
+import AppAdmin from '@/pages/app/AppAdmin'
 
 const ATALHOS = [
   { to: '/app/trilha', label: 'Continuar a trilha', icon: Route },
@@ -18,6 +20,7 @@ const ATALHOS = [
 
 export default function AppHome() {
   const papel = useAuth((s) => s.user?.papel)
+  if (papel === 'admin') return <AppAdmin />
   return papel === 'medico' ? <MedicoHome /> : <PacienteHome />
 }
 
@@ -155,6 +158,8 @@ function MedicoHome() {
       </header>
 
       <VerificacaoBanner />
+
+      <SeletorPaciente />
 
       <PainelClinico />
 

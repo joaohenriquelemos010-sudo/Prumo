@@ -7,8 +7,10 @@ import { Button } from '@/components/Button'
 
 const PAPEL_LABEL: Record<string, string> = {
   gestante: 'Gestante',
-  mae: 'Mãe ou pai',
+  mae: 'Mãe',
+  pai: 'Pai',
   medico: 'Médico(a)',
+  admin: 'Administrador',
 }
 
 export default function AppPerfil() {

@@ -314,7 +314,7 @@ export interface MeusDadosExport {
   solicitacoes: { prestadorNome?: string; objetivo: string; modalidade: string; status: string; createdAt: string }[]
 }
 
-const PAPEL_LABEL: Record<string, string> = { gestante: 'Gestante', mae: 'Mãe ou pai', medico: 'Médico(a)' }
+const PAPEL_LABEL: Record<string, string> = { gestante: 'Gestante', mae: 'Mãe', pai: 'Pai', medico: 'Médico(a)', admin: 'Administrador' }
 
 function data(valor?: string | null): string {
   return valor ? new Date(valor).toLocaleDateString('pt-BR') : '—'

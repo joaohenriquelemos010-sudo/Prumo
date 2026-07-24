@@ -97,6 +97,7 @@ function ResumoClinico({
   const [tipoSanguineo, setTipo] = useState(prontuario.tipoSanguineo)
   const [alergias, setAlergias] = useState(prontuario.alergias)
   const [resumo, setResumo] = useState(prontuario.resumoGestacional)
+  const [condicoes, setCondicoes] = useState(prontuario.condicoes.join(', '))
   const [saving, setSaving] = useState(false)
 
   async function salvar() {
@@ -106,6 +107,10 @@ function ResumoClinico({
         tipoSanguineo,
         alergias,
         resumoGestacional: resumo,
+        condicoes: condicoes
+          .split(',')
+          .map((c) => c.trim())
+          .filter(Boolean),
       })
       onSaved(novo)
       setEditing(false)
@@ -148,6 +153,16 @@ function ResumoClinico({
               className="input min-h-24 resize-y"
               maxLength={2000}
               placeholder="Intercorrências, condutas, o que importa carregar adiante…"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="font-display text-sm font-semibold text-ink">Condições em acompanhamento</span>
+            <input
+              value={condicoes}
+              onChange={(e) => setCondicoes(e.target.value)}
+              className="input"
+              maxLength={400}
+              placeholder="Separe por vírgula. Ex.: Diabetes gestacional, Refluxo"
             />
           </label>
           <div className="flex gap-2">

@@ -11,7 +11,7 @@ import { Solicitacao } from '../models/Solicitacao.js'
 import { registerSchema, loginSchema, esqueciSenhaSchema } from '../validation.js'
 import { hashPassword, verifyPassword, issueSession, clearSession, requireAuth } from '../auth.js'
 import { rateLimit } from '../rate-limit.js'
-import { deleteFile, toObjectId } from '../storage/gridfs.js'
+import { excluirConta } from '../services/conta.js'
 import { env } from '../env.js'
 import type { SessionUser } from '../types.js'
 
@@ -79,7 +79,13 @@ authRouter.post('/register', rateLimit({ key: 'register', limit: 5, windowMs: 60
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Confere os dados, por favor.' })
     return
   }
-  const { nome, email, senha, papel, cpf, crm, crmUf } = parsed.data
+  const { nome, email, senha, papel, cpf, crm, crmUf, especialidade } = parsed.data
+
+  // The admin account is provisioned/seeded server-side — never via public signup.
+  if (papel === 'admin') {
+    res.status(400).json({ error: 'Confere os dados, por favor.' })
+    return
+  }
 
   const existing = await User.findOne({ email }).lean()
   if (existing) {
@@ -97,10 +103,11 @@ authRouter.post('/register', rateLimit({ key: 'register', limit: 5, windowMs: 60
     cpf: papel === 'medico' ? cpf : undefined,
     crm: papel === 'medico' ? crm : undefined,
     crmUf: papel === 'medico' ? crmUf : undefined,
+    especialidade: papel === 'medico' ? especialidade : undefined,
     verificacaoStatus: papel === 'medico' ? 'pendente' : 'nao_aplicavel',
   })
 
-  // Everyone gets a journey: a mother her own baby, a doctor a demo patient.
+  // Everyone gets a journey: a family member their own baby, a doctor a demo patient.
   if (papel === 'medico') {
     await seedDemoPatient(String(user._id))
   } else {
@@ -173,6 +180,7 @@ authRouter.get('/me', requireAuth, async (req, res) => {
       papel: user.papel,
       crm: user.crm || undefined,
       crmUf: user.crmUf || undefined,
+      especialidade: user.especialidade || undefined,
       verificacaoStatus: user.verificacaoStatus,
     },
   })
@@ -238,33 +246,7 @@ authRouter.get('/exportar', requireAuth, async (req, res) => {
 // to it (LGPD right to erasure): journeys, clinical records, uploaded exam
 // files, connections and invites. Irreversible.
 authRouter.delete('/me', requireAuth, async (req, res) => {
-  const userId = req.user!.id
-
-  const criancas = await Crianca.find({ responsavel: userId }).select('_id').lean()
-  const criancaIds = criancas.map((c) => c._id)
-
-  const exames = await Exame.find({ crianca: { $in: criancaIds }, arquivoId: { $ne: null } })
-    .select('arquivoId')
-    .lean()
-  await Promise.all(
-    exames.map((e) => {
-      const fileId = toObjectId(e.arquivoId)
-      return fileId ? deleteFile(fileId) : Promise.resolve()
-    }),
-  )
-
-  await Promise.all([
-    Prontuario.deleteMany({ crianca: { $in: criancaIds } }),
-    Consulta.deleteMany({ crianca: { $in: criancaIds } }),
-    Exame.deleteMany({ crianca: { $in: criancaIds } }),
-    Duvida.deleteMany({ crianca: { $in: criancaIds } }),
-    Vinculo.deleteMany({ $or: [{ crianca: { $in: criancaIds } }, { pacienteId: userId }, { medicoId: userId }] }),
-    ConviteVinculo.deleteMany({ $or: [{ crianca: { $in: criancaIds } }, { criadorId: userId }, { medicoId: userId }] }),
-    Solicitacao.deleteMany({ usuario: userId }),
-  ])
-  await Crianca.deleteMany({ responsavel: userId })
-  await User.deleteOne({ _id: userId })
-
+  await excluirConta(req.user!.id)
   clearSession(res)
   res.status(204).end()
 })

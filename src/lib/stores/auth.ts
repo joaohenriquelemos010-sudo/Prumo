@@ -4,8 +4,8 @@ import { emitAuditEvent } from '@/lib/audit'
 import { gerarMeusDadosPdfBlob } from '@/features/pdf/meusDados'
 import type { MeusDadosExport } from '@/features/pdf/documents'
 
-export type Papel = 'gestante' | 'mae' | 'medico'
-export type VerificacaoStatus = 'nao_aplicavel' | 'pendente' | 'verificado'
+export type Papel = 'gestante' | 'mae' | 'pai' | 'medico' | 'admin'
+export type VerificacaoStatus = 'nao_aplicavel' | 'pendente' | 'verificado' | 'recusado'
 
 export interface AuthUser {
   id: string
@@ -14,6 +14,7 @@ export interface AuthUser {
   papel: Papel
   crm?: string
   crmUf?: string
+  especialidade?: string
   verificacaoStatus?: VerificacaoStatus
 }
 
@@ -26,6 +27,7 @@ export interface RegisterInput {
   cpf?: string
   crm?: string
   crmUf?: string
+  especialidade?: string
 }
 
 type Status = 'idle' | 'loading' | 'authed' | 'guest'

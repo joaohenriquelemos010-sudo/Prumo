@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { requireAuth } from '../auth.js'
+import { requireAuth, requireRole } from '../auth.js'
 import { resolveCriancaOr403 } from '../services/acesso.js'
 import { Prontuario } from '../models/Prontuario.js'
 import type { ProntuarioDoc } from '../models/Prontuario.js'
@@ -42,8 +42,8 @@ prontuarioRouter.get('/', requireAuth, async (req, res) => {
   res.json({ prontuario: serialize(prontuario) })
 })
 
-// PUT /api/prontuario — update the structured summary.
-prontuarioRouter.put('/', requireAuth, async (req, res) => {
+// PUT /api/prontuario — update the structured summary (doctor-only).
+prontuarioRouter.put('/', requireAuth, requireRole('medico'), async (req, res) => {
   const parsed = prontuarioUpdateSchema.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Confere os dados, por favor.' })

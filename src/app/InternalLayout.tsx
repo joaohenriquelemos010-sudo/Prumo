@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Home, Route, CalendarDays, FileHeart, Syringe, LogOut, Activity, NotebookPen, FlaskConical, Stethoscope, MapPin, Link2, Users } from 'lucide-react'
+import { Home, Route, CalendarDays, FileHeart, Syringe, LogOut, Activity, NotebookPen, FlaskConical, Stethoscope, MapPin, Link2, Users, ShieldCheck, BarChart3 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { useAuth } from '@/lib/stores/auth'
 import type { Papel } from '@/lib/stores/auth'
@@ -38,8 +38,15 @@ const NAV_MEDICO: NavItem[] = [
   { to: '/app/caderninho', label: 'Dúvidas', icon: NotebookPen },
 ]
 
+const NAV_ADMIN: NavItem[] = [
+  { to: '/app', label: 'Administração', icon: ShieldCheck },
+  { to: '/app/admin', label: 'Painel admin', icon: BarChart3 },
+]
+
 function navFor(papel: Papel | undefined): NavItem[] {
-  return papel === 'medico' ? NAV_MEDICO : NAV_PACIENTE
+  if (papel === 'medico') return NAV_MEDICO
+  if (papel === 'admin') return NAV_ADMIN
+  return NAV_PACIENTE
 }
 
 /**

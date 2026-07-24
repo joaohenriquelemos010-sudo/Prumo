@@ -27,6 +27,7 @@ export const registerSchema = z
     cpf: z.string().trim().optional(),
     crm: z.string().trim().optional(),
     crmUf: z.string().trim().toUpperCase().optional(),
+    especialidade: z.string().trim().max(60).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.papel !== 'medico') return
@@ -34,6 +35,10 @@ export const registerSchema = z
     // stored as-is for now (no official verification yet).
     if (!data.cpf || !validarCPF(data.cpf)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['cpf'], message: 'CPF inválido. Confere os números?' })
+    }
+    // Specialty is required for doctors (used in doctor-to-doctor sharing).
+    if (!data.especialidade || data.especialidade.length < 2) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['especialidade'], message: 'Informe sua especialidade.' })
     }
   })
   .transform((data) => ({
@@ -106,6 +111,11 @@ export const solicitacaoCreateSchema = z.object({
 
 export const esqueciSenhaSchema = z.object({
   email: z.string().trim().toLowerCase().email('Digite um e-mail válido.'),
+})
+
+export const compartilhamentoCreateSchema = z.object({
+  criancaId: z.string().trim().min(1, 'Escolha o paciente.'),
+  email: z.string().trim().toLowerCase().email('Informe o e-mail do outro médico.'),
 })
 
 const campoLongo = z.string().trim().max(3000).optional()

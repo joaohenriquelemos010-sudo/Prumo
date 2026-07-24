@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useTrilha } from '@/lib/stores/trilha'
 import { useAuth } from '@/lib/stores/auth'
+import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
+import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
 import { api } from '@/lib/api/client'
 import { TrilhaPath } from '@/features/trilha/TrilhaPath'
 import { ProgressHeader } from '@/features/trilha/ProgressHeader'
@@ -22,14 +24,16 @@ export default function AppTrilha() {
   const nodes = useTrilha((s) => s.nodes)
   const progresso = useTrilha((s) => s.progress())
   const nome = useAuth((s) => s.user?.nome)
+  const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
   const celebratingId = useTrilha((s) => s.celebratingId)
   const clearCelebration = useTrilha((s) => s.clearCelebration)
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
     let active = true
+    setReady(false)
     api
-      .get<{ etapasConcluidas: string[] }>('/trilha')
+      .get<{ etapasConcluidas: string[] }>(`/trilha${criancaQuery(criancaAtiva)}`)
       .then((data) => active && hydrate(data.etapasConcluidas))
       .catch(() => {
         /* keep whatever state we have; the UI still works */
@@ -38,7 +42,7 @@ export default function AppTrilha() {
     return () => {
       active = false
     }
-  }, [hydrate])
+  }, [hydrate, criancaAtiva])
 
   useEffect(() => {
     if (!celebratingId) return
@@ -56,6 +60,8 @@ export default function AppTrilha() {
         titulo="Seu caminho, do pré-natal ao primeiro ano"
         descricao="Toque num nó para ver a etapa. Ao concluir a etapa atual, seu progresso é salvo automaticamente."
       />
+
+      <SeletorPaciente />
 
       {ready ? (
         <>

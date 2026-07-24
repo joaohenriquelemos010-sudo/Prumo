@@ -19,7 +19,7 @@ const email = z
   .email('Esse e-mail parece incompleto. Confere pra mim?')
 
 export const onboardingSchema = z.object({
-  perfil: z.enum(['gestante', 'mae', 'medico'], {
+  perfil: z.enum(['gestante', 'mae', 'pai', 'medico'], {
     required_error: 'Escolha por onde você entra na trilha.',
   }),
   nome,

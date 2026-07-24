@@ -12,6 +12,8 @@ export const vinculosRouter = Router()
 const VALIDADE_MS = 7 * 24 * 60 * 60 * 1000
 
 // POST /api/vinculos/convite — either side generates a share token (link/QR).
+// `tipo: 'coparent'` (family only) invites the other parent onto the same journey;
+// otherwise the invite connects a doctor.
 vinculosRouter.post('/convite', requireAuth, async (req, res) => {
   const token = randomBytes(16).toString('hex')
   const base = {
@@ -23,10 +25,11 @@ vinculosRouter.post('/convite', requireAuth, async (req, res) => {
   }
 
   if (req.user!.papel === 'medico') {
-    await ConviteVinculo.create({ ...base, medicoId: req.user!.id })
+    await ConviteVinculo.create({ ...base, medicoId: req.user!.id, tipo: 'medico' })
   } else {
+    const tipo = req.body?.tipo === 'coparent' ? 'coparent' : 'medico'
     const crianca = await getOrCreateCrianca(req.user!.id)
-    await ConviteVinculo.create({ ...base, crianca: crianca._id })
+    await ConviteVinculo.create({ ...base, crianca: crianca._id, tipo })
   }
 
   res.status(201).json({ token, path: `/vincular/${token}` })
@@ -42,8 +45,14 @@ vinculosRouter.get('/convite/:token', requireAuth, async (req, res) => {
   res.json({
     criadorNome: convite.criadorNome,
     criadorPapel: convite.criadorPapel,
-    // 'para-medico' → só um médico aceita; 'para-paciente' → só o paciente aceita.
-    aceitaPor: convite.criadorPapel === 'medico' ? 'paciente' : 'medico',
+    tipo: convite.tipo,
+    // 'coparent' → o outro responsável (família) aceita; senão médico↔paciente.
+    aceitaPor:
+      convite.tipo === 'coparent'
+        ? 'familia'
+        : convite.criadorPapel === 'medico'
+          ? 'paciente'
+          : 'medico',
   })
 })
 
@@ -56,6 +65,31 @@ vinculosRouter.post('/aceitar/:token', requireAuth, async (req, res) => {
   }
   if (convite.criadorId === req.user!.id) {
     res.status(400).json({ error: 'Esse convite foi criado por você — compartilhe com a outra pessoa.' })
+    return
+  }
+
+  // Co-parent invite: the other parent joins the same journey as co-responsável.
+  if (convite.tipo === 'coparent') {
+    if (req.user!.papel === 'medico') {
+      res.status(400).json({ error: 'Esse convite é para o outro responsável (mãe/pai), não para um médico.' })
+      return
+    }
+    const crianca = await Crianca.findById(convite.crianca)
+    if (!crianca) {
+      res.status(404).json({ error: 'Jornada não encontrada.' })
+      return
+    }
+    if (String(crianca.responsavel) === req.user!.id) {
+      res.status(400).json({ error: 'Você já é o responsável por essa jornada.' })
+      return
+    }
+    if (!crianca.coResponsaveis.includes(req.user!.id)) {
+      crianca.coResponsaveis.push(req.user!.id)
+      await crianca.save()
+    }
+    convite.usado = true
+    await convite.save()
+    res.status(201).json({ ok: true, coparent: true, pacienteNome: convite.criadorNome })
     return
   }
 

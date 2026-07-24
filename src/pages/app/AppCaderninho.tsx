@@ -3,6 +3,8 @@ import { NotebookPen, Plus, Pencil, Check, X, Share2, Download, Reply } from 'lu
 import { BotaoExcluir } from '@/components/BotaoExcluir'
 import { api } from '@/lib/api/client'
 import { useAuth } from '@/lib/stores/auth'
+import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
+import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
 import { Button } from '@/components/Button'
 import { EmptyState } from '@/components/EmptyState'
 import { Skeleton } from '@/components/Skeleton'
@@ -34,21 +36,23 @@ function diaLabel(iso: string): string {
 export default function AppCaderninho() {
   const papel = useAuth((s) => s.user?.papel)
   const nome = useAuth((s) => s.user?.nome)
+  const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
   const isMedico = papel === 'medico'
   const [duvidas, setDuvidas] = useState<Duvida[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
+    setLoading(true)
     api
-      .get<{ duvidas: Duvida[] }>('/caderninho')
+      .get<{ duvidas: Duvida[] }>(`/caderninho${criancaQuery(criancaAtiva)}`)
       .then((d) => active && setDuvidas(d.duvidas))
       .catch(() => {})
       .finally(() => active && setLoading(false))
     return () => {
       active = false
     }
-  }, [])
+  }, [criancaAtiva])
 
   const grupos = useMemo(() => {
     const map = new Map<string, Duvida[]>()
@@ -75,7 +79,9 @@ export default function AppCaderninho() {
         </p>
       </header>
 
-      {!isMedico && <NovaDuvida onCreated={(d) => setDuvidas((prev) => [d, ...prev])} />}
+      <SeletorPaciente />
+
+      {!isMedico && <NovaDuvida criancaAtiva={criancaAtiva} onCreated={(d) => setDuvidas((prev) => [d, ...prev])} />}
 
       {loading ? (
         <div className="flex flex-col gap-2">
@@ -102,6 +108,7 @@ export default function AppCaderninho() {
                   key={d.id}
                   duvida={d}
                   isMedico={isMedico}
+                  criancaAtiva={criancaAtiva}
                   onChange={(nova) => setDuvidas((prev) => prev.map((x) => (x.id === nova.id ? nova : x)))}
                   onRemove={(id) => setDuvidas((prev) => prev.filter((x) => x.id !== id))}
                 />
@@ -127,7 +134,7 @@ export default function AppCaderninho() {
   )
 }
 
-function NovaDuvida({ onCreated }: { onCreated: (d: Duvida) => void }) {
+function NovaDuvida({ criancaAtiva, onCreated }: { criancaAtiva: string | null; onCreated: (d: Duvida) => void }) {
   const [texto, setTexto] = useState('')
   const [saving, setSaving] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -140,7 +147,7 @@ function NovaDuvida({ onCreated }: { onCreated: (d: Duvida) => void }) {
     }
     setSaving(true)
     try {
-      const { duvida } = await api.post<{ duvida: Duvida }>('/caderninho', { texto })
+      const { duvida } = await api.post<{ duvida: Duvida }>(`/caderninho${criancaQuery(criancaAtiva)}`, { texto })
       onCreated(duvida)
       setTexto('')
     } catch {
@@ -181,11 +188,12 @@ function NovaDuvida({ onCreated }: { onCreated: (d: Duvida) => void }) {
 interface CardProps {
   duvida: Duvida
   isMedico: boolean
+  criancaAtiva: string | null
   onChange: (d: Duvida) => void
   onRemove: (id: string) => void
 }
 
-function DuvidaCard({ duvida, isMedico, onChange, onRemove }: CardProps) {
+function DuvidaCard({ duvida, isMedico, criancaAtiva, onChange, onRemove }: CardProps) {
   const userId = useAuth((s) => s.user?.id)
   const meu = Boolean(userId) && duvida.autorId === userId
   const [editando, setEditando] = useState(false)
@@ -227,7 +235,7 @@ function DuvidaCard({ duvida, isMedico, onChange, onRemove }: CardProps) {
   async function enviarResposta() {
     if (resposta.trim().length < 2) return
     try {
-      const { duvida: nova } = await api.post<{ duvida: Duvida }>(`/caderninho/${duvida.id}/resposta`, { texto: resposta })
+      const { duvida: nova } = await api.post<{ duvida: Duvida }>(`/caderninho/${duvida.id}/resposta${criancaQuery(criancaAtiva)}`, { texto: resposta })
       onChange(nova)
       setRespondendo(false)
       setResposta('')

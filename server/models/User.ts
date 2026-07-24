@@ -1,10 +1,13 @@
 import mongoose, { Schema } from 'mongoose'
 import type { InferSchemaType } from 'mongoose'
 
-export const PAPEIS = ['gestante', 'mae', 'medico'] as const
+export const PAPEIS = ['gestante', 'mae', 'pai', 'medico', 'admin'] as const
 export type Papel = (typeof PAPEIS)[number]
 
-export const VERIFICACAO = ['nao_aplicavel', 'pendente', 'verificado'] as const
+/** Roles that represent a family member responsible for a child journey. */
+export const PAPEIS_FAMILIA = ['gestante', 'mae', 'pai'] as const
+
+export const VERIFICACAO = ['nao_aplicavel', 'pendente', 'verificado', 'recusado'] as const
 export type VerificacaoStatus = (typeof VERIFICACAO)[number]
 
 const userSchema = new Schema(
@@ -26,6 +29,7 @@ const userSchema = new Schema(
     cpf: { type: String, default: '', select: false },
     crm: { type: String, default: '' },
     crmUf: { type: String, default: '' },
+    especialidade: { type: String, default: '', maxlength: 60 },
     verificacaoStatus: { type: String, enum: VERIFICACAO, default: 'nao_aplicavel' },
   },
   { timestamps: true },

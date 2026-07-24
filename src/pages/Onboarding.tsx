@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { HeartHandshake, Baby, Stethoscope, CalendarClock, Sprout, ArrowLeft, ArrowRight } from 'lucide-react'
+import { HeartHandshake, Baby, Stethoscope, CalendarClock, Sprout, ArrowLeft, ArrowRight, UserRound } from 'lucide-react'
 import { useOnboarding } from '@/lib/stores/onboarding'
 import type { MomentoGestacao, Perfil } from '@/lib/stores/onboarding'
 import { useAuth } from '@/lib/stores/auth'
@@ -21,6 +21,20 @@ const slide = {
   transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] as const },
 }
 
+/** Common medical specialties for the doctor sign-up (plus a free "Outra"). */
+const ESPECIALIDADES = [
+  'Pediatria',
+  'Obstetrícia',
+  'Ginecologia',
+  'Ginecologia e Obstetrícia',
+  'Neonatologia',
+  'Clínica Geral',
+  'Medicina de Família',
+  'Enfermagem Obstétrica',
+  'Nutrição',
+  'Outra',
+] as const
+
 export default function OnboardingPage() {
   const { step, perfil, momento, nome, start, setPerfil, setMomento, setNome, next, back, complete, reset } =
     useOnboarding()
@@ -32,6 +46,8 @@ export default function OnboardingPage() {
   const [cpf, setCpf] = useState('')
   const [crm, setCrm] = useState('')
   const [crmUf, setCrmUf] = useState('')
+  const [especialidade, setEspecialidade] = useState('')
+  const [outraEsp, setOutraEsp] = useState(false)
   /** `status` carries the HTTP code so we can offer the matching way out. */
   const [erro, setErro] = useState<{ mensagem: string; status?: number } | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -87,6 +103,10 @@ export default function OnboardingPage() {
         setErro({ mensagem: 'CPF inválido. Confere os números?' })
         return
       }
+      if (especialidade.trim().length < 2) {
+        setErro({ mensagem: 'Escolha ou informe sua especialidade.' })
+        return
+      }
       // CRM é opcional por enquanto (sem validação oficial).
     }
 
@@ -96,7 +116,7 @@ export default function OnboardingPage() {
       email: email.trim(),
       senha,
       papel: perfil,
-      ...(perfil === 'medico' ? { cpf, crm, crmUf } : {}),
+      ...(perfil === 'medico' ? { cpf, crm, crmUf, especialidade: especialidade.trim() } : {}),
     })
     setEnviando(false)
 
@@ -143,9 +163,10 @@ export default function OnboardingPage() {
           {step === 0 && (
             <motion.div key="perfil" {...slide}>
               <StepHeading titulo="Bem-vinda à Prumo" subtitulo="Para começar, me conta: por onde você entra?" />
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <ChoiceCard icon={HeartHandshake} label="Sou gestante" selected={perfil === 'gestante'} onClick={() => escolherPerfil('gestante')} />
-                <ChoiceCard icon={Baby} label="Sou mãe ou pai" selected={perfil === 'mae'} onClick={() => escolherPerfil('mae')} />
+                <ChoiceCard icon={Baby} label="Sou mãe" selected={perfil === 'mae'} onClick={() => escolherPerfil('mae')} />
+                <ChoiceCard icon={UserRound} label="Sou pai" selected={perfil === 'pai'} onClick={() => escolherPerfil('pai')} />
                 <ChoiceCard icon={Stethoscope} label="Sou médico(a)" selected={perfil === 'medico'} onClick={() => escolherPerfil('medico')} />
               </div>
             </motion.div>
@@ -280,6 +301,46 @@ export default function OnboardingPage() {
                         </select>
                       </label>
                     </div>
+                    <label htmlFor="especialidade" className="flex flex-col gap-1.5">
+                      <span className="font-display text-sm font-semibold text-ink">Especialidade</span>
+                      <select
+                        id="especialidade"
+                        value={outraEsp ? 'Outra' : especialidade}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          if (v === 'Outra') {
+                            setOutraEsp(true)
+                            setEspecialidade('')
+                          } else {
+                            setOutraEsp(false)
+                            setEspecialidade(v)
+                          }
+                          if (erro) setErro(null)
+                        }}
+                        className="input"
+                      >
+                        <option value="">Selecione…</option>
+                        {ESPECIALIDADES.map((esp) => (
+                          <option key={esp} value={esp}>
+                            {esp}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {outraEsp && (
+                      <input
+                        type="text"
+                        aria-label="Informe sua especialidade"
+                        value={especialidade}
+                        maxLength={60}
+                        onChange={(e) => {
+                          setEspecialidade(e.target.value)
+                          if (erro) setErro(null)
+                        }}
+                        placeholder="Qual é a sua especialidade?"
+                        className="input"
+                      />
+                    )}
                     <p className="text-xs text-ink-mute">
                       Validamos seu CPF. O CRM é opcional por enquanto. Seus documentos
                       ficam protegidos e nunca são exibidos publicamente.

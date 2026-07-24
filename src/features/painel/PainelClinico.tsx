@@ -1,56 +1,99 @@
-import { Activity, AlertTriangle, CheckCircle2, Circle, Clock, TrendingUp } from 'lucide-react'
-import { cn } from '@/lib/cn'
+import { useEffect, useState } from 'react'
+import { Activity, AlertTriangle, CheckCircle2, Syringe, TrendingUp, Route, FileHeart, Droplet } from 'lucide-react'
+import { api } from '@/lib/api/client'
+import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
+import { TRILHA_NODES } from '@/features/trilha/data'
+import { Skeleton } from '@/components/Skeleton'
 
 /**
- * Mocked clinical panel — the "prova de conceito" a doctor sees. Fictional data
- * only. The tone here is denser and more direct, as the brief asks, while still
- * human. No invented efficacy metrics or social proof.
+ * Clinical panel — a real snapshot of the currently selected patient (via the
+ * doctor's patient selector / `useMedicoContext`). Reads the patient's own
+ * prontuário, vaccines and trilha through the scoped API. With no patient
+ * connected it falls back to the doctor's example journey.
  */
 
-const RISCOS = [
-  { nivel: 'atencao', label: 'Diabetes gestacional (controlada)', origem: 'Gestação · 2º tri' },
-  { nivel: 'ok', label: 'Sem alergias registradas', origem: 'Anamnese' },
-]
+interface Evento {
+  id: string
+  data: string
+  autorNome: string
+  texto: string
+}
 
-const VACINAS = [
-  { nome: 'BCG', status: 'aplicada', quando: 'Maternidade' },
-  { nome: 'Hepatite B', status: 'aplicada', quando: 'Maternidade' },
-  { nome: 'Pentavalente (1ª)', status: 'atual', quando: '2 meses' },
-  { nome: 'Rotavírus (1ª)', status: 'atual', quando: '2 meses' },
-  { nome: 'Pentavalente (2ª)', status: 'pendente', quando: '4 meses' },
-]
-
-const MARCOS = [
-  { label: 'Sustento cervical', faixa: 'esperado 2–4m', ok: true },
-  { label: 'Sorriso social', faixa: 'esperado 1,5–3m', ok: true },
-  { label: 'Rolar', faixa: 'esperado 4–6m', ok: false },
-]
+interface Prontuario {
+  tipoSanguineo: string
+  alergias: string
+  resumoGestacional: string
+  condicoes: string[]
+  eventos: Evento[]
+}
 
 export function PainelClinico() {
+  const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
+  const nomeAtivo = useMedicoContext((s) => s.nomeAtivo)
+  const [prontuario, setProntuario] = useState<Prontuario | null>(null)
+  const [vacinas, setVacinas] = useState<number>(0)
+  const [etapas, setEtapas] = useState<number>(0)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    const q = criancaQuery(criancaAtiva)
+    Promise.all([
+      api.get<{ prontuario: Prontuario }>(`/prontuario${q}`),
+      api.get<{ vacinasAplicadas: string[] }>(`/vacinas${q}`),
+      api.get<{ etapasConcluidas: string[] }>(`/trilha${q}`),
+    ])
+      .then(([p, v, t]) => {
+        if (!active) return
+        setProntuario(p.prontuario)
+        setVacinas(v.vacinasAplicadas.length)
+        setEtapas(t.etapasConcluidas.length)
+      })
+      .catch(() => {})
+      .finally(() => active && setLoading(false))
+    return () => {
+      active = false
+    }
+  }, [criancaAtiva])
+
+  if (loading) {
+    return (
+      <div className="grid gap-md lg:grid-cols-3">
+        <Skeleton className="h-48 lg:col-span-1" />
+        <Skeleton className="h-48 lg:col-span-2" />
+      </div>
+    )
+  }
+
+  const nomePaciente = nomeAtivo || 'Paciente de exemplo'
+  const progresso = Math.round((etapas / TRILHA_NODES.length) * 100)
+  const condicoes = prontuario?.condicoes ?? []
+  const ultimos = prontuario?.eventos.slice(0, 3) ?? []
+
   return (
     <div className="grid gap-md lg:grid-cols-3">
       {/* Ficha */}
       <div className="rounded-2xl border border-line bg-paper p-lg shadow-soft lg:col-span-1">
         <p className="font-display text-sm font-semibold text-ink-mute">Paciente</p>
-        <p className="mt-1 font-display text-2xl font-bold text-ink">Bebê M.</p>
-        <p className="text-ink-soft">4 meses · nascido a termo (39s)</p>
+        <p className="mt-1 font-display text-2xl font-bold text-ink">{nomePaciente}</p>
 
         <dl className="mt-md grid grid-cols-2 gap-3 text-sm">
           <div>
-            <dt className="text-ink-mute">Peso ao nascer</dt>
-            <dd className="font-semibold text-ink">3,240 kg</dd>
+            <dt className="inline-flex items-center gap-1 text-ink-mute">
+              <Droplet className="size-3.5" aria-hidden /> Tipo sanguíneo
+            </dt>
+            <dd className="font-semibold text-ink">{prontuario?.tipoSanguineo || '—'}</dd>
           </div>
           <div>
-            <dt className="text-ink-mute">Apgar</dt>
-            <dd className="font-semibold text-ink">9 / 10</dd>
+            <dt className="inline-flex items-center gap-1 text-ink-mute">
+              <Syringe className="size-3.5" aria-hidden /> Vacinas
+            </dt>
+            <dd className="font-semibold text-ink">{vacinas} registradas</dd>
           </div>
-          <div>
-            <dt className="text-ink-mute">Triagem neonatal</dt>
-            <dd className="font-semibold text-success">Normal</dd>
-          </div>
-          <div>
-            <dt className="text-ink-mute">Aleitamento</dt>
-            <dd className="font-semibold text-ink">Exclusivo</dd>
+          <div className="col-span-2">
+            <dt className="text-ink-mute">Alergias</dt>
+            <dd className="font-semibold text-ink">{prontuario?.alergias || 'Sem alergias registradas'}</dd>
           </div>
         </dl>
       </div>
@@ -62,68 +105,66 @@ export function PainelClinico() {
           <h3 className="text-lg">Histórico contínuo · gestação → hoje</h3>
         </div>
 
-        <ul className="mt-md flex flex-col gap-2">
-          {RISCOS.map((r) => (
-            <li
-              key={r.label}
-              className={cn(
-                'flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm',
-                r.nivel === 'atencao' ? 'bg-[oklch(0.95_0.06_65)]' : 'bg-paper-2',
-              )}
-            >
-              <span className="inline-flex items-center gap-2 font-semibold text-ink">
-                {r.nivel === 'atencao' ? (
-                  <AlertTriangle className="size-4 text-warn" aria-hidden />
-                ) : (
-                  <CheckCircle2 className="size-4 text-success" aria-hidden />
-                )}
-                {r.label}
-              </span>
-              <span className="text-ink-mute">{r.origem}</span>
-            </li>
-          ))}
-        </ul>
+        {condicoes.length > 0 ? (
+          <ul className="mt-md flex flex-col gap-2">
+            {condicoes.map((c) => (
+              <li key={c} className="flex items-center gap-2 rounded-xl bg-[oklch(0.95_0.06_65)] px-3 py-2.5 text-sm">
+                <AlertTriangle className="size-4 text-warn" aria-hidden />
+                <span className="font-semibold text-ink">{c}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="mt-md flex items-center gap-2 rounded-xl bg-paper-2 px-3 py-2.5 text-sm text-ink-soft">
+            <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden />
+            Nenhuma condição em acompanhamento registrada.
+          </div>
+        )}
 
-        <div className="mt-md flex items-center gap-2 rounded-xl bg-paper-2 px-3 py-2.5 text-sm text-ink-soft">
-          <TrendingUp className="size-4 shrink-0 text-indigo" aria-hidden />
-          Curva de crescimento no percentil 60. Sem sinais de alerta na última consulta.
+        {prontuario?.resumoGestacional && (
+          <div className="mt-md flex items-start gap-2 rounded-xl bg-paper-2 px-3 py-2.5 text-sm text-ink-soft">
+            <TrendingUp className="mt-0.5 size-4 shrink-0 text-indigo" aria-hidden />
+            <span>{prontuario.resumoGestacional}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Trilha */}
+      <div className="rounded-2xl border border-line bg-paper p-lg shadow-soft lg:col-span-1">
+        <h3 className="inline-flex items-center gap-2 text-lg">
+          <Route className="size-5 text-indigo" aria-hidden />
+          Trilha
+        </h3>
+        <p className="mt-md font-display text-3xl font-bold text-ink">{progresso}%</p>
+        <p className="text-sm text-ink-mute">
+          {etapas} de {TRILHA_NODES.length} etapas concluídas
+        </p>
+        <div className="mt-3 h-2.5 overflow-hidden rounded-pill bg-paper-3">
+          <div className="h-full rounded-pill [background-image:var(--grad-brand)]" style={{ width: `${progresso}%` }} />
         </div>
       </div>
 
-      {/* Vacinas */}
+      {/* Últimas anotações */}
       <div className="rounded-2xl border border-line bg-paper p-lg shadow-soft lg:col-span-2">
-        <h3 className="text-lg">Calendário vacinal</h3>
-        <ul className="mt-md grid gap-2 sm:grid-cols-2">
-          {VACINAS.map((v) => (
-            <li key={v.nome} className="flex items-center gap-2 rounded-xl bg-paper-2 px-3 py-2 text-sm">
-              {v.status === 'aplicada' && <CheckCircle2 className="size-4 text-success" aria-hidden />}
-              {v.status === 'atual' && <Clock className="size-4 text-indigo" aria-hidden />}
-              {v.status === 'pendente' && <Circle className="size-4 text-ink-mute" aria-hidden />}
-              <span className="font-semibold text-ink">{v.nome}</span>
-              <span className="ml-auto text-ink-mute">{v.quando}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Marcos */}
-      <div className="rounded-2xl border border-line bg-paper p-lg shadow-soft lg:col-span-1">
-        <h3 className="text-lg">Marcos</h3>
-        <ul className="mt-md flex flex-col gap-3">
-          {MARCOS.map((m) => (
-            <li key={m.label} className="flex items-start gap-2 text-sm">
-              {m.ok ? (
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-              ) : (
-                <Circle className="mt-0.5 size-4 shrink-0 text-ink-mute" aria-hidden />
-              )}
-              <span>
-                <span className="block font-semibold text-ink">{m.label}</span>
-                <span className="block text-xs text-ink-mute">{m.faixa}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
+        <h3 className="inline-flex items-center gap-2 text-lg">
+          <FileHeart className="size-5 text-indigo" aria-hidden />
+          Últimas anotações do prontuário
+        </h3>
+        {ultimos.length === 0 ? (
+          <p className="mt-md text-sm text-ink-mute">Nenhuma anotação ainda.</p>
+        ) : (
+          <ul className="mt-md flex flex-col gap-2">
+            {ultimos.map((ev) => (
+              <li key={ev.id} className="rounded-xl bg-paper-2 px-3 py-2 text-sm">
+                <p className="text-ink">{ev.texto}</p>
+                <p className="text-xs text-ink-mute">
+                  {new Date(ev.data).toLocaleDateString('pt-BR')}
+                  {ev.autorNome && ` · ${ev.autorNome}`}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )

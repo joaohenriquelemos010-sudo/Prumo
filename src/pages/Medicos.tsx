@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { Activity, CalendarCheck, GitMerge, LineChart, ShieldAlert, Syringe } from 'lucide-react'
 import { Section, SectionHead } from '@/components/Section'
 import { Blob } from '@/components/Blob'
-import { PainelClinico } from '@/features/painel/PainelClinico'
+import { PainelClinicoDemo } from '@/features/painel/PainelClinicoDemo'
 
 const RECURSOS = [
   {
@@ -98,7 +98,7 @@ export default function MedicosPage() {
           descricao="Um exemplo do painel: histórico contínuo, faixa de risco, vacinas e marcos — dados mockados para demonstração."
         />
         <div className="mt-xl">
-          <PainelClinico />
+          <PainelClinicoDemo />
         </div>
         <p className="mt-md inline-flex items-center gap-2 text-sm text-ink-mute">
           <CalendarCheck className="size-4" aria-hidden />

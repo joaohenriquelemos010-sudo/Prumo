@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { isValidObjectId } from 'mongoose'
 import { requireAuth, requireRole } from '../auth.js'
-import { getOrCreateCrianca } from '../services/crianca.js'
+import { resolveCriancaOr403 } from '../services/acesso.js'
 import { Duvida } from '../models/Duvida.js'
 import type { DuvidaDoc } from '../models/Duvida.js'
 import type { HydratedDocument } from 'mongoose'
@@ -35,10 +35,11 @@ function serialize(d: HydratedDocument<DuvidaDoc>) {
   }
 }
 
-// GET /api/caderninho — the family sees all their questions; the doctor sees the
-// shared ones for their (demo) patient.
+// GET /api/caderninho — the family (owner/co-parent) sees all questions for the
+// resolved journey; a connected doctor sees the ones shared with them.
 caderninhoRouter.get('/', requireAuth, async (req, res) => {
-  const crianca = await getOrCreateCrianca(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
   const filtro =
     req.user!.papel === 'medico'
       ? { crianca: crianca._id, compartilhada: true }
@@ -47,14 +48,15 @@ caderninhoRouter.get('/', requireAuth, async (req, res) => {
   res.json({ duvidas: duvidas.map(serialize) })
 })
 
-// POST /api/caderninho — only the family writes questions.
-caderninhoRouter.post('/', requireAuth, requireRole('gestante', 'mae'), async (req, res) => {
+// POST /api/caderninho — only the family (owner/co-parent) writes questions.
+caderninhoRouter.post('/', requireAuth, requireRole('gestante', 'mae', 'pai'), async (req, res) => {
   const parsed = duvidaCreateSchema.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Escreva sua dúvida.' })
     return
   }
-  const crianca = await getOrCreateCrianca(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
   const duvida = await Duvida.create({
     crianca: crianca._id,
     autorId: req.user!.id,
@@ -110,7 +112,8 @@ caderninhoRouter.post('/:id/resposta', requireAuth, requireRole('medico'), async
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Escreva a resposta.' })
     return
   }
-  const crianca = await getOrCreateCrianca(req.user!.id)
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
   const duvida = await Duvida.findById(req.params.id)
   if (!duvida || !duvida.compartilhada || String(duvida.crianca) !== String(crianca._id)) {
     res.status(404).json({ error: 'Não encontramos essa dúvida.' })

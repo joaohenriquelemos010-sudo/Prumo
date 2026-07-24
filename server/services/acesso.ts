@@ -12,6 +12,7 @@ import type { SessionUser } from '../types.js'
  *
  * - No `criancaId` → the user's OWN journey (default, unchanged behaviour).
  * - A `criancaId` that belongs to the user → allowed.
+ * - A `criancaId` the user is a CO-RESPONSÁVEL of (the other parent) → allowed.
  * - A `criancaId` that a DOCTOR has an active Vínculo to → allowed (this is how a
  *   connected doctor reaches the patient's exams/prontuário/consultas).
  * - Otherwise → null (the caller should answer 403).
@@ -29,6 +30,9 @@ export async function resolveCrianca(
 
   // Own journey.
   if (String(crianca.responsavel) === user.id) return crianca
+
+  // The other parent (co-responsável) — full access.
+  if (crianca.coResponsaveis?.includes(user.id)) return crianca
 
   // Connected doctor.
   if (user.papel === 'medico') {

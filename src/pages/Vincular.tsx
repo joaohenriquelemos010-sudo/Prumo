@@ -9,8 +9,9 @@ import { Blob } from '@/components/Blob'
 
 interface ConviteInfo {
   criadorNome: string
-  criadorPapel: 'gestante' | 'mae' | 'medico'
-  aceitaPor: 'medico' | 'paciente'
+  criadorPapel: 'gestante' | 'mae' | 'pai' | 'medico'
+  tipo: 'medico' | 'coparent'
+  aceitaPor: 'medico' | 'paciente' | 'familia'
 }
 
 /**
@@ -58,7 +59,12 @@ export default function VincularPage() {
     }
   }
 
-  const papelLabel = info?.criadorPapel === 'medico' ? 'médico(a)' : 'paciente'
+  const isCoparent = info?.tipo === 'coparent'
+  const papelLabel = isCoparent
+    ? 'outro responsável'
+    : info?.criadorPapel === 'medico'
+      ? 'médico(a)'
+      : 'paciente'
 
   return (
     <div className="relative grid min-h-[80vh] place-items-center overflow-hidden px-md py-2xl">
@@ -108,9 +114,12 @@ export default function VincularPage() {
               {info.criadorNome} quer se conectar
             </h1>
             <p className="mt-1 text-ink-soft">
-              {papelLabel} · Ao aceitar, vocês compartilham o acompanhamento pela Prumo.
+              {isCoparent
+                ? `${papelLabel} · Ao aceitar, você passa a acompanhar a mesma jornada (exames, prontuário, caderninho e trilha).`
+                : `${papelLabel} · Ao aceitar, vocês compartilham o acompanhamento pela Prumo.`}
               {info.aceitaPor === 'medico' && user?.papel !== 'medico' && ' Este convite é para um médico.'}
               {info.aceitaPor === 'paciente' && user?.papel === 'medico' && ' Este convite é para o paciente.'}
+              {info.aceitaPor === 'familia' && user?.papel === 'medico' && ' Este convite é para o outro responsável, não para um médico.'}
             </p>
             <div className="mt-lg">
               <Button size="lg" fullWidth loading={aceitando} iconLeft={<ShieldCheck className="size-5" aria-hidden />} onClick={aceitar}>

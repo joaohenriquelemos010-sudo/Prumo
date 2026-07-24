@@ -13,7 +13,9 @@ const conviteSchema = new Schema(
     token: { type: String, required: true, unique: true, index: true },
     criadorId: { type: String, required: true },
     criadorNome: { type: String, default: '' },
-    criadorPapel: { type: String, enum: ['gestante', 'mae', 'medico'], required: true },
+    criadorPapel: { type: String, enum: ['gestante', 'mae', 'pai', 'medico'], required: true },
+    // 'medico' → doctor↔patient link (default); 'coparent' → invite the other parent.
+    tipo: { type: String, enum: ['medico', 'coparent'], default: 'medico' },
     // Set when the patient creates the invite.
     crianca: { type: Schema.Types.ObjectId, ref: 'Crianca', default: null },
     // Set when the doctor creates the invite.

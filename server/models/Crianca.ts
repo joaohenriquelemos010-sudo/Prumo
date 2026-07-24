@@ -15,6 +15,12 @@ const criancaSchema = new Schema(
       required: true,
       index: true,
     },
+    /**
+     * Co-responsáveis — the other parent(s) linked to this journey (mãe↔pai).
+     * Stored as user id strings; each has full access to the child (see
+     * server/services/acesso.ts). Managed through the co-parent invite flow.
+     */
+    coResponsaveis: { type: [String], default: [], index: true },
     nome: { type: String, trim: true, maxlength: 80, default: '' },
     momento: {
       type: String,

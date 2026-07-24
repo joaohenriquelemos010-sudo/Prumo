@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import { env } from './env.js'
+import { seedAdmin } from './services/seedAdmin.js'
 
 /**
  * Mongoose connection, cached on `globalThis`. In a serverless environment
@@ -15,6 +16,7 @@ import { env } from './env.js'
 interface Cache {
   conn: typeof mongoose | null
   promise: Promise<typeof mongoose> | null
+  adminSeeded?: Promise<void>
 }
 
 const globalForMongoose = globalThis as unknown as { __prumoMongoose?: Cache }
@@ -44,5 +46,13 @@ export async function connectDB(): Promise<typeof mongoose> {
     )
   }
   cache.conn = await cache.promise
+  // Provision the administrator account once the connection is ready. Best-effort:
+  // a failure here must not take down request handling.
+  if (!cache.adminSeeded) {
+    cache.adminSeeded = seedAdmin()
+      .catch((err) => {
+        console.error('[seed] falha ao provisionar admin:', err)
+      })
+  }
   return cache.conn
 }
