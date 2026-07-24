@@ -162,7 +162,7 @@ export default function OnboardingPage() {
         <AnimatePresence mode="wait">
           {step === 0 && (
             <motion.div key="perfil" {...slide}>
-              <StepHeading titulo="Bem-vinda à Prumo" subtitulo="Para começar, me conta: por onde você entra?" />
+              <StepHeading titulo="Boas-vindas à Prumo" subtitulo="Para começar, me conta: por onde você entra?" />
               <div className="grid gap-3 sm:grid-cols-2">
                 <ChoiceCard icon={HeartHandshake} label="Sou gestante" selected={perfil === 'gestante'} onClick={() => escolherPerfil('gestante')} />
                 <ChoiceCard icon={Baby} label="Sou mãe" selected={perfil === 'mae'} onClick={() => escolherPerfil('mae')} />
@@ -184,10 +184,20 @@ export default function OnboardingPage() {
                 </>
               ) : (
                 <>
-                  <StepHeading titulo="Em que ponto você está?" subtitulo="Assim a trilha já começa no lugar certo pra você." />
+                  <StepHeading titulo="Em que ponto vocês estão?" subtitulo="Assim a trilha já começa no lugar certo pra você." />
                   <div className="grid gap-3">
-                    <ChoiceCard icon={Sprout} label="Estou planejando engravidar" selected={momento === 'planejando'} onClick={() => escolherMomento('planejando')} />
-                    <ChoiceCard icon={CalendarClock} label="Estou grávida agora" selected={momento === 'gestante'} onClick={() => escolherMomento('gestante')} />
+                    <ChoiceCard
+                      icon={Sprout}
+                      label={perfil === 'pai' ? 'Estamos planejando' : 'Estou planejando engravidar'}
+                      selected={momento === 'planejando'}
+                      onClick={() => escolherMomento('planejando')}
+                    />
+                    <ChoiceCard
+                      icon={CalendarClock}
+                      label={perfil === 'pai' ? 'Estamos esperando um bebê' : 'Estou grávida agora'}
+                      selected={momento === 'gestante'}
+                      onClick={() => escolherMomento('gestante')}
+                    />
                     <ChoiceCard icon={Baby} label="Meu bebê já nasceu" selected={momento === 'ja-nasceu'} onClick={() => escolherMomento('ja-nasceu')} />
                   </div>
                 </>

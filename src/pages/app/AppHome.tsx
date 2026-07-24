@@ -269,7 +269,7 @@ function OrientacaoInicial() {
         <X className="size-4" aria-hidden />
       </button>
       <p className="u-eyebrow inline-flex items-center gap-2">
-        <Sparkles className="size-4" aria-hidden /> Bem-vinda à Prumo
+        <Sparkles className="size-4" aria-hidden /> Boas-vindas à Prumo
       </p>
       <h2 className="mt-1 text-lg">Como usar, rapidinho</h2>
       <ul className="mt-md grid gap-2 text-sm text-ink-soft sm:grid-cols-2">
