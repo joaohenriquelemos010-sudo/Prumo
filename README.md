@@ -73,17 +73,34 @@ public/img/   logos SVG
 tokens.css    export portátil do design system (raiz)
 ```
 
-## Páginas
+## Páginas públicas
 
-| Rota          | O que é |
-|---------------|---------|
-| `/`           | Landing: hero, o problema (cuidado partido) → solução (trilha), públicos, CTA |
-| `/trilha`     | **A Trilha** — experiência estilo Duolingo, do pré-natal ao 1º ano |
-| `/gestantes`  | Para gestantes e mães, em linguagem de gente |
-| `/medicos`    | Para médicos, com visualização de painel clínico |
-| `/seguranca`  | Segurança e privacidade, LGPD, controle dos dados |
-| `/onboarding` | Fluxo de 3 passos com bifurcação mãe / médico |
-| `/painel`     | Dashboard clínico mockado (prova de conceito) |
+| Rota            | O que é |
+|-----------------|---------|
+| `/`             | Landing: o problema (cuidado partido) → solução (trilha), públicos, CTA |
+| `/trilha`       | **A Trilha** (demo) — experiência estilo Duolingo, do pré-natal ao 1º ano |
+| `/gestantes` · `/medicos` | Conteúdo para cada público |
+| `/seguranca`    | Segurança e privacidade, LGPD, controle dos dados |
+| `/onboarding`   | Criar conta em 3 passos, com bifurcação mãe/gestante · médico (CPF) |
+| `/entrar` · `/esqueci-senha` | Login e recuperação de senha |
+| `/vincular/:token` | Confirmar conexão médico↔paciente (link/QR) |
+
+## Área interna (`/app`) — autenticada, por papel
+
+**Paciente (gestante/mãe/pai):** Início (home guiada com "próximo passo") · Trilha real ·
+**Exames** (upload/guarda no GridFS) · **Caderninho de dúvidas** (PDF) · **Agenda** e
+**Vacinas** (calendário SUS/PNI) · **Agendar** (marketplace com Google Maps/Waze e
+proximidade) · **Comunidade** (feed estilo FLO + quizzes mito×verdade + amamentação) ·
+**Conectar** (link + QR para o médico) · Perfil (exportar/excluir dados — LGPD).
+
+**Médico:** Painel clínico · **Prontuário** contínuo (editável) · **Consultas** (jornada
+SOAP passo a passo) · **Exames** do paciente · **Dúvidas** (responde o caderninho) ·
+**Pacientes** (conecta-se por link/QR e alterna entre eles). O acesso do médico aos dados
+de um paciente é **escopado por vínculo consentido e revogável**.
+
+Backend em `server/` (Express + Mongoose) com models para User, Criança, Prontuário,
+Consulta, Exame (GridFS), Dúvida, Vínculo/Convite, Prestador, Solicitação e Post; rotas
+sob `/api/*`; validação Zod e sanitização em toda entrada.
 
 ## A Trilha
 

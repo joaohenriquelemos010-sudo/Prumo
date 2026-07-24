@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, CalendarDays, Route, Syringe, ShieldQuestion, Stethoscope, FlaskConical, NotebookPen, X, Sparkles } from 'lucide-react'
+import { ArrowRight, CalendarDays, Route, Syringe, ShieldQuestion, Stethoscope, FlaskConical, NotebookPen, X, Sparkles, Users } from 'lucide-react'
 import { useAuth } from '@/lib/stores/auth'
 import { useTrilha } from '@/lib/stores/trilha'
 import { usePerfil } from '@/lib/stores/perfil'
@@ -12,6 +12,7 @@ import { PainelClinico } from '@/features/painel/PainelClinico'
 const ATALHOS = [
   { to: '/app/trilha', label: 'Continuar a trilha', icon: Route },
   { to: '/app/agenda', label: 'Ver a agenda', icon: CalendarDays },
+  { to: '/app/comunidade', label: 'Comunidade', icon: Users },
   { to: '/app/vacinas', label: 'Carteira de vacinas', icon: Syringe },
 ]
 

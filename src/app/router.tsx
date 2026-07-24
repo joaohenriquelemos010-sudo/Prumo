@@ -28,6 +28,7 @@ const AppExames = lazy(() => import('@/pages/app/AppExames'))
 const AppConsultas = lazy(() => import('@/pages/app/AppConsultas'))
 const AppProfissionais = lazy(() => import('@/pages/app/AppProfissionais'))
 const AppCompartilhar = lazy(() => import('@/pages/app/AppCompartilhar'))
+const AppComunidade = lazy(() => import('@/pages/app/AppComunidade'))
 
 export const router = createBrowserRouter(
   [
@@ -61,6 +62,7 @@ export const router = createBrowserRouter(
         { path: 'consultas', element: <AppConsultas /> },
         { path: 'profissionais', element: <AppProfissionais /> },
         { path: 'compartilhar', element: <AppCompartilhar /> },
+        { path: 'comunidade', element: <AppComunidade /> },
         { path: 'perfil', element: <AppPerfil /> },
       ],
     },

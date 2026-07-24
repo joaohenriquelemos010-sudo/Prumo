@@ -14,6 +14,7 @@ import { examesRouter } from './routes/exames.js'
 import { prestadoresRouter } from './routes/prestadores.js'
 import { solicitacoesRouter } from './routes/solicitacoes.js'
 import { vinculosRouter } from './routes/vinculos.js'
+import { comunidadeRouter } from './routes/comunidade.js'
 import { MulterError } from 'multer'
 import { env } from './env.js'
 
@@ -62,6 +63,7 @@ export function createApp() {
   app.use('/api/prestadores', prestadoresRouter)
   app.use('/api/solicitacoes', solicitacoesRouter)
   app.use('/api/vinculos', vinculosRouter)
+  app.use('/api/comunidade', comunidadeRouter)
 
   // 404 for unknown API routes.
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Não encontramos o que você procurava.' }))

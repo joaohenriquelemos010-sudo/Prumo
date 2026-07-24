@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { PAPEIS } from './models/User.js'
 import { CATEGORIAS_EXAME } from './models/Exame.js'
+import { CATEGORIAS_POST } from './models/Post.js'
 import { validarCPF, somenteDigitos, UFS } from './br-docs.js'
 
 /**
@@ -128,6 +129,16 @@ export const exameCreateSchema = z.object({
     .refine((v) => !Number.isNaN(Date.parse(v)), 'Data inválida.')
     .optional(),
   observacoes: z.string().trim().max(1000).optional(),
+})
+
+export const postCreateSchema = z.object({
+  texto: z.string().trim().min(2, 'Escreva algo para compartilhar.').max(1000, 'Ficou longo — resuma um pouco?'),
+  categoria: z.enum(CATEGORIAS_POST).default('maternidade'),
+  anonimo: z.boolean().optional(),
+})
+
+export const comentarioCreateSchema = z.object({
+  texto: z.string().trim().min(1, 'Escreva um comentário.').max(500),
 })
 
 export type RegisterInput = z.infer<typeof registerSchema>
