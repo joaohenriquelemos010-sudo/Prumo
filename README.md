@@ -31,7 +31,14 @@ npm run build      # build de produção (typecheck + bundle)
 npm run preview    # serve o build de produção
 npm run typecheck  # checagem de tipos (frontend + backend)
 npm run lint       # eslint
+npm run smoke      # E2E num navegador real — precisa do dev rodando
 ```
+
+O smoke (`scripts/smoke.mjs`) percorre as jornadas que atravessam frontend, API e banco:
+paridade da navegação no celular, tema claro/escuro, marcar → confirmar → ver uma consulta,
+a separação do que a família lê, e a passagem do pré-natal para a pediatria. Use
+`SHOTS=1` para gravar as telas em `.smoke/`, e `CHROME_PATH=…` para apontar um Chromium
+que a máquina já tenha.
 
 Em desenvolvimento, a API Express roda **dentro do servidor do Vite** (um plugin
 monta o app Express como middleware em `/api`) — um processo só, sem porta extra.
@@ -88,19 +95,43 @@ tokens.css    export portátil do design system (raiz)
 ## Área interna (`/app`) — autenticada, por papel
 
 **Paciente (gestante/mãe/pai):** Início (home guiada com "próximo passo") · Trilha real ·
-**Exames** (upload/guarda no GridFS) · **Caderninho de dúvidas** (PDF) · **Agenda** e
-**Vacinas** (calendário SUS/PNI) · **Agendar** (marketplace com Google Maps/Waze e
-proximidade) · **Comunidade** (feed estilo FLO + quizzes mito×verdade + amamentação) ·
-**Conectar** (link + QR para o médico) · Perfil (exportar/excluir dados — LGPD).
+**Bebê** (crescimento semana a semana) · **Agenda** (consultas com dia e hora, lista ou mês,
+remarcar, cancelar, exportar `.ics`) · **Agendar** (escolhe profissional, dia e horário) ·
+**Exames** (upload/guarda no GridFS) · **Caderninho de dúvidas** (PDF) · **Vacinas**
+(calendário SUS/PNI) · **Comunidade** (feed estilo FLO + quizzes mito×verdade) ·
+**Conectar** (link + QR para o médico) · Perfil (plano de saúde; exportar/excluir dados — LGPD).
 
-**Médico:** Painel clínico · **Prontuário** contínuo (editável) · **Consultas** (jornada
-SOAP passo a passo) · **Exames** do paciente · **Dúvidas** (responde o caderninho) ·
-**Pacientes** (conecta-se por link/QR e alterna entre eles). O acesso do médico aos dados
-de um paciente é **escopado por vínculo consentido e revogável**.
+**Médico:** Painel clínico · **Agenda** (próximos, fila de pedidos para confirmar/recusar,
+e o editor de disponibilidade) · **Prontuário** contínuo, incluindo o resumo de nascimento
+que passa o caso para a pediatria · **Bebê** (registro de biometria fetal) · **Consultas**
+(roteiro da diretriz + SOAP) · **Exames** · **Dúvidas** · **Pacientes**. O acesso do médico
+aos dados de um paciente é **escopado por vínculo consentido e revogável**.
+
+### Agendamento
+
+Modelo híbrido. Médicos com conta publicam **disponibilidade** (faixas semanais, bloqueios,
+duração, antecedência) e a família marca um **horário real**, que o profissional confirma ou
+recusa. Clínicas do catálogo, que não têm conta, recebem uma **proposta de horário** que o
+admin responde por elas. O servidor recalcula a disponibilidade a cada marcação em vez de
+confiar no slot que o cliente devolveu — dois pedidos para o mesmo horário dão 409.
+
+### O que a família lê
+
+O prontuário não mostra tudo. `notasPrivadas` fica só com a equipe, e a médica decide se a
+impressão diagnóstica é compartilhada. O corte é feito **no servidor**, a partir da sessão.
+A família vê que existe uma avaliação, sem ler o conteúdo — nunca um espaço em branco sem
+explicação.
+
+### Verificação de padrões
+
+Toda medida gravada é comparada com a faixa esperada para a idade — biometria fetal pelas
+curvas de Hadlock, antropometria infantil por escore-z da OMS. O que sai da faixa vira um
+alerta para a médica na hora, com o limiar que disparou e a fonte. Alertas são clínicos por
+padrão; os poucos marcados para a família chegam como convite para conversar na consulta.
 
 Backend em `server/` (Express + Mongoose) com models para User, Criança, Prontuário,
-Consulta, Exame (GridFS), Dúvida, Vínculo/Convite, Prestador, Solicitação e Post; rotas
-sob `/api/*`; validação Zod e sanitização em toda entrada.
+Consulta, Exame (GridFS), Dúvida, Vínculo/Convite, Prestador, Agendamento, Disponibilidade,
+MedidaFetal, Alerta e Post; rotas sob `/api/*`; validação Zod e sanitização em toda entrada.
 
 ## A Trilha
 

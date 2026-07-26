@@ -108,6 +108,49 @@ export async function registrarTestesClinicos({ navegador, BASE, DESKTOP, secao,
   afirmar(cm.avaliacao?.includes('restrição'), 'a equipe lê a avaliação completa')
   afirmar(cm.notasPrivadas?.includes('antecipação'), 'a equipe lê suas próprias notas')
 
+  /* ---- the handoff: obstetrics → paediatrics ---- */
+  const nascimento = await ctxMedica.request.put(`${BASE}/api/prontuario/nascimento?crianca=${criancaId}`, {
+    data: {
+      dataNascimento: new Date().toISOString(),
+      igAoNascerSemanas: 39,
+      igAoNascerDias: 2,
+      tipoParto: 'vaginal',
+      apgar1: 9,
+      apgar5: 10,
+      pesoNascimentoG: 3240,
+      comprimentoNascimentoCm: 49,
+      pcNascimentoCm: 34,
+      sorologiasMaternas: 'HIV, sífilis e hepatite B não reagentes.',
+      gbs: 'negativo',
+      aleitamento: 'Exclusivo',
+      triagens: [
+        { id: 'pezinho', feito: true },
+        { id: 'orelhinha', feito: true },
+        { id: 'coracaozinho', feito: true },
+      ],
+    },
+  })
+  afirmar(nascimento.ok(), 'obstetra registra o nascimento', `status ${nascimento.status()}`)
+
+  const { prontuario } = await nascimento.json()
+  afirmar(prontuario.resumoNascimento?.pesoNascimentoG === 3240, 'resumo de nascimento fica gravado')
+  afirmar(
+    prontuario.eventos.some((e) => e.texto.includes('Nascimento registrado')),
+    'a virada aparece na linha do tempo do prontuário',
+  )
+
+  // Flipping the journey is what starts the vaccine calendar and puericultura.
+  const { perfil } = await (await ctxMae.request.get(`${BASE}/api/perfil`)).json()
+  afirmar(perfil.momento === 'ja-nasceu', 'a jornada vira para "já nasceu"')
+  afirmar(Boolean(perfil.dataNascimento), 'a data de nascimento passa a alimentar o calendário')
+
+  // And the family reads the summary too — this one is theirs.
+  const proFamilia = await (await ctxMae.request.get(`${BASE}/api/prontuario`)).json()
+  afirmar(
+    proFamilia.prontuario.resumoNascimento?.pesoNascimentoG === 3240,
+    'a família também lê o resumo do nascimento',
+  )
+
   await ctxMae.close()
   await ctxMedica.close()
 }

@@ -104,6 +104,33 @@ export const prontuarioUpdateSchema = z.object({
   condicoes: z.array(z.string().trim().max(120)).max(30).optional(),
 })
 
+export const resumoNascimentoSchema = z.object({
+  igAoNascerSemanas: z.number().int().min(20).max(45).nullable().optional(),
+  igAoNascerDias: z.number().int().min(0).max(6).nullable().optional(),
+  tipoParto: z.enum(['vaginal', 'cesarea', 'forceps', '']).optional(),
+  apgar1: z.number().int().min(0).max(10).nullable().optional(),
+  apgar5: z.number().int().min(0).max(10).nullable().optional(),
+  pesoNascimentoG: z.number().min(200).max(7000).nullable().optional(),
+  comprimentoNascimentoCm: z.number().min(20).max(70).nullable().optional(),
+  pcNascimentoCm: z.number().min(15).max(50).nullable().optional(),
+  intercorrencias: z.string().trim().max(1000).optional(),
+  sorologiasMaternas: z.string().trim().max(500).optional(),
+  gbs: z.enum(['positivo', 'negativo', 'nao-realizado', '']).optional(),
+  aleitamento: z.string().trim().max(200).optional(),
+  triagens: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(40),
+        feito: z.boolean(),
+        resultado: z.string().trim().max(200).optional(),
+      }),
+    )
+    .max(20)
+    .optional(),
+  /** Vira o momento da jornada para 'ja-nasceu' e grava a data de nascimento. */
+  dataNascimento: dataOpcional,
+})
+
 export const prontuarioEventoSchema = z.object({
   texto: z.string().trim().min(2, 'Escreva a anotação.').max(2000),
 })

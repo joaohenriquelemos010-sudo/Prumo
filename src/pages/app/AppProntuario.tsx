@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Activity, FileHeart, Plus, Baby, Save, Pencil, X, Check } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { useAuth } from '@/lib/stores/auth'
@@ -12,6 +12,8 @@ import { MARCOS, REFERENCIA_MARCOS, NOTA_MARCOS } from '@/features/clinico/sus-m
 import { Button } from '@/components/Button'
 import { BotaoExcluir } from '@/components/BotaoExcluir'
 import { Skeleton } from '@/components/Skeleton'
+import { ResumoNascimento } from '@/features/clinico/ResumoNascimento'
+import type { ResumoNascimento as ResumoNascimentoDados } from '@/features/clinico/ResumoNascimento'
 import { cn } from '@/lib/cn'
 
 interface Evento {
@@ -29,6 +31,7 @@ interface Prontuario {
   resumoGestacional: string
   condicoes: string[]
   eventos: Evento[]
+  resumoNascimento: ResumoNascimentoDados | null
 }
 
 export default function AppProntuario() {
@@ -39,18 +42,21 @@ export default function AppProntuario() {
   const [prontuario, setProntuario] = useState<Prontuario | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    let active = true
+  const carregar = useCallback(async () => {
     setLoading(true)
-    api
-      .get<{ prontuario: Prontuario }>(`/prontuario${criancaQuery(criancaAtiva)}`)
-      .then((d) => active && setProntuario(d.prontuario))
-      .catch(() => {})
-      .finally(() => active && setLoading(false))
-    return () => {
-      active = false
+    try {
+      const d = await api.get<{ prontuario: Prontuario }>(`/prontuario${criancaQuery(criancaAtiva)}`)
+      setProntuario(d.prontuario)
+    } catch {
+      /* the page keeps whatever it already had */
+    } finally {
+      setLoading(false)
     }
   }, [criancaAtiva])
+
+  useEffect(() => {
+    void carregar()
+  }, [carregar])
 
   return (
     <div className="flex flex-col gap-lg">
@@ -72,6 +78,9 @@ export default function AppProntuario() {
       ) : (
         <>
           <ResumoClinico prontuario={prontuario} podeEditar={podeEditar} onSaved={setProntuario} />
+          {podeEditar && (
+            <ResumoNascimento resumo={prontuario.resumoNascimento} onSalvo={() => void carregar()} />
+          )}
           <Eventos prontuario={prontuario} onChange={setProntuario} />
           <Marcos />
           <Suspense fallback={null}>

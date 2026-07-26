@@ -4,7 +4,7 @@ import { resolveCriancaOr403 } from '../services/acesso.js'
 import { Prontuario } from '../models/Prontuario.js'
 import type { ProntuarioDoc } from '../models/Prontuario.js'
 import type { HydratedDocument, Types } from 'mongoose'
-import { prontuarioUpdateSchema, prontuarioEventoSchema } from '../validation.js'
+import { resumoNascimentoSchema, prontuarioUpdateSchema, prontuarioEventoSchema } from '../validation.js'
 import { normalizeField } from '../sanitize.js'
 
 export const prontuarioRouter = Router()
@@ -21,6 +21,27 @@ function serialize(p: HydratedDocument<ProntuarioDoc>) {
     alergias: p.alergias,
     resumoGestacional: p.resumoGestacional,
     condicoes: p.condicoes,
+    resumoNascimento: p.resumoNascimento?.preenchido
+      ? {
+          preenchido: true,
+          igAoNascerSemanas: p.resumoNascimento.igAoNascerSemanas,
+          igAoNascerDias: p.resumoNascimento.igAoNascerDias,
+          tipoParto: p.resumoNascimento.tipoParto,
+          apgar1: p.resumoNascimento.apgar1,
+          apgar5: p.resumoNascimento.apgar5,
+          pesoNascimentoG: p.resumoNascimento.pesoNascimentoG,
+          comprimentoNascimentoCm: p.resumoNascimento.comprimentoNascimentoCm,
+          pcNascimentoCm: p.resumoNascimento.pcNascimentoCm,
+          intercorrencias: p.resumoNascimento.intercorrencias,
+          sorologiasMaternas: p.resumoNascimento.sorologiasMaternas,
+          gbs: p.resumoNascimento.gbs,
+          aleitamento: p.resumoNascimento.aleitamento,
+          triagens: p.resumoNascimento.triagens ?? [],
+          registradoEm: p.resumoNascimento.registradoEm
+            ? new Date(p.resumoNascimento.registradoEm).toISOString()
+            : null,
+        }
+      : null,
     eventos: p.eventos
       .map((e) => ({
         id: String(e._id),
@@ -39,6 +60,78 @@ prontuarioRouter.get('/', requireAuth, async (req, res) => {
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
   const prontuario = await getOrCreateProntuario(crianca._id)
+  res.json({ prontuario: serialize(prontuario) })
+})
+
+/**
+ * PUT /api/prontuario/nascimento — the handoff from obstetrics to paediatrics.
+ *
+ * One save does the whole turn: it records how the pregnancy ended and what the
+ * newborn screening already answered, flips the journey to `ja-nasceu`, and drops
+ * a dated event on the timeline so the pediatrician sees the transition rather
+ * than inferring it. Doctor-only, because it is a clinical record.
+ */
+prontuarioRouter.put('/nascimento', requireAuth, requireRole('medico'), async (req, res) => {
+  const parsed = resumoNascimentoSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Confere os dados do nascimento.' })
+    return
+  }
+  const crianca = await resolveCriancaOr403(req, res)
+  if (!crianca) return
+
+  const d = parsed.data
+  const prontuario = await getOrCreateProntuario(crianca._id)
+
+  prontuario.resumoNascimento = {
+    preenchido: true,
+    igAoNascerSemanas: d.igAoNascerSemanas ?? null,
+    igAoNascerDias: d.igAoNascerDias ?? null,
+    tipoParto: d.tipoParto ?? '',
+    apgar1: d.apgar1 ?? null,
+    apgar5: d.apgar5 ?? null,
+    pesoNascimentoG: d.pesoNascimentoG ?? null,
+    comprimentoNascimentoCm: d.comprimentoNascimentoCm ?? null,
+    pcNascimentoCm: d.pcNascimentoCm ?? null,
+    intercorrencias: normalizeField(d.intercorrencias ?? '', 1000),
+    sorologiasMaternas: normalizeField(d.sorologiasMaternas ?? '', 500),
+    gbs: d.gbs ?? '',
+    aleitamento: normalizeField(d.aleitamento ?? '', 200),
+    triagens: (d.triagens ?? []).map((t) => ({
+      id: t.id,
+      feito: t.feito,
+      data: t.feito ? new Date() : null,
+      resultado: normalizeField(t.resultado ?? '', 200),
+    })),
+    registradoPor: req.user!.id,
+    registradoEm: new Date(),
+  } as typeof prontuario.resumoNascimento
+
+  // The timeline is what the next clinician scrolls; say the turn happened.
+  const resumo = [
+    d.igAoNascerSemanas != null && `${d.igAoNascerSemanas}s${d.igAoNascerDias ?? 0}d`,
+    d.tipoParto && `parto ${d.tipoParto}`,
+    d.pesoNascimentoG && `${d.pesoNascimentoG} g`,
+    d.apgar1 != null && d.apgar5 != null && `Apgar ${d.apgar1}/${d.apgar5}`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  prontuario.eventos.push({
+    data: d.dataNascimento ? new Date(d.dataNascimento) : new Date(),
+    autorId: req.user!.id,
+    autorNome: req.user!.nome,
+    autorPapel: req.user!.papel,
+    texto: `Nascimento registrado${resumo ? `: ${resumo}` : ''}. Acompanhamento segue com a pediatria.`,
+  })
+  await prontuario.save()
+
+  // Flip the journey, so every derived schedule (vaccines, puericultura) starts.
+  crianca.momento = 'ja-nasceu'
+  if (d.dataNascimento) crianca.dataNascimento = new Date(d.dataNascimento)
+  else if (!crianca.dataNascimento) crianca.dataNascimento = new Date()
+  await crianca.save()
+
   res.json({ prontuario: serialize(prontuario) })
 })
 

@@ -4,6 +4,19 @@ A Prumo lida com dados de saúde de gestantes e crianças. Aqui tratamos seguran
 como requisito de produto. Este documento explica, em linguagem simples, o que já
 está implementado no cliente e o que precisa vir do backend.
 
+## Dados sensíveis com tratamento próprio
+
+- **Número da carteirinha do convênio** (`Crianca.convenio.numeroCarteirinha`): gravado com
+  `select: false` e devolvido sempre mascarado (`•••• 1234`) — nem a equipe conectada recebe
+  o número inteiro. O valor completo nunca chega ao navegador.
+- **Notas clínicas privadas** (`Consulta.notasPrivadas`, `MedidaFetal.notasPrivadas`) e a
+  impressão diagnóstica marcada como privada: filtradas na serialização, a partir do papel
+  da sessão. Não existe parâmetro que o cliente possa enviar para contornar o filtro, e os
+  campos também ficam fora da exportação LGPD entregue à família.
+- **Percentis de biometria fetal**: são leitura clínica e só saem para a equipe. A família
+  recebe o valor medido e a faixa de referência — o suficiente para o gráfico, sem o número
+  que assusta fora de contexto.
+
 ## O que já está implementado (cliente)
 
 ### Headers e Content Security Policy
