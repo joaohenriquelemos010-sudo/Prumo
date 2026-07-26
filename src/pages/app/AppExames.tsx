@@ -182,7 +182,7 @@ function NovoExame({ onCreated }: { onCreated: (e: Exame) => void }) {
         </label>
       </div>
       {erro && (
-        <p role="alert" className="mt-3 text-sm font-semibold text-warn">
+        <p role="alert" className="mt-3 text-sm font-semibold text-warn-ink">
           {erro}
         </p>
       )}

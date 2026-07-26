@@ -283,7 +283,7 @@ function ListaConexoes({
               <button
                 type="button"
                 onClick={it.onRemover}
-                className="inline-flex items-center gap-1 rounded-pill px-3 py-1.5 text-sm font-semibold text-warn hover:bg-paper"
+                className="inline-flex items-center gap-1 rounded-pill px-3 py-1.5 text-sm font-semibold text-warn-ink hover:bg-paper"
               >
                 <UserMinus className="size-4" aria-hidden /> {it.rotuloRemover}
               </button>
@@ -390,7 +390,7 @@ function CompartilharComOutroMedico({ pacientes }: { pacientes: Vinculo[] }) {
           </Button>
         </div>
         {msg && (
-          <p role="alert" className={`text-sm font-semibold ${msg.tom === 'ok' ? 'text-success' : 'text-warn'}`}>
+          <p role="alert" className={`text-sm font-semibold ${msg.tom === 'ok' ? 'text-success-ink' : 'text-warn-ink'}`}>
             {msg.texto}
           </p>
         )}

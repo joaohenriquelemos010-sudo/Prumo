@@ -108,15 +108,15 @@ export function PainelClinico() {
         {condicoes.length > 0 ? (
           <ul className="mt-md flex flex-col gap-2">
             {condicoes.map((c) => (
-              <li key={c} className="flex items-center gap-2 rounded-xl bg-[oklch(0.95_0.06_65)] px-3 py-2.5 text-sm">
-                <AlertTriangle className="size-4 text-warn" aria-hidden />
-                <span className="font-semibold text-ink">{c}</span>
+              <li key={c} className="u-chip-warn flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm">
+                <AlertTriangle className="size-4 shrink-0" aria-hidden />
+                <span className="font-semibold">{c}</span>
               </li>
             ))}
           </ul>
         ) : (
           <div className="mt-md flex items-center gap-2 rounded-xl bg-paper-2 px-3 py-2.5 text-sm text-ink-soft">
-            <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden />
+            <CheckCircle2 className="size-4 shrink-0 text-success-ink" aria-hidden />
             Nenhuma condição em acompanhamento registrada.
           </div>
         )}

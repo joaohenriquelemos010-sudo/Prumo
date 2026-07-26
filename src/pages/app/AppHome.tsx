@@ -194,11 +194,11 @@ function VerificacaoBanner() {
   if (status !== 'pendente') return null
 
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-[var(--color-warn)] bg-[oklch(0.97_0.04_65)] p-md">
-      <ShieldQuestion className="mt-0.5 size-5 shrink-0 text-warn" aria-hidden />
+    <div className="u-chip-warn flex items-start gap-3 rounded-2xl border border-[color-mix(in_oklch,var(--color-warn)_45%,transparent)] p-md">
+      <ShieldQuestion className="mt-0.5 size-5 shrink-0" aria-hidden />
       <div>
-        <p className="font-display font-semibold text-ink">CRM em verificação</p>
-        <p className="text-sm text-ink-soft">
+        <p className="font-display font-semibold">CRM em verificação</p>
+        <p className="text-sm opacity-90">
           Recebemos seu CRM{crm ? ` ${crm}${crmUf ? `/${crmUf}` : ''}` : ''}. Enquanto a
           verificação não conclui, você navega em modo demonstração com um paciente de exemplo.
         </p>

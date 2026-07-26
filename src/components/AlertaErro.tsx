@@ -27,7 +27,7 @@ export function AlertaErro({ children, acao, className }: AlertaErroProps) {
         className,
       )}
     >
-      <p className="text-sm font-semibold text-warn">{children}</p>
+      <p className="text-sm font-semibold text-warn-ink">{children}</p>
       {acao && <div className="mt-2 flex flex-wrap items-center gap-2">{acao}</div>}
     </div>
   )

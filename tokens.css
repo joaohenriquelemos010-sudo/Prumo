@@ -1,42 +1,50 @@
 /* Hallmark · portable design tokens — theme: custom "Prumo"
  * This is the portable export of src/styles/tokens.css. Copy it into another
- * project to carry the Prumo design system forward. Kept in sync by hand.
+ * project to carry the Prumo design system forward.
  * vibe: "acolhimento materno fluindo para segurança clínica"
  * axes: light / rounded-sans / cool · display Outfit + body Nunito
  */
 
 :root {
-  /* Brand anchors (from the /img logo gradient) */
-  --color-lilas: oklch(0.74 0.15 300); /* #b58bfd */
+  /* ---- Brand anchors (from the logo gradient) ---- */
+  --color-lilas: oklch(0.74 0.15 300); /* #b58bfd — acolhimento materno */
   --color-lilas-soft: oklch(0.9 0.07 300);
-  --color-azul: oklch(0.64 0.18 271); /* #5b81fb */
+  --color-azul: oklch(0.64 0.18 271); /* #5b81fb — confiança clínica */
   --color-azul-soft: oklch(0.86 0.08 265);
-  --color-indigo: oklch(0.4 0.12 273); /* #36408c */
+  --color-indigo: oklch(0.4 0.12 273); /* #36408c — âncora / tipografia */
 
-  /* Paper */
+  /* ---- Paper (surfaces) ---- */
   --color-paper: oklch(0.995 0.006 300);
   --color-paper-2: oklch(0.975 0.012 295);
   --color-paper-3: oklch(0.95 0.02 290);
 
-  /* Ink */
+  /* ---- Ink (text) ---- */
   --color-ink: oklch(0.32 0.06 274);
   --color-ink-soft: oklch(0.46 0.05 274);
-  --color-ink-mute: oklch(0.6 0.035 274);
+  /* L=0.52, not 0.60: at 0.60 this landed on 3.9:1 over --color-paper, under AA. */
+  --color-ink-mute: oklch(0.52 0.04 274);
 
-  /* Lines & feedback */
+  /* ---- Lines & feedback ---- */
   --color-line: oklch(0.9 0.02 290);
+  /* `success`/`warn` are FILL colours (dots, borders, gradient chips). For text on
+   * paper use the `-ink` pair — they are tuned per theme to clear AA, which the
+   * fill colours cannot do in both directions. */
   --color-success: oklch(0.66 0.14 155);
   --color-warn: oklch(0.72 0.13 65);
+  --color-success-ink: oklch(0.48 0.13 155);
+  --color-warn-ink: oklch(0.5 0.12 60);
   --color-focus: oklch(0.55 0.19 285);
 
-  /* Narrative gradient */
+  /* ---- The narrative gradient (violet → periwinkle) ---- */
   --grad-brand: linear-gradient(135deg, var(--color-lilas) 0%, var(--color-azul) 100%);
   --grad-brand-soft: linear-gradient(135deg, var(--color-lilas-soft) 0%, var(--color-azul-soft) 100%);
+  --grad-veil: linear-gradient(180deg, oklch(0.995 0.006 300 / 0) 0%, var(--color-paper) 100%);
 
-  /* Typography */
+  /* ---- Typography ---- */
   --font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
   --font-body: 'Nunito', ui-sans-serif, system-ui, sans-serif;
   --font-hand: 'Caveat', 'Segoe Script', cursive;
+
   --text-xs: 0.8125rem;
   --text-sm: 0.9375rem;
   --text-base: 1.0625rem;
@@ -48,7 +56,7 @@
   --text-display-s: 3.5rem;
   --text-display: clamp(2.75rem, 6vw, 4.75rem);
 
-  /* Spacing (4pt) */
+  /* ---- Spacing (4pt scale) ---- */
   --space-xs: 0.5rem;
   --space-sm: 0.75rem;
   --space-md: 1.25rem;
@@ -57,7 +65,7 @@
   --space-2xl: 4.5rem;
   --space-3xl: 7rem;
 
-  /* Radius */
+  /* ---- Radius (generous, soft) ---- */
   --radius-sm: 0.5rem;
   --radius-md: 0.875rem;
   --radius-lg: 1.25rem;
@@ -65,12 +73,12 @@
   --radius-2xl: 2.25rem;
   --radius-pill: 999px;
 
-  /* Shadows */
+  /* ---- Shadows (diffuse, low-contrast) ---- */
   --shadow-soft: 0 4px 24px -8px oklch(0.4 0.12 273 / 0.14);
   --shadow-lift: 0 14px 44px -14px oklch(0.4 0.12 273 / 0.22);
   --shadow-glow: 0 0 0 6px oklch(0.74 0.15 300 / 0.12);
 
-  /* Motion */
+  /* ---- Motion ---- */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.5, 0, 0.75, 0);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
@@ -79,4 +87,32 @@
   --dur-slow: 420ms;
 
   --rule-hair: 1px;
+}
+
+/* Dark mode — applied by explicit choice (data-theme="dark"), set from the
+ * header toggle. Keeps the acolhedor soul: warm-tinted deep indigo paper, never
+ * a cold banking-app black. The brand gradient stays; only surfaces + ink flip. */
+:root[data-theme='dark'] {
+  --color-paper: oklch(0.24 0.035 285);
+  --color-paper-2: oklch(0.28 0.04 285);
+  --color-paper-3: oklch(0.33 0.045 285);
+  --color-ink: oklch(0.96 0.015 295);
+  --color-ink-soft: oklch(0.84 0.022 295);
+  --color-ink-mute: oklch(0.7 0.028 295);
+  --color-line: oklch(0.4 0.045 285);
+  --color-lilas-soft: oklch(0.52 0.11 300);
+  --color-azul-soft: oklch(0.48 0.12 271);
+  --color-focus: oklch(0.78 0.14 300);
+  /* The brand ink has to flip. At its light value (L=0.40) it scored 1.74:1 on
+   * dark paper and 1.02:1 on --grad-brand-soft — the accent text, the active nav
+   * state and the theme toggle itself were all unreadable. Lifting it here is
+   * what repairs every `text-indigo` site at once. */
+  --color-indigo: oklch(0.84 0.1 285);
+  --color-success-ink: oklch(0.8 0.13 155);
+  --color-warn-ink: oklch(0.82 0.12 70);
+  --grad-brand-soft: linear-gradient(135deg, oklch(0.4 0.11 300) 0%, oklch(0.42 0.12 271) 100%);
+  --grad-veil: linear-gradient(180deg, oklch(0.24 0.035 285 / 0) 0%, var(--color-paper) 100%);
+  --shadow-soft: 0 4px 24px -8px oklch(0 0 0 / 0.45);
+  --shadow-lift: 0 14px 44px -14px oklch(0 0 0 / 0.55);
+  --shadow-glow: 0 0 0 6px oklch(0.74 0.15 300 / 0.22);
 }

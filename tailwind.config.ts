@@ -2,9 +2,16 @@ import type { Config } from 'tailwindcss'
 
 // The Tailwind theme reads from the CSS custom properties declared in
 // src/styles/tokens.css — a single source of truth for the Prumo design system.
-// Colours are OKLCH; the tokens carry the alpha channel via <alpha-value>.
+//
+// Colours are complete OKLCH functions, not channel triplets, so Tailwind's
+// `<alpha-value>` substitution does NOT apply: `bg-paper/95` silently renders
+// opaque. When you need a translucent brand surface, reach for
+// `bg-[color-mix(in_oklab,var(--color-paper)_88%,transparent)]` instead.
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  // Theme is an explicit choice stored on <html data-theme>, never the OS
+  // preference alone — so `dark:` must key off the attribute, not `media`.
+  darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
@@ -22,6 +29,8 @@ export default {
         line: 'var(--color-line)',
         success: 'var(--color-success)',
         warn: 'var(--color-warn)',
+        'success-ink': 'var(--color-success-ink)',
+        'warn-ink': 'var(--color-warn-ink)',
       },
       fontFamily: {
         display: 'var(--font-display)',

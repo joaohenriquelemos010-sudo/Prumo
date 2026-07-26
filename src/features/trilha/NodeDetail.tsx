@@ -22,7 +22,7 @@ export function NodeDetail({ node }: { node: TrilhaNode }) {
           </span>
         )}
         {isDone && (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-success">
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-success-ink">
             <CheckCircle2 className="size-4" aria-hidden /> Concluído
           </span>
         )}

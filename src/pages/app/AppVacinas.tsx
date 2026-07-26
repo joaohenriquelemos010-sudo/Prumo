@@ -21,8 +21,8 @@ import { Skeleton } from '@/components/Skeleton'
 import { cn } from '@/lib/cn'
 
 const STATUS_META: Record<DoseStatus, { label: string; className: string; icon: typeof Check }> = {
-  aplicada: { label: 'Aplicada', className: 'text-success', icon: Check },
-  atrasada: { label: 'Em atraso', className: 'text-warn', icon: AlertTriangle },
+  aplicada: { label: 'Aplicada', className: 'text-success-ink', icon: Check },
+  atrasada: { label: 'Em atraso', className: 'text-warn-ink', icon: AlertTriangle },
   proxima: { label: 'Em breve', className: 'text-indigo', icon: Clock },
   futura: { label: 'Futura', className: 'text-ink-mute', icon: Circle },
 }

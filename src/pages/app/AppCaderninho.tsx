@@ -177,7 +177,7 @@ function NovaDuvida({ criancaAtiva, onCreated }: { criancaAtiva: string | null; 
         </Button>
       </div>
       {erro && (
-        <p role="alert" className="mt-2 text-sm font-semibold text-warn">
+        <p role="alert" className="mt-2 text-sm font-semibold text-warn-ink">
           {erro}
         </p>
       )}
@@ -333,8 +333,8 @@ function IconBtn({
 }) {
   const tones: Record<string, string> = {
     default: 'text-ink-soft hover:text-indigo',
-    success: 'text-success',
-    warn: 'text-ink-soft hover:text-warn',
+    success: 'text-success-ink',
+    warn: 'text-ink-soft hover:text-warn-ink',
     accent: 'text-indigo',
     mute: 'text-ink-mute hover:text-indigo',
   }

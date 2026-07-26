@@ -83,7 +83,7 @@ export default function EsqueciSenhaPage() {
             </label>
 
             {erro && (
-              <p role="alert" className="mt-3 text-sm font-semibold text-warn">
+              <p role="alert" className="mt-3 text-sm font-semibold text-warn-ink">
                 {erro}
               </p>
             )}

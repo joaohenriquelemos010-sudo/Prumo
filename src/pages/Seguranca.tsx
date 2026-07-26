@@ -122,7 +122,7 @@ function ControleDados() {
               Exportar meus dados
             </Button>
             {estado === 'export' && (
-              <p role="status" className="mt-2 text-sm font-semibold text-success">
+              <p role="status" className="mt-2 text-sm font-semibold text-success-ink">
                 Pedido registrado. Você receberá o arquivo com segurança.
               </p>
             )}
@@ -138,7 +138,7 @@ function ControleDados() {
               Excluir minha conta
             </Button>
             {estado === 'delete' && (
-              <p role="status" className="mt-2 text-sm font-semibold text-warn">
+              <p role="status" className="mt-2 text-sm font-semibold text-warn-ink">
                 Pedido registrado. Enviaremos uma confirmação antes de apagar qualquer coisa.
               </p>
             )}

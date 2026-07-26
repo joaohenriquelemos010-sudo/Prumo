@@ -286,7 +286,7 @@ function PrestadorCard({ prestador, objetivo }: { prestador: Prestador; objetivo
               </>
             )}
             {enviado ? (
-              <span className="inline-flex h-9 items-center gap-1.5 rounded-pill px-3 text-sm font-semibold text-success">
+              <span className="inline-flex h-9 items-center gap-1.5 rounded-pill px-3 text-sm font-semibold text-success-ink">
                 <Check className="size-4" aria-hidden /> Solicitação enviada
               </span>
             ) : (

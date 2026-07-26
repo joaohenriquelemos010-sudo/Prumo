@@ -101,6 +101,25 @@
     color: var(--color-indigo);
   }
 
+  /* Status chips. The background is composited from the feedback token against
+     whatever paper sits underneath, so one class works in both themes — the
+     hardcoded `bg-[oklch(0.95 …)]` these replaced failed at 1.07:1 in dark, and
+     some of them failed in light too. Text uses the AA-tuned `-ink` pair. */
+  .u-chip-warn {
+    background: color-mix(in oklch, var(--color-warn) 14%, transparent);
+    color: var(--color-warn-ink);
+  }
+
+  .u-chip-success {
+    background: color-mix(in oklch, var(--color-success) 14%, transparent);
+    color: var(--color-success-ink);
+  }
+
+  .u-chip-brand {
+    background: color-mix(in oklch, var(--color-lilas) 14%, transparent);
+    color: var(--color-indigo);
+  }
+
   .input {
     width: 100%;
     border-radius: var(--radius-lg);

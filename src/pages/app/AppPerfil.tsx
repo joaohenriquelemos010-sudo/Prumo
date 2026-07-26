@@ -95,7 +95,7 @@ export default function AppPerfil() {
           </Button>
         </div>
         {erroExportar && (
-          <p role="alert" className="mt-3 text-sm font-semibold text-warn">
+          <p role="alert" className="mt-3 text-sm font-semibold text-warn-ink">
             {erroExportar}
           </p>
         )}
@@ -111,7 +111,7 @@ export default function AppPerfil() {
               médicos. Não é possível desfazer.
             </p>
             {erroExcluir && (
-              <p role="alert" className="mt-3 text-sm font-semibold text-warn">
+              <p role="alert" className="mt-3 text-sm font-semibold text-warn-ink">
                 {erroExcluir}
               </p>
             )}

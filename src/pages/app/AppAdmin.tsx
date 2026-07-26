@@ -86,8 +86,8 @@ interface Medico {
 
 function StatusBadge({ status }: { status: Medico['verificacaoStatus'] }) {
   const map: Record<Medico['verificacaoStatus'], { label: string; cls: string }> = {
-    verificado: { label: 'Verificado', cls: 'bg-[oklch(0.95_0.05_150)] text-success' },
-    pendente: { label: 'Pendente', cls: 'bg-[oklch(0.96_0.04_65)] text-warn' },
+    verificado: { label: 'Verificado', cls: 'u-chip-success' },
+    pendente: { label: 'Pendente', cls: 'u-chip-warn' },
     recusado: { label: 'Recusado', cls: 'bg-paper-3 text-ink-soft' },
     nao_aplicavel: { label: '—', cls: 'bg-paper-2 text-ink-mute' },
   }
@@ -265,9 +265,9 @@ function Metricas() {
       {cards.map((c) => (
         <div key={c.label} className="rounded-2xl border border-line bg-paper p-lg shadow-soft">
           <p className="text-sm font-semibold text-ink-mute">{c.label}</p>
-          <p className={cn('mt-1 font-display text-3xl font-bold', c.alerta ? 'text-warn' : 'text-ink')}>{c.valor}</p>
+          <p className={cn('mt-1 font-display text-3xl font-bold', c.alerta ? 'text-warn-ink' : 'text-ink')}>{c.valor}</p>
           {c.alerta && (
-            <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-warn">
+            <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-warn-ink">
               <Clock className="size-3" aria-hidden /> aguardando verificação
             </p>
           )}

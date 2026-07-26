@@ -22,12 +22,18 @@
   /* ---- Ink (text) ---- */
   --color-ink: oklch(0.32 0.06 274);
   --color-ink-soft: oklch(0.46 0.05 274);
-  --color-ink-mute: oklch(0.6 0.035 274);
+  /* L=0.52, not 0.60: at 0.60 this landed on 3.9:1 over --color-paper, under AA. */
+  --color-ink-mute: oklch(0.52 0.04 274);
 
   /* ---- Lines & feedback ---- */
   --color-line: oklch(0.9 0.02 290);
+  /* `success`/`warn` are FILL colours (dots, borders, gradient chips). For text on
+   * paper use the `-ink` pair — they are tuned per theme to clear AA, which the
+   * fill colours cannot do in both directions. */
   --color-success: oklch(0.66 0.14 155);
   --color-warn: oklch(0.72 0.13 65);
+  --color-success-ink: oklch(0.48 0.13 155);
+  --color-warn-ink: oklch(0.5 0.12 60);
   --color-focus: oklch(0.55 0.19 285);
 
   /* ---- The narrative gradient (violet → periwinkle) ---- */
@@ -98,6 +104,13 @@
   --color-lilas-soft: oklch(0.52 0.11 300);
   --color-azul-soft: oklch(0.48 0.12 271);
   --color-focus: oklch(0.78 0.14 300);
+  /* The brand ink has to flip. At its light value (L=0.40) it scored 1.74:1 on
+   * dark paper and 1.02:1 on --grad-brand-soft — the accent text, the active nav
+   * state and the theme toggle itself were all unreadable. Lifting it here is
+   * what repairs every `text-indigo` site at once. */
+  --color-indigo: oklch(0.84 0.1 285);
+  --color-success-ink: oklch(0.8 0.13 155);
+  --color-warn-ink: oklch(0.82 0.12 70);
   --grad-brand-soft: linear-gradient(135deg, oklch(0.4 0.11 300) 0%, oklch(0.42 0.12 271) 100%);
   --grad-veil: linear-gradient(180deg, oklch(0.24 0.035 285 / 0) 0%, var(--color-paper) 100%);
   --shadow-soft: 0 4px 24px -8px oklch(0 0 0 / 0.45);

@@ -50,7 +50,7 @@ export function BotaoExcluir({
       type="button"
       onClick={() => setArmado(true)}
       aria-label={titulo}
-      className={cn('grid shrink-0 place-items-center rounded-lg text-ink-soft hover:bg-paper-2 hover:text-warn', box)}
+      className={cn('grid shrink-0 place-items-center rounded-lg text-ink-soft hover:bg-paper-2 hover:text-warn-ink', box)}
     >
       <Trash2 className={iconSize} aria-hidden />
     </button>

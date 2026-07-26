@@ -179,7 +179,7 @@ function NovoPost({ onCreated }: { onCreated: (p: Post) => void }) {
         </Button>
       </div>
       {erro && (
-        <p role="alert" className="mt-2 text-sm font-semibold text-warn">
+        <p role="alert" className="mt-2 text-sm font-semibold text-warn-ink">
           {erro}
         </p>
       )}
@@ -393,7 +393,7 @@ function QuizRunner({ quiz, onSair }: { quiz: Quiz; onSair: () => void }) {
         </div>
       ) : (
         <div className="mt-lg">
-          <div className={cn('flex items-center gap-2 rounded-xl p-3 font-semibold', acertou ? 'bg-[oklch(0.94_0.08_155)] text-success' : 'bg-[oklch(0.95_0.06_65)] text-warn')}>
+          <div className={cn('flex items-center gap-2 rounded-xl p-3 font-semibold', acertou ? 'u-chip-success' : 'u-chip-warn')}>
             {acertou ? <Check className="size-5" aria-hidden /> : <X className="size-5" aria-hidden />}
             {acertou ? 'Isso mesmo!' : 'Quase!'} É {item.verdade ? 'verdade' : 'mito'}.
           </div>

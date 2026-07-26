@@ -281,7 +281,7 @@ function Eventos({ prontuario, onChange }: { prontuario: Prontuario; onChange: (
         </Button>
       </div>
       {erro && (
-        <p role="alert" className="mt-2 text-sm font-semibold text-warn">
+        <p role="alert" className="mt-2 text-sm font-semibold text-warn-ink">
           {erro}
         </p>
       )}
@@ -311,7 +311,7 @@ function Eventos({ prontuario, onChange }: { prontuario: Prontuario; onChange: (
                         type="button"
                         onClick={() => salvarEdicao(ev.id)}
                         aria-label="Salvar edição"
-                        className="grid size-9 place-items-center rounded-lg text-success hover:bg-paper-2"
+                        className="grid size-9 place-items-center rounded-lg text-success-ink hover:bg-paper-2"
                       >
                         <Check className="size-4" aria-hidden />
                       </button>

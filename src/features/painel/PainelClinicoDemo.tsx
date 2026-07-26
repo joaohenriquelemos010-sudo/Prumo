@@ -46,7 +46,7 @@ export function PainelClinicoDemo() {
           </div>
           <div>
             <dt className="text-ink-mute">Triagem neonatal</dt>
-            <dd className="font-semibold text-success">Normal</dd>
+            <dd className="font-semibold text-success-ink">Normal</dd>
           </div>
           <div>
             <dt className="text-ink-mute">Aleitamento</dt>
@@ -68,18 +68,18 @@ export function PainelClinicoDemo() {
               key={r.label}
               className={cn(
                 'flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm',
-                r.nivel === 'atencao' ? 'bg-[oklch(0.95_0.06_65)]' : 'bg-paper-2',
+                r.nivel === 'atencao' ? 'u-chip-warn' : 'bg-paper-2 text-ink',
               )}
             >
-              <span className="inline-flex items-center gap-2 font-semibold text-ink">
+              <span className="inline-flex items-center gap-2 font-semibold">
                 {r.nivel === 'atencao' ? (
-                  <AlertTriangle className="size-4 text-warn" aria-hidden />
+                  <AlertTriangle className="size-4 shrink-0" aria-hidden />
                 ) : (
-                  <CheckCircle2 className="size-4 text-success" aria-hidden />
+                  <CheckCircle2 className="size-4 shrink-0 text-success-ink" aria-hidden />
                 )}
                 {r.label}
               </span>
-              <span className="text-ink-mute">{r.origem}</span>
+              <span className={cn(r.nivel === 'atencao' ? 'opacity-80' : 'text-ink-mute')}>{r.origem}</span>
             </li>
           ))}
         </ul>
@@ -96,7 +96,7 @@ export function PainelClinicoDemo() {
         <ul className="mt-md grid gap-2 sm:grid-cols-2">
           {VACINAS.map((v) => (
             <li key={v.nome} className="flex items-center gap-2 rounded-xl bg-paper-2 px-3 py-2 text-sm">
-              {v.status === 'aplicada' && <CheckCircle2 className="size-4 text-success" aria-hidden />}
+              {v.status === 'aplicada' && <CheckCircle2 className="size-4 text-success-ink" aria-hidden />}
               {v.status === 'atual' && <Clock className="size-4 text-indigo" aria-hidden />}
               {v.status === 'pendente' && <Circle className="size-4 text-ink-mute" aria-hidden />}
               <span className="font-semibold text-ink">{v.nome}</span>
@@ -113,7 +113,7 @@ export function PainelClinicoDemo() {
           {MARCOS.map((m) => (
             <li key={m.label} className="flex items-start gap-2 text-sm">
               {m.ok ? (
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success-ink" aria-hidden />
               ) : (
                 <Circle className="mt-0.5 size-4 shrink-0 text-ink-mute" aria-hidden />
               )}

@@ -39,7 +39,7 @@ const MODALIDADE_LABEL: Record<Agendamento['modalidade'], string> = {
 
 const STATUS_STYLE: Record<Agendamento['status'], { label: string; className: string }> = {
   pendente: { label: 'Pendente', className: 'text-indigo bg-paper-2' },
-  confirmada: { label: 'Confirmada', className: 'text-success bg-paper-2' },
+  confirmada: { label: 'Confirmada', className: 'text-success-ink bg-paper-2' },
   cancelada: { label: 'Cancelada', className: 'text-ink-mute bg-paper-2' },
 }
 
@@ -184,7 +184,7 @@ function MeusAgendamentos({
                     onClick={() => onCancelar(a.id)}
                     disabled={cancelandoId === a.id}
                     aria-label="Cancelar agendamento"
-                    className="grid size-9 shrink-0 place-items-center rounded-lg text-ink-mute hover:bg-paper-2 hover:text-warn disabled:opacity-50"
+                    className="grid size-9 shrink-0 place-items-center rounded-lg text-ink-mute hover:bg-paper-2 hover:text-warn-ink disabled:opacity-50"
                   >
                     <X className="size-4" aria-hidden />
                   </button>
@@ -228,7 +228,7 @@ function AgendaBebe({ doses }: { doses: ReturnType<typeof calcularDosesVacinas> 
               </p>
               <p className="text-xs text-ink-mute">
                 {d.vacina.idadeLabel} · {formatarData(d.data)}
-                {d.status === 'atrasada' && <span className="font-semibold text-warn"> · em atraso</span>}
+                {d.status === 'atrasada' && <span className="font-semibold text-warn-ink"> · em atraso</span>}
               </p>
             </div>
           </li>
