@@ -88,6 +88,11 @@
   --dur-slow: 420ms;
 
   --rule-hair: 1px;
+
+  /* Height of the mobile tab bar. Content padding and the tab hit areas both read
+   * from this, so they can never drift apart. 3.5rem keeps every tab at or above
+   * the 44px minimum touch target with room for icon + label. */
+  --nav-h: 3.5rem;
 }
 
 /* Dark mode — applied by explicit choice (data-theme="dark"), set from the

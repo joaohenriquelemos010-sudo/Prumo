@@ -78,7 +78,7 @@ export function PainelClinico() {
         <p className="font-display text-sm font-semibold text-ink-mute">Paciente</p>
         <p className="mt-1 font-display text-2xl font-bold text-ink">{nomePaciente}</p>
 
-        <dl className="mt-md grid grid-cols-2 gap-3 text-sm">
+        <dl className="mt-md grid grid-cols-1 gap-3 text-sm min-[380px]:grid-cols-2">
           <div>
             <dt className="inline-flex items-center gap-1 text-ink-mute">
               <Droplet className="size-3.5" aria-hidden /> Tipo sanguíneo

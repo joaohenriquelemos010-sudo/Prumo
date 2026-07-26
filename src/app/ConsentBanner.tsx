@@ -32,7 +32,7 @@ export function ConsentBanner() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 24 }}
         transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-2xl rounded-2xl border border-line bg-paper p-md shadow-lift sm:inset-x-auto sm:right-4 sm:bottom-4"
+        className="fixed inset-x-3 z-50 mx-auto max-w-2xl rounded-2xl border border-line bg-paper p-md shadow-lift [bottom:calc(0.75rem+env(safe-area-inset-bottom))] sm:inset-x-auto sm:right-4"
       >
         <p className="font-display text-lg font-semibold text-indigo">
           Cuidamos dos seus dados como cuidamos de você

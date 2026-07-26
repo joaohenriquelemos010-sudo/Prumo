@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Menu, Moon, Sun, X } from 'lucide-react'
+import { LayoutDashboard, Menu, X } from 'lucide-react'
 import { Logo } from '@/components/Logo'
-import { useTheme } from '@/lib/stores/theme'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAuth } from '@/lib/stores/auth'
 import { cn } from '@/lib/cn'
 
@@ -162,26 +162,5 @@ export function Header() {
         </div>
       )}
     </header>
-  )
-}
-
-/** Light/dark toggle. Light is the brand default; dark keeps the acolhedor soul. */
-function ThemeToggle() {
-  const theme = useTheme((s) => s.theme)
-  const toggle = useTheme((s) => s.toggle)
-  const isDark = theme === 'dark'
-  const label = isDark ? 'Ativar tema claro' : 'Ativar tema escuro'
-
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={label}
-      aria-pressed={isDark}
-      title={label}
-      className="grid size-11 place-items-center rounded-pill text-indigo transition-colors duration-[var(--dur-fast)] hover:bg-paper-2"
-    >
-      {isDark ? <Sun className="size-5" aria-hidden /> : <Moon className="size-5" aria-hidden />}
-    </button>
   )
 }

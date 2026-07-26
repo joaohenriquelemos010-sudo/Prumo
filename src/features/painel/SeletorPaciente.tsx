@@ -63,7 +63,7 @@ export function SeletorPaciente() {
           const nome = opcoes.find((p) => p.crianca === id)?.nome ?? null
           setPaciente(id, nome)
         }}
-        className="input h-9 max-w-56 py-0"
+        className="input h-9 w-full py-0 sm:w-auto sm:min-w-56"
       >
         <option value="">{labelPadrao}</option>
         {opcoes.map((p) => (

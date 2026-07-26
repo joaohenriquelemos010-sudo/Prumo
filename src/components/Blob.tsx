@@ -22,7 +22,11 @@ export function Blob({ className, intensity = 0.5, variant = 'a' }: BlobProps) {
   return (
     <svg
       viewBox="-100 -100 200 200"
-      className={cn('pointer-events-none absolute -z-10 blur-2xl', className)}
+      // Callers size these in absolute rem (`size-96`, `size-[30rem]`), which on a
+      // 390px phone covers the whole hero and washes the headline out. The viewport
+      // cap keeps them ambient on small screens and never bites on desktop, where
+      // 70vw is already larger than any size a caller asks for.
+      className={cn('pointer-events-none absolute -z-10 max-h-[70vw] max-w-[70vw] blur-2xl sm:max-h-none sm:max-w-none', className)}
       aria-hidden="true"
       focusable="false"
     >

@@ -199,7 +199,7 @@ function NovaConsulta({ onCancel, onSaved }: { onCancel: () => void; onSaved: (c
             autoFocus
           />
           {atual.key === 'objetivo' && (
-            <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
               <input value={vitais.peso} onChange={(e) => setVitais((v) => ({ ...v, peso: e.target.value }))} className="input" placeholder="Peso" maxLength={20} />
               <input value={vitais.altura} onChange={(e) => setVitais((v) => ({ ...v, altura: e.target.value }))} className="input" placeholder="Altura" maxLength={20} />
               <input value={vitais.pressao} onChange={(e) => setVitais((v) => ({ ...v, pressao: e.target.value }))} className="input" placeholder="PA" maxLength={20} />
