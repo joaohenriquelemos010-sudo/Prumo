@@ -8,6 +8,8 @@ import { api } from '@/lib/api/client'
 import { Blob } from '@/components/Blob'
 import { Skeleton } from '@/components/Skeleton'
 import { PainelClinico } from '@/features/painel/PainelClinico'
+import { STATUS_ATIVOS, ehFuturo, distanciaHumana, quandoPorExtenso } from '@/features/agenda/agenda'
+import type { Agendamento } from '@/features/agenda/agenda'
 import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
 import AppAdmin from '@/pages/app/AppAdmin'
 
@@ -33,6 +35,7 @@ function PacienteHome() {
   const loadPerfil = usePerfil((s) => s.load)
   const perfilLoaded = usePerfil((s) => s.loaded)
   const [loading, setLoading] = useState(true)
+  const [proximaConsulta, setProximaConsulta] = useState<Agendamento | null>(null)
 
   useEffect(() => {
     let active = true
@@ -46,6 +49,16 @@ function PacienteHome() {
         /* friendly failure — the trilha simply stays at its last known state */
       })
       .finally(() => active && setLoading(false))
+
+    api
+      .get<{ agendamentos: Agendamento[] }>('/agendamentos')
+      .then((d) => {
+        if (!active) return
+        const proximos = d.agendamentos.filter((a) => STATUS_ATIVOS.includes(a.status) && ehFuturo(a))
+        setProximaConsulta(proximos[0] ?? null)
+      })
+      .catch(() => {})
+
     return () => {
       active = false
     }
@@ -53,7 +66,7 @@ function PacienteHome() {
 
   const atual = nodes.find((n) => n.status === 'atual')
   const primeiroNome = user?.nome?.split(' ')[0] ?? 'por aqui'
-  const proximo = calcularProximoPasso(perfil, atual?.titulo)
+  const proximo = calcularProximoPasso(perfil, atual?.titulo, proximaConsulta)
 
   return (
     <div className="relative flex flex-col gap-lg">
@@ -218,7 +231,21 @@ interface ProximoPasso {
 function calcularProximoPasso(
   perfil: { dataNascimento: string | null; dpp: string | null } | null,
   atualTitulo?: string,
+  proximaConsulta?: Agendamento | null,
 ): ProximoPasso {
+  // A real appointment on the calendar outranks everything else: it has a date,
+  // it needs preparing for, and forgetting it costs the most.
+  if (proximaConsulta) {
+    const confirmada = proximaConsulta.status === 'confirmado'
+    return {
+      titulo: confirmada
+        ? `${proximaConsulta.profissionalNome} · ${distanciaHumana(proximaConsulta.inicio)}`
+        : `Aguardando confirmação de ${proximaConsulta.profissionalNome}`,
+      desc: quandoPorExtenso(proximaConsulta.inicio),
+      to: '/app/agenda',
+      icon: CalendarDays,
+    }
+  }
   if (perfil && !perfil.dataNascimento && !perfil.dpp) {
     return {
       titulo: 'Complete os dados do bebê',

@@ -71,6 +71,24 @@ export const perfilCriancaSchema = z.object({
   momento: z.enum(['planejando', 'gestante', 'ja-nasceu']).optional(),
   dpp: dataOpcional,
   dataNascimento: dataOpcional,
+  convenio: z
+    .object({
+      tipo: z.enum(['convenio', 'particular', 'sus']),
+      operadora: z.string().trim().max(80).optional(),
+      plano: z.string().trim().max(80).optional(),
+      numeroCarteirinha: z.string().trim().max(40).optional(),
+      validade: dataOpcional,
+    })
+    .superRefine((c, ctx) => {
+      if (c.tipo === 'convenio' && !c.operadora) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['operadora'],
+          message: 'Informe a operadora do seu plano.',
+        })
+      }
+    })
+    .optional(),
 })
 
 export const vacinaToggleSchema = z.object({

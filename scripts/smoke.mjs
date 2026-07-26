@@ -42,13 +42,22 @@ function secao(titulo) {
 
 const carimbo = Date.now()
 let sequencia = 0
-/** A fresh account every call — the suite runs against a live database. */
-const conta = (papel) => ({
-  nome: papel === 'medico' ? 'Ana Ribeiro' : 'Marina Souza',
-  email: `${papel}.${carimbo}.${sequencia++}@exemplo.test`,
-  senha: 'prumo-teste-123',
-  papel,
-})
+/**
+ * A fresh account every call. The name is unique too, not just the e-mail: the
+ * suite runs against a live database that keeps earlier runs, so a test that
+ * looks for "the first doctor in the results" would otherwise grab someone else's.
+ */
+const conta = (papel) => {
+  const n = sequencia++
+  // The API accepts letters only in names, so the unique suffix is spelled out.
+  const sufixo = `${carimbo}${n}`.replace(/\d/g, (d) => 'abcdefghij'[Number(d)])
+  return {
+    nome: papel === 'medico' ? `Ana ${sufixo}` : `Marina ${sufixo}`,
+    email: `${papel}.${carimbo}.${n}@exemplo.test`,
+    senha: 'prumo-teste-123',
+    papel,
+  }
+}
 
 /** Registers straight through the API — the UI flow is covered separately. */
 async function registrar(request, dados) {

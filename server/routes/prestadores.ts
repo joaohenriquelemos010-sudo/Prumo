@@ -104,6 +104,8 @@ function serialize(p: HydratedDocument<PrestadorDoc>, distancia: number | null) 
     lng: p.lng,
     bio: p.bio,
     convenios: p.convenios,
+    atendeParticular: p.atendeParticular,
+    atendeSus: p.atendeSus,
     distanciaKm: distancia,
   }
 }
@@ -119,6 +121,7 @@ prestadoresRouter.get('/', requireAuth, async (req, res) => {
 
   const objetivo = String(req.query.objetivo ?? '')
   const modalidade = String(req.query.modalidade ?? '')
+  const convenio = String(req.query.convenio ?? '')
   const domiciliar = String(req.query.domiciliar ?? '') === 'true'
   const lat = Number(req.query.lat)
   const lng = Number(req.query.lng)
@@ -132,9 +135,9 @@ prestadoresRouter.get('/', requireAuth, async (req, res) => {
 
   const prestadores = await Prestador.find(filtro).limit(60)
 
-  let lista: Serialized[] = prestadores.map((p) =>
-    serialize(p, temLocal ? distanciaKm(lat, lng, p.lat, p.lng) : null),
-  )
+  let lista: Serialized[] = prestadores
+    .map((p) => serialize(p, temLocal ? distanciaKm(lat, lng, p.lat, p.lng) : null))
+    .filter((p) => !convenio || atendeConvenio(p, convenio))
 
   if (temLocal) {
     lista = lista.sort((a, b) => (a.distanciaKm ?? 1e9) - (b.distanciaKm ?? 1e9))

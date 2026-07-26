@@ -25,7 +25,10 @@ const prestadorSchema = new Schema(
     lat: { type: Number, default: 0 },
     lng: { type: Number, default: 0 },
     bio: { type: String, default: '' },
+    /** Health plans accepted — powers the "atende meu plano" filter. */
     convenios: { type: [String], default: [] },
+    atendeParticular: { type: Boolean, default: true },
+    atendeSus: { type: Boolean, default: false },
   },
   { timestamps: true },
 )

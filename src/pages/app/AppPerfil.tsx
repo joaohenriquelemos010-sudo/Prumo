@@ -4,6 +4,7 @@ import { LogOut, ShieldCheck, Download, Trash2 } from 'lucide-react'
 import { useAuth } from '@/lib/stores/auth'
 import { useTrilha } from '@/lib/stores/trilha'
 import { Button } from '@/components/Button'
+import { MeuConvenio } from '@/features/clinico/MeuConvenio'
 
 const PAPEL_LABEL: Record<string, string> = {
   gestante: 'Gestante',
@@ -64,6 +65,8 @@ export default function AppPerfil() {
           {user ? PAPEL_LABEL[user.papel] : ''} · {user?.email}
         </p>
       </header>
+
+      {user?.papel !== 'medico' && user?.papel !== 'admin' && <MeuConvenio />}
 
       <section className="rounded-2xl border border-line bg-paper p-lg shadow-soft">
         <div className="flex items-center gap-2">

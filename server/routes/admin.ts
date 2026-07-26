@@ -102,6 +102,47 @@ adminRouter.delete('/usuarios/:id', async (req, res) => {
   res.status(204).end()
 })
 
+/**
+ * GET /api/admin/agendamentos — the marketplace queue.
+ *
+ * Seeded `Prestador` listings have no account, so nobody on their side can answer
+ * a booking. Until they do, the admin confirms or declines on their behalf — which
+ * is what keeps `confirmado` reachable on that path instead of leaving families
+ * waiting on a status that can never change.
+ */
+adminRouter.get('/agendamentos', async (req, res) => {
+  const status = String(req.query.status ?? 'pendente')
+  const agendamentos = await Agendamento.find({
+    origem: 'marketplace',
+    ...(status ? { status: { $in: status.split(',') } } : {}),
+  })
+    .sort({ inicio: 1 })
+    .limit(200)
+
+  res.json({
+    agendamentos: agendamentos.map((a) => ({
+      id: String(a._id),
+      origem: a.origem,
+      medicoId: a.medicoId,
+      profissionalNome: a.prestadorNome,
+      prestadorId: a.prestador ? String(a.prestador) : '',
+      pacienteNome: a.pacienteNome,
+      objetivo: a.objetivo,
+      modalidade: a.modalidade,
+      inicio: new Date(a.inicio).toISOString(),
+      fim: new Date(new Date(a.inicio).getTime() + a.duracaoMin * 60_000).toISOString(),
+      duracaoMin: a.duracaoMin,
+      local: a.local,
+      status: a.status,
+      motivo: a.motivo,
+      mensagem: a.mensagem,
+      convenio: a.convenio,
+      consultaId: '',
+      criadoEm: a.createdAt.toISOString(),
+    })),
+  })
+})
+
 // GET /api/admin/metricas — platform counts at a glance.
 adminRouter.get('/metricas', async (_req, res) => {
   const [porPapel, vinculosAtivos, exames, agendamentos, agendamentosPendentes, criancas] = await Promise.all([

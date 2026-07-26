@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
-import { ShieldCheck, Users, BarChart3, Stethoscope, Check, X, Clock } from 'lucide-react'
+import { ShieldCheck, Users, BarChart3, Stethoscope, Check, X, Clock, CalendarCheck } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { Button } from '@/components/Button'
 import { BotaoExcluir } from '@/components/BotaoExcluir'
 import { Skeleton } from '@/components/Skeleton'
+import { AlertaErro } from '@/components/AlertaErro'
+import { CardAgendamento } from '@/features/agenda/CardAgendamento'
+import type { Agendamento } from '@/features/agenda/agenda'
 import { cn } from '@/lib/cn'
 
-type Aba = 'medicos' | 'usuarios' | 'metricas'
+type Aba = 'medicos' | 'agendamentos' | 'usuarios' | 'metricas'
 
 const PAPEL_LABEL: Record<string, string> = {
   gestante: 'Gestante',
@@ -33,6 +36,9 @@ export default function AppAdmin() {
         <TabButton ativo={aba === 'medicos'} onClick={() => setAba('medicos')} icon={Stethoscope}>
           Médicos
         </TabButton>
+        <TabButton ativo={aba === 'agendamentos'} onClick={() => setAba('agendamentos')} icon={CalendarCheck}>
+          Agendamentos
+        </TabButton>
         <TabButton ativo={aba === 'usuarios'} onClick={() => setAba('usuarios')} icon={Users}>
           Usuários
         </TabButton>
@@ -42,8 +48,72 @@ export default function AppAdmin() {
       </div>
 
       {aba === 'medicos' && <Medicos />}
+      {aba === 'agendamentos' && <FilaAgendamentos />}
       {aba === 'usuarios' && <Usuarios />}
       {aba === 'metricas' && <Metricas />}
+    </div>
+  )
+}
+
+/**
+ * Marketplace bookings waiting on an answer. The seeded listings have no account,
+ * so the admin replies for them — otherwise the family sits on "aguardando
+ * confirmação" forever, which is exactly the dead end this release removes.
+ */
+function FilaAgendamentos() {
+  const [agendamentos, setAgendamentos] = useState<Agendamento[] | null>(null)
+  const [ocupadoId, setOcupadoId] = useState<string | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
+
+  useEffect(() => {
+    api
+      .get<{ agendamentos: Agendamento[] }>('/admin/agendamentos?status=pendente')
+      .then((d) => setAgendamentos(d.agendamentos))
+      .catch((e) => {
+        setErro(e instanceof Error ? e.message : 'Não consegui carregar a fila.')
+        setAgendamentos([])
+      })
+  }, [])
+
+  async function atualizar(id: string, corpo: Record<string, unknown>) {
+    setOcupadoId(id)
+    setErro(null)
+    try {
+      await api.patch(`/agendamentos/${id}`, corpo)
+      setAgendamentos((atual) => (atual ?? []).filter((a) => a.id !== id))
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Não consegui atualizar agora.')
+    } finally {
+      setOcupadoId(null)
+    }
+  }
+
+  if (!agendamentos) return <Skeleton className="h-40" />
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-ink-soft">
+        Pedidos feitos a clínicas e profissionais do catálogo, que ainda não têm conta na Prumo.
+        Responder aqui move o status para a família.
+      </p>
+      {erro && <AlertaErro>{erro}</AlertaErro>}
+      {agendamentos.length === 0 ? (
+        <p className="rounded-xl bg-paper-2 p-md text-sm text-ink-soft">Nenhum pedido na fila. 🎉</p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {agendamentos.map((a) => (
+            <CardAgendamento
+              key={a.id}
+              agendamento={a}
+              papel="admin"
+              mostrarPaciente
+              ocupado={ocupadoId === a.id}
+              onConfirmar={(id) => atualizar(id, { status: 'confirmado' })}
+              onRecusar={(id, motivo) => atualizar(id, { status: 'recusado', motivo })}
+            />
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

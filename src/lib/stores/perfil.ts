@@ -3,12 +3,25 @@ import { api } from '@/lib/api/client'
 
 export type Momento = 'planejando' | 'gestante' | 'ja-nasceu'
 
+/**
+ * The journey's health plan. `numeroCarteirinha` always arrives masked from the
+ * server (`•••• 1234`) — the real value never reaches the browser.
+ */
+export interface Convenio {
+  tipo: 'convenio' | 'particular' | 'sus'
+  operadora?: string
+  plano?: string
+  numeroCarteirinha?: string
+  validade?: string | null
+}
+
 export interface Perfil {
   nome: string
   momento: Momento
   /** ISO strings or null. */
   dpp: string | null
   dataNascimento: string | null
+  convenio: Convenio | null
 }
 
 interface PerfilStore {

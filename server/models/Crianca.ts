@@ -35,6 +35,19 @@ const criancaSchema = new Schema(
     etapasConcluidas: { type: [String], default: [] },
     /** Ids das doses de vacina já aplicadas (ver sus-vacinas.ts). */
     vacinasAplicadas: { type: [String], default: [] },
+    /**
+     * Convênio da jornada — usado para filtrar o marketplace ("atende meu plano?")
+     * e para indicar cobertura nos exames. O número da carteirinha é dado
+     * sensível: fica `select: false` e volta mascarado para quem não é o titular.
+     */
+    convenio: {
+      tipo: { type: String, enum: ['convenio', 'particular', 'sus'], default: 'particular' },
+      operadora: { type: String, default: '', maxlength: 80 },
+      plano: { type: String, default: '', maxlength: 80 },
+      numeroCarteirinha: { type: String, default: '', maxlength: 40, select: false },
+      validade: { type: Date, default: null },
+      informado: { type: Boolean, default: false },
+    },
   },
   { timestamps: true },
 )
