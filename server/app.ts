@@ -14,6 +14,7 @@ import { examesRouter } from './routes/exames.js'
 import { prestadoresRouter } from './routes/prestadores.js'
 import { agendamentosRouter } from './routes/agendamentos.js'
 import { disponibilidadeRouter } from './routes/disponibilidade.js'
+import { bebeRouter } from './routes/bebe.js'
 import { vinculosRouter } from './routes/vinculos.js'
 import { familiaRouter } from './routes/familia.js'
 import { compartilhamentosRouter } from './routes/compartilhamentos.js'
@@ -67,6 +68,7 @@ export function createApp() {
   app.use('/api/prestadores', prestadoresRouter)
   app.use('/api/agendamentos', agendamentosRouter)
   app.use('/api/disponibilidade', disponibilidadeRouter)
+  app.use('/api/bebe', bebeRouter)
   app.use('/api/vinculos', vinculosRouter)
   app.use('/api/familia', familiaRouter)
   app.use('/api/compartilhamentos', compartilhamentosRouter)

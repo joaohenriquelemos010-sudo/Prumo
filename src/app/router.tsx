@@ -21,6 +21,7 @@ const AppHome = lazy(() => import('@/pages/app/AppHome'))
 const AppTrilha = lazy(() => import('@/pages/app/AppTrilha'))
 const AppPerfil = lazy(() => import('@/pages/app/AppPerfil'))
 const AppAgenda = lazy(() => import('@/pages/app/AppAgenda'))
+const AppBebe = lazy(() => import('@/pages/app/AppBebe'))
 const AppVacinas = lazy(() => import('@/pages/app/AppVacinas'))
 const AppProntuario = lazy(() => import('@/pages/app/AppProntuario'))
 const AppCaderninho = lazy(() => import('@/pages/app/AppCaderninho'))
@@ -56,6 +57,7 @@ export const router = createBrowserRouter(
         { index: true, element: <AppHome /> },
         { path: 'trilha', element: <AppTrilha /> },
         { path: 'agenda', element: <AppAgenda /> },
+        { path: 'bebe', element: <AppBebe /> },
         { path: 'vacinas', element: <AppVacinas /> },
         { path: 'prontuario', element: <AppProntuario /> },
         { path: 'caderninho', element: <AppCaderninho /> },

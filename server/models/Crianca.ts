@@ -36,6 +36,23 @@ const criancaSchema = new Schema(
     /** Ids das doses de vacina já aplicadas (ver sus-vacinas.ts). */
     vacinasAplicadas: { type: [String], default: [] },
     /**
+     * Check-in semanal da família na tela do bebê. Não é dado clínico — é o
+     * ritual que traz de volta, e a sequência que faz isso valer a pena.
+     */
+    checkins: {
+      type: [
+        new Schema(
+          {
+            semana: { type: Number, required: true },
+            em: { type: Date, default: Date.now },
+            notaFamilia: { type: String, default: '', maxlength: 500 },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    /**
      * Convênio da jornada — usado para filtrar o marketplace ("atende meu plano?")
      * e para indicar cobertura nos exames. O número da carteirinha é dado
      * sensível: fica `select: false` e volta mascarado para quem não é o titular.

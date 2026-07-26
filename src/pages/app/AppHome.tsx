@@ -11,6 +11,7 @@ import { PainelClinico } from '@/features/painel/PainelClinico'
 import { STATUS_ATIVOS, ehFuturo, distanciaHumana, quandoPorExtenso } from '@/features/agenda/agenda'
 import type { Agendamento } from '@/features/agenda/agenda'
 import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
+import { PainelAlertas } from '@/features/clinico/PainelAlertas'
 import AppAdmin from '@/pages/app/AppAdmin'
 
 const ATALHOS = [
@@ -173,6 +174,8 @@ function MedicoHome() {
       <VerificacaoBanner />
 
       <SeletorPaciente />
+
+      <PainelAlertas />
 
       <PainelClinico />
 

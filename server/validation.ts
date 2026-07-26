@@ -3,6 +3,7 @@ import { PAPEIS } from './models/User.js'
 import { CATEGORIAS_EXAME } from './models/Exame.js'
 import { CATEGORIAS_POST } from './models/Post.js'
 import { OBJETIVOS_AGENDAMENTO } from './models/Agendamento.js'
+import { TIPOS_CONSULTA } from './models/Consulta.js'
 import { validarCPF, somenteDigitos, UFS } from './br-docs.js'
 
 /**
@@ -219,15 +220,73 @@ export const compartilhamentoCreateSchema = z.object({
 
 const campoLongo = z.string().trim().max(3000).optional()
 
+/** Optional positive number, tolerating the empty string an input sends. */
+const medida = (max: number) =>
+  z
+    .union([z.number(), z.string()])
+    .transform((v) => (v === '' || v === null ? null : Number(v)))
+    .refine((v) => v === null || (Number.isFinite(v) && v >= 0 && v <= max), 'Valor fora da faixa.')
+    .nullable()
+    .optional()
+
+export const medidasSchema = z.object({
+  pesoKg: medida(300),
+  alturaCm: medida(250),
+  imc: medida(100),
+  paSistolica: medida(300),
+  paDiastolica: medida(200),
+  alturaUterinaCm: medida(60),
+  bcfBpm: medida(250),
+  pesoG: medida(40_000),
+  comprimentoCm: medida(150),
+  perimetroCefalicoCm: medida(80),
+})
+
 export const consultaCreateSchema = z.object({
-  tipo: z.enum(['pre-natal', 'pediatrica']).default('pediatrica'),
+  tipo: z.enum(TIPOS_CONSULTA).default('pediatrica'),
+  agendamentoId: z.string().trim().optional(),
   subjetivo: campoLongo,
   objetivo: campoLongo,
   avaliacao: campoLongo,
   plano: campoLongo,
+  notasPrivadas: campoLongo,
+  avaliacaoPrivada: z.boolean().optional(),
+  igSemanas: z.number().int().min(0).max(45).nullable().optional(),
+  igDias: z.number().int().min(0).max(6).nullable().optional(),
+  medidas: medidasSchema.optional(),
+  checklist: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(60),
+        feito: z.boolean(),
+        observacao: z.string().trim().max(300).optional(),
+      }),
+    )
+    .max(60)
+    .optional(),
   peso: z.string().trim().max(20).optional(),
   altura: z.string().trim().max(20).optional(),
   pressao: z.string().trim().max(20).optional(),
+})
+
+export const medidaFetalSchema = z.object({
+  semana: z.number().int().min(10).max(42),
+  data: dataISO.optional(),
+  dbpMm: medida(150),
+  ccMm: medida(500),
+  caMm: medida(500),
+  cfMm: medida(120),
+  pfeG: medida(7000),
+  ilaCm: medida(50),
+  apresentacao: z.enum(['cefalica', 'pelvica', 'cormica', 'indefinida']).optional(),
+  placenta: z.string().trim().max(120).optional(),
+  observacao: z.string().trim().max(500).optional(),
+  notasPrivadas: z.string().trim().max(1000).optional(),
+})
+
+export const checkinSemanalSchema = z.object({
+  semana: z.number().int().min(4).max(42),
+  notaFamilia: z.string().trim().max(500).optional(),
 })
 
 export const exameCreateSchema = z.object({

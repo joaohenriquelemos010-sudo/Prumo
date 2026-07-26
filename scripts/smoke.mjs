@@ -199,13 +199,13 @@ try {
     await ctx.close()
   }
 
-  /* ------------------------------------------------------------------ *
-   * Extended by later phases: booking, alerts, visibility split.
-   * ------------------------------------------------------------------ */
-  const { registrarTestesDeAgenda } = await import('./smoke-agenda.mjs').catch(() => ({}))
-  if (registrarTestesDeAgenda) {
-    await registrarTestesDeAgenda({ navegador, BASE, MOBILE, DESKTOP, secao, afirmar, registrar, conta, shot })
-  }
+  const contexto = { navegador, BASE, MOBILE, DESKTOP, secao, afirmar, registrar, conta, shot }
+
+  const { registrarTestesDeAgenda } = await import('./smoke-agenda.mjs')
+  await registrarTestesDeAgenda(contexto)
+
+  const { registrarTestesClinicos } = await import('./smoke-clinico.mjs')
+  await registrarTestesClinicos(contexto)
 } catch (e) {
   falhou('execução do smoke', e instanceof Error ? e.message : String(e))
 } finally {

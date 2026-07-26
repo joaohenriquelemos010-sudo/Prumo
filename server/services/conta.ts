@@ -8,6 +8,8 @@ import { ConviteVinculo } from '../models/ConviteVinculo.js'
 import { Solicitacao } from '../models/Solicitacao.js'
 import { Agendamento } from '../models/Agendamento.js'
 import { Disponibilidade } from '../models/Disponibilidade.js'
+import { MedidaFetal } from '../models/MedidaFetal.js'
+import { Alerta } from '../models/Alerta.js'
 import { SolicitacaoCompartilhamento } from '../models/SolicitacaoCompartilhamento.js'
 import { User } from '../models/User.js'
 import { deleteFile, toObjectId } from '../storage/gridfs.js'
@@ -42,6 +44,8 @@ export async function excluirConta(userId: string): Promise<void> {
     Solicitacao.deleteMany({ usuario: userId }),
     Agendamento.deleteMany({ $or: [{ crianca: { $in: criancaIds } }, { pacienteId: userId }, { medicoId: userId }] }),
     Disponibilidade.deleteMany({ medicoId: userId }),
+    MedidaFetal.deleteMany({ crianca: { $in: criancaIds } }),
+    Alerta.deleteMany({ crianca: { $in: criancaIds } }),
     SolicitacaoCompartilhamento.deleteMany({
       $or: [{ crianca: { $in: criancaIds } }, { medicoOrigemId: userId }, { medicoDestinoId: userId }],
     }),

@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   BarChart3,
   MoreHorizontal,
+  Baby,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { BottomSheet } from '@/components/BottomSheet'
@@ -42,6 +43,7 @@ interface NavItem {
 const NAV_PACIENTE: NavItem[] = [
   { to: '/app', label: 'Início', icon: Home },
   { to: '/app/trilha', label: 'Trilha', icon: Route },
+  { to: '/app/bebe', label: 'Bebê', icon: Baby },
   { to: '/app/agenda', label: 'Agenda', icon: CalendarDays },
   { to: '/app/profissionais', label: 'Agendar', icon: MapPin },
   { to: '/app/exames', label: 'Exames', icon: FlaskConical },
@@ -55,6 +57,7 @@ const NAV_MEDICO: NavItem[] = [
   { to: '/app', label: 'Painel', icon: Activity },
   { to: '/app/agenda', label: 'Agenda', icon: CalendarDays },
   { to: '/app/prontuario', label: 'Prontuário', icon: FileHeart },
+  { to: '/app/bebe', label: 'Bebê', icon: Baby },
   { to: '/app/consultas', label: 'Consultas', icon: Stethoscope },
   { to: '/app/exames', label: 'Exames', icon: FlaskConical },
   { to: '/app/compartilhar', label: 'Pacientes', icon: Link2 },
