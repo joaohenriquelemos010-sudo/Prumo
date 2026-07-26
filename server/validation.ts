@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { PAPEIS } from './models/User.js'
 import { CATEGORIAS_EXAME } from './models/Exame.js'
 import { CATEGORIAS_POST } from './models/Post.js'
+import { OBJETIVOS_AGENDAMENTO } from './models/Agendamento.js'
 import { validarCPF, somenteDigitos, UFS } from './br-docs.js'
 
 /**
@@ -102,11 +103,91 @@ export const respostaSchema = z.object({
   texto: z.string().trim().min(2, 'Escreva a resposta.').max(1000),
 })
 
-export const solicitacaoCreateSchema = z.object({
-  prestadorId: z.string().trim().min(1),
-  objetivo: z.enum(['exame', 'consulta-gestante', 'consulta-crianca']),
-  modalidade: z.enum(['teleconsulta', 'presencial', 'domiciliar']).default('presencial'),
-  mensagem: z.string().trim().max(500).optional(),
+/* ------------------------------ Agendamento ------------------------------ */
+
+const horaHHMM = z
+  .string()
+  .trim()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use o formato HH:MM.')
+
+const dataISO = z.string().refine((v) => !Number.isNaN(Date.parse(v)), 'Data inválida.')
+
+export const agendamentoCreateSchema = z
+  .object({
+    /** One of the two — a registered doctor, or a marketplace listing. */
+    medicoId: z.string().trim().optional(),
+    prestadorId: z.string().trim().optional(),
+    objetivo: z.enum(OBJETIVOS_AGENDAMENTO),
+    modalidade: z.enum(['teleconsulta', 'presencial', 'domiciliar']).default('presencial'),
+    inicio: dataISO,
+    mensagem: z.string().trim().max(500).optional(),
+    convenio: z.string().trim().max(80).optional(),
+  })
+  .superRefine((d, ctx) => {
+    if (!d.medicoId && !d.prestadorId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['medicoId'],
+        message: 'Escolha com quem você quer marcar.',
+      })
+    }
+    if (d.medicoId && d.prestadorId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['medicoId'],
+        message: 'Escolha só um profissional por agendamento.',
+      })
+    }
+  })
+
+/** Reschedule and status changes share one endpoint; each field is optional. */
+export const agendamentoUpdateSchema = z
+  .object({
+    status: z.enum(['confirmado', 'recusado', 'cancelado', 'realizado', 'faltou']).optional(),
+    inicio: dataISO.optional(),
+    modalidade: z.enum(['teleconsulta', 'presencial', 'domiciliar']).optional(),
+    motivo: z.string().trim().max(200).optional(),
+  })
+  .refine((d) => d.status || d.inicio || d.modalidade, {
+    message: 'Nada para atualizar.',
+  })
+
+export const disponibilidadeUpdateSchema = z.object({
+  ativo: z.boolean().optional(),
+  duracaoPadraoMin: z.number().int().min(10).max(240).optional(),
+  antecedenciaMinHoras: z.number().int().min(0).max(720).optional(),
+  janelaMaxDias: z.number().int().min(1).max(365).optional(),
+  regras: z
+    .array(
+      z
+        .object({
+          diaSemana: z.number().int().min(0).max(6),
+          inicio: horaHHMM,
+          fim: horaHHMM,
+          modalidades: z.array(z.enum(['teleconsulta', 'presencial', 'domiciliar'])).min(1).max(3),
+          local: z.string().trim().max(160).optional(),
+        })
+        .refine((r) => r.fim > r.inicio, { message: 'O fim precisa vir depois do início.' }),
+    )
+    .max(40)
+    .optional(),
+  bloqueios: z
+    .array(
+      z
+        .object({
+          de: dataISO,
+          ate: dataISO,
+          motivo: z.string().trim().max(160).optional(),
+        })
+        .refine((b) => Date.parse(b.ate) > Date.parse(b.de), {
+          message: 'O fim do bloqueio precisa vir depois do início.',
+        }),
+    )
+    .max(60)
+    .optional(),
+  conveniosAtendidos: z.array(z.string().trim().max(80)).max(40).optional(),
+  atendeParticular: z.boolean().optional(),
+  atendeSus: z.boolean().optional(),
 })
 
 export const esqueciSenhaSchema = z.object({

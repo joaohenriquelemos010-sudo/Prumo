@@ -12,7 +12,8 @@ import { caderninhoRouter } from './routes/caderninho.js'
 import { consultasRouter } from './routes/consultas.js'
 import { examesRouter } from './routes/exames.js'
 import { prestadoresRouter } from './routes/prestadores.js'
-import { solicitacoesRouter } from './routes/solicitacoes.js'
+import { agendamentosRouter } from './routes/agendamentos.js'
+import { disponibilidadeRouter } from './routes/disponibilidade.js'
 import { vinculosRouter } from './routes/vinculos.js'
 import { familiaRouter } from './routes/familia.js'
 import { compartilhamentosRouter } from './routes/compartilhamentos.js'
@@ -64,7 +65,8 @@ export function createApp() {
   app.use('/api/consultas', consultasRouter)
   app.use('/api/exames', examesRouter)
   app.use('/api/prestadores', prestadoresRouter)
-  app.use('/api/solicitacoes', solicitacoesRouter)
+  app.use('/api/agendamentos', agendamentosRouter)
+  app.use('/api/disponibilidade', disponibilidadeRouter)
   app.use('/api/vinculos', vinculosRouter)
   app.use('/api/familia', familiaRouter)
   app.use('/api/compartilhamentos', compartilhamentosRouter)

@@ -2,9 +2,13 @@ import mongoose, { Schema } from 'mongoose'
 import type { InferSchemaType } from 'mongoose'
 
 /**
- * Solicitacao — the family's request to schedule an exam or a consultation with
- * a Prestador. In the prototype the confirmation is simulated (status stays
- * 'pendente' until a real scheduling backend/agenda exists).
+ * Solicitacao — DEPRECATED. The original booking request, which carried no date
+ * and no time, so `confirmada` was unreachable and the agenda ended up showing
+ * `createdAt` as if it were the appointment.
+ *
+ * Superseded by `Agendamento`. Kept only so `migrarSolicitacoes()` can carry the
+ * existing rows over; nothing writes here any more. Drop the collection once the
+ * migration has run everywhere.
  */
 const solicitacaoSchema = new Schema(
   {
@@ -16,6 +20,8 @@ const solicitacaoSchema = new Schema(
     modalidade: { type: String, enum: ['teleconsulta', 'presencial', 'domiciliar'], default: 'presencial' },
     mensagem: { type: String, default: '', maxlength: 500 },
     status: { type: String, enum: ['pendente', 'confirmada', 'cancelada'], default: 'pendente' },
+    /** Set once this row has an `Agendamento` counterpart. */
+    migrada: { type: Boolean, default: false },
   },
   { timestamps: true },
 )

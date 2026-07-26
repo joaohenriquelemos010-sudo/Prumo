@@ -6,7 +6,7 @@ import { User } from '../models/User.js'
 import { Crianca } from '../models/Crianca.js'
 import { Vinculo } from '../models/Vinculo.js'
 import { Exame } from '../models/Exame.js'
-import { Solicitacao } from '../models/Solicitacao.js'
+import { Agendamento } from '../models/Agendamento.js'
 
 /**
  * Admin area — restricted to the platform administrator (papel 'admin'). Lets the
@@ -104,11 +104,12 @@ adminRouter.delete('/usuarios/:id', async (req, res) => {
 
 // GET /api/admin/metricas — platform counts at a glance.
 adminRouter.get('/metricas', async (_req, res) => {
-  const [porPapel, vinculosAtivos, exames, solicitacoes, criancas] = await Promise.all([
+  const [porPapel, vinculosAtivos, exames, agendamentos, agendamentosPendentes, criancas] = await Promise.all([
     User.aggregate<{ _id: string; total: number }>([{ $group: { _id: '$papel', total: { $sum: 1 } } }]),
     Vinculo.countDocuments({ status: 'ativo' }),
     Exame.countDocuments(),
-    Solicitacao.countDocuments(),
+    Agendamento.countDocuments(),
+    Agendamento.countDocuments({ status: 'pendente' }),
     Crianca.countDocuments(),
   ])
   const usuariosPorPapel: Record<string, number> = {}
@@ -124,7 +125,8 @@ adminRouter.get('/metricas', async (_req, res) => {
     medicosPendentes,
     vinculosAtivos,
     exames,
-    solicitacoes,
+    agendamentos,
+    agendamentosPendentes,
     criancas,
   })
 })

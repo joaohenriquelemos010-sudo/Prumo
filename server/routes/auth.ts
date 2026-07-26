@@ -7,7 +7,7 @@ import { Consulta } from '../models/Consulta.js'
 import { Exame } from '../models/Exame.js'
 import { Vinculo } from '../models/Vinculo.js'
 import { ConviteVinculo } from '../models/ConviteVinculo.js'
-import { Solicitacao } from '../models/Solicitacao.js'
+import { Agendamento } from '../models/Agendamento.js'
 import { registerSchema, loginSchema, esqueciSenhaSchema } from '../validation.js'
 import { hashPassword, verifyPassword, issueSession, clearSession, requireAuth } from '../auth.js'
 import { rateLimit } from '../rate-limit.js'
@@ -201,14 +201,16 @@ authRouter.get('/exportar', requireAuth, async (req, res) => {
   const criancas = await Crianca.find({ responsavel: userId }).lean()
   const criancaIds = criancas.map((c) => c._id)
 
-  const [prontuarios, consultas, exames, duvidas, vinculos, convites, solicitacoes] = await Promise.all([
+  const [prontuarios, consultas, exames, duvidas, vinculos, convites, agendamentos] = await Promise.all([
     Prontuario.find({ crianca: { $in: criancaIds } }).lean(),
     Consulta.find({ crianca: { $in: criancaIds } }).sort({ data: 1 }).lean(),
     Exame.find({ crianca: { $in: criancaIds } }).sort({ dataExame: 1 }).lean(),
     Duvida.find({ crianca: { $in: criancaIds } }).sort({ createdAt: 1 }).lean(),
     Vinculo.find({ $or: [{ pacienteId: userId }, { medicoId: userId }] }).lean(),
     ConviteVinculo.find({ $or: [{ criadorId: userId }, { medicoId: userId }] }).lean(),
-    Solicitacao.find({ usuario: userId }).sort({ createdAt: 1 }).lean(),
+    Agendamento.find({ $or: [{ crianca: { $in: criancaIds } }, { pacienteId: userId }] })
+      .sort({ inicio: 1 })
+      .lean(),
   ])
 
   res.json({
@@ -238,7 +240,7 @@ authRouter.get('/exportar', requireAuth, async (req, res) => {
     })),
     vinculos,
     convitesEnviados: convites,
-    solicitacoes,
+    agendamentos,
   })
 })
 
