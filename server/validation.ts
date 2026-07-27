@@ -272,6 +272,10 @@ export const medidasSchema = z.object({
 export const consultaCreateSchema = z.object({
   tipo: z.enum(TIPOS_CONSULTA).default('pediatrica'),
   agendamentoId: z.string().trim().optional(),
+  /** Quando a consulta aconteceu. Sem isto, registrar uma visita passada era
+   *  impossível: tudo era carimbado no instante da digitação, e a curva de
+   *  crescimento empilhava as medidas todas no mesmo mês. */
+  data: dataISO.optional(),
   subjetivo: campoLongo,
   objetivo: campoLongo,
   avaliacao: campoLongo,
@@ -311,8 +315,10 @@ export const medidaFetalSchema = z.object({
   notasPrivadas: z.string().trim().max(1000).optional(),
 })
 
-export const checkinSemanalSchema = z.object({
-  semana: z.number().int().min(4).max(42),
+export const checkinSchema = z.object({
+  /** Semana gestacional antes do parto; mês de vida depois. */
+  periodo: z.number().int().min(0).max(42),
+  fase: z.enum(['gestacao', 'pos-natal']).default('gestacao'),
   notaFamilia: z.string().trim().max(500).optional(),
 })
 

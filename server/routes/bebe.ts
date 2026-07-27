@@ -5,10 +5,11 @@ import { resolveCrianca, resolveCriancaOr403 } from '../services/acesso.js'
 import { MedidaFetal } from '../models/MedidaFetal.js'
 import type { MedidaFetalDoc } from '../models/MedidaFetal.js'
 import { Alerta } from '../models/Alerta.js'
-import { medidaFetalSchema, checkinSemanalSchema } from '../validation.js'
+import { medidaFetalSchema, checkinSchema } from '../validation.js'
 import { normalizeField } from '../sanitize.js'
 import { avaliarMedidaFetal } from '../services/alertas.js'
 import { curvaPfe, ROTULO_MEDIDA, UNIDADE_MEDIDA } from '../clinico/curvas-fetais.js'
+import { curvasInfantis, faseDaJornada, idadeEmMeses, serieInfantil } from '../services/crescimento.js'
 
 export const bebeRouter = Router()
 
@@ -48,33 +49,55 @@ function serialize(m: HydratedDocument<MedidaFetalDoc>, papel: string) {
 }
 
 /**
- * GET /api/bebe — everything the weekly screen needs in one round trip:
- * the measurements, the reference curve behind them, the check-in streak, and
- * whichever alerts this reader is allowed to see.
+ * GET /api/bebe — everything the growth screen needs in one round trip.
+ *
+ * The journey has two halves and this route answers for both. Before birth it is
+ * fetal biometry against the Hadlock band; after birth it is the child's weight,
+ * length and head circumference against the WHO curves, built from the
+ * consultations the pediatrician already records plus the birth summary as month
+ * zero. `fase` tells the client which story to tell.
  */
 bebeRouter.get('/', requireAuth, async (req, res) => {
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
   const papel = req.user!.papel
+  const fase = faseDaJornada(crianca)
 
-  const [medidas, alertas] = await Promise.all([
+  const [medidas, alertas, infantis] = await Promise.all([
     MedidaFetal.find({ crianca: crianca._id }).sort({ semana: 1 }),
     Alerta.find({
       crianca: crianca._id,
       resolvido: false,
       ...(ehEquipe(papel) ? {} : { paraFamilia: true }),
     }).sort({ createdAt: -1 }),
+    fase === 'pos-natal' ? serieInfantil(crianca) : Promise.resolve([]),
   ])
 
   res.json({
+    fase,
+    idadeMeses: fase === 'pos-natal' ? idadeEmMeses(crianca) : null,
     medidas: medidas.map((m) => serialize(m, papel)),
     // The reference band travels with the data so the client draws exactly what
     // the alerts were computed against.
     curva: curvaPfe(),
     rotulos: ROTULO_MEDIDA,
     unidades: UNIDADE_MEDIDA,
+    // Same contract on the postnatal side: percentiles are a clinical reading.
+    medidasInfantis: infantis.map((p) => ({
+      meses: p.meses,
+      data: p.data,
+      pesoKg: p.pesoKg,
+      comprimentoCm: p.comprimentoCm,
+      perimetroCefalicoCm: p.perimetroCefalicoCm,
+      origem: p.origem,
+      autorNome: p.autorNome,
+      ...(ehEquipe(papel) ? { percentis: p.percentis } : {}),
+    })),
+    curvasInfantis: fase === 'pos-natal' ? curvasInfantis() : null,
     checkins: (crianca.checkins ?? []).map((c) => ({
-      semana: c.semana,
+      // `semana` is the legacy key from when this page only covered pregnancy.
+      periodo: c.periodo ?? c.semana,
+      fase: c.fase || 'gestacao',
       em: new Date(c.em).toISOString(),
       notaFamilia: c.notaFamilia,
     })),
@@ -136,26 +159,32 @@ bebeRouter.put('/medidas', requireAuth, requireRole('medico'), async (req, res) 
 })
 
 /**
- * POST /api/bebe/checkin — the family's weekly ritual.
- * Not clinical data: a note, and the streak that makes coming back feel good.
+ * POST /api/bebe/checkin — the family's ritual, weekly in pregnancy and monthly
+ * after birth. Not clinical data: a note, and the streak that makes coming back
+ * feel good.
  */
 bebeRouter.post('/checkin', requireAuth, async (req, res) => {
-  const parsed = checkinSemanalSchema.safeParse(req.body)
+  const parsed = checkinSchema.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Confere os dados.' })
     return
   }
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
-  const { semana, notaFamilia } = parsed.data
+  const { periodo, fase, notaFamilia } = parsed.data
 
-  const existente = (crianca.checkins ?? []).find((c) => c.semana === semana)
+  // Keyed by (fase, periodo): week 20 of the pregnancy is not month 20 of the child.
+  const existente = (crianca.checkins ?? []).find(
+    (c) => (c.periodo ?? c.semana) === periodo && (c.fase || 'gestacao') === fase,
+  )
   if (existente) {
     existente.em = new Date()
     existente.notaFamilia = normalizeField(notaFamilia ?? '', 500)
   } else {
     crianca.checkins.push({
-      semana,
+      fase,
+      periodo,
+      semana: null,
       em: new Date(),
       notaFamilia: normalizeField(notaFamilia ?? '', 500),
     })
@@ -164,7 +193,8 @@ bebeRouter.post('/checkin', requireAuth, async (req, res) => {
 
   res.status(201).json({
     checkins: crianca.checkins.map((c) => ({
-      semana: c.semana,
+      periodo: c.periodo ?? c.semana,
+      fase: c.fase || 'gestacao',
       em: new Date(c.em).toISOString(),
       notaFamilia: c.notaFamilia,
     })),

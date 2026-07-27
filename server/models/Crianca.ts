@@ -36,14 +36,21 @@ const criancaSchema = new Schema(
     /** Ids das doses de vacina já aplicadas (ver sus-vacinas.ts). */
     vacinasAplicadas: { type: [String], default: [] },
     /**
-     * Check-in semanal da família na tela do bebê. Não é dado clínico — é o
-     * ritual que traz de volta, e a sequência que faz isso valer a pena.
+     * Check-in da família na tela do bebê. Não é dado clínico — é o ritual que
+     * traz de volta, e a sequência que faz isso valer a pena.
+     *
+     * `periodo` é a semana gestacional antes do parto e o mês de vida depois, por
+     * isso vem acompanhado da `fase`: sem ela, a semana 20 da gestação e o mês 20
+     * da criança colidiriam. `semana` é o campo legado de quando esta tela só
+     * cobria a gravidez, lido como fallback.
      */
     checkins: {
       type: [
         new Schema(
           {
-            semana: { type: Number, required: true },
+            fase: { type: String, enum: ['gestacao', 'pos-natal'], default: 'gestacao' },
+            periodo: { type: Number, default: null },
+            semana: { type: Number, default: null },
             em: { type: Date, default: Date.now },
             notaFamilia: { type: String, default: '', maxlength: 500 },
           },

@@ -197,6 +197,10 @@ function NovaConsulta({ onCancel, onSaved }: { onCancel: () => void; onSaved: (c
     plano: '',
   })
   const [medidas, setMedidas] = useState<Record<string, string>>({})
+  // Defaults to today, but editable: a visit often gets typed up afterwards, and
+  // without this every consultation was stamped with the moment of typing —
+  // which piled the whole growth curve onto a single month.
+  const [dataConsulta, setDataConsulta] = useState(() => new Date().toISOString().slice(0, 10))
   const [marcados, setMarcados] = useState<Record<string, boolean>>({})
   const [notasPrivadas, setNotasPrivadas] = useState('')
   const [avaliacaoPrivada, setAvaliacaoPrivada] = useState(false)
@@ -227,6 +231,7 @@ function NovaConsulta({ onCancel, onSaved }: { onCancel: () => void; onSaved: (c
         `/consultas${criancaQuery(criancaAtiva)}`,
         {
           tipo,
+          data: dataConsulta || undefined,
           ...campos,
           notasPrivadas,
           avaliacaoPrivada,
@@ -304,6 +309,17 @@ function NovaConsulta({ onCancel, onSaved }: { onCancel: () => void; onSaved: (c
               {t === 'pediatrica' ? 'Pediátrica' : t === 'pre-natal' ? 'Pré-natal' : 'Pré-concepcional'}
             </button>
           ))}
+          <label className="ml-auto flex items-center gap-2 text-sm text-ink-soft" htmlFor="data-consulta">
+            Data
+            <input
+              id="data-consulta"
+              type="date"
+              value={dataConsulta}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setDataConsulta(e.target.value)}
+              className="input h-11 w-auto py-0"
+            />
+          </label>
         </div>
       )}
 

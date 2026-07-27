@@ -1,17 +1,20 @@
 import { useMemo, useState } from 'react'
-import { cn } from '@/lib/cn'
 
 /**
- * Fetal growth chart: the baby's estimated weight against the reference band.
+ * Growth chart: one measurement series against its reference band.
  *
- * Form is **emphasis**, not categorical — one series is the point and everything
- * else is context. So: a single accent hue for the baby, a recessive wash for the
- * P10–P90 band and a hairline median. No second axis, no rainbow, no value printed
- * on every point (only the endpoint is labelled; the rest live in the tooltip and
- * in the table below the chart).
+ * Serves both halves of the journey — fetal weight by gestational week against
+ * the Hadlock band, and the child's weight/length/head circumference by month
+ * against the WHO curves. Same shape, same reading, so the family recognises the
+ * chart after birth instead of meeting a new one.
  *
- * Hand-rolled SVG because the project carries no charting library and every colour
- * here is a design token, so it flips with the theme for free.
+ * Form is **emphasis**, not categorical: one series is the point and everything
+ * else is context. A single accent hue for the baby, a recessive wash for the
+ * P10–P90 band, a hairline median. No second axis, no rainbow, and a value
+ * printed only at the endpoint — the rest live in the tooltip and in the table.
+ *
+ * Hand-rolled SVG because the project carries no charting library and every
+ * colour here is a design token, so it flips with the theme for free.
  */
 
 export interface FaixaPercentil {
@@ -23,12 +26,12 @@ export interface FaixaPercentil {
 }
 
 export interface PontoCurva {
-  semana: number
+  x: number
   faixa: FaixaPercentil
 }
 
 export interface PontoMedida {
-  semana: number
+  x: number
   valor: number
   percentil: number | null
 }
@@ -36,6 +39,12 @@ export interface PontoMedida {
 interface Props {
   curva: PontoCurva[]
   medidas: PontoMedida[]
+  /** "semanas" / "meses" — sits at the end of the x axis. */
+  rotuloX: string
+  /** "g" / "kg" / "cm" */
+  unidade: string
+  /** Spacing of the x ticks, in x units. */
+  passoX?: number
   /** Show the reference numbers to a clinician; keep them off the family's screen. */
   mostrarPercentis?: boolean
 }
@@ -45,64 +54,82 @@ interface Props {
 // below `min-w`, which is the honest fix for a chart that needs room.
 const LARGURA = 480
 const ALTURA = 260
-const MARGEM = { top: 16, right: 56, bottom: 34, left: 46 }
+const MARGEM = { top: 16, right: 60, bottom: 34, left: 46 }
 
-export function CurvaCrescimento({ curva, medidas, mostrarPercentis }: Props) {
+function formatar(valor: number, unidade: string): string {
+  if (unidade === 'kg' || unidade === 'cm') {
+    return `${valor.toFixed(1).replace('.', ',')} ${unidade}`
+  }
+  return `${Math.round(valor)} ${unidade}`
+}
+
+export function CurvaCrescimento({
+  curva,
+  medidas,
+  rotuloX,
+  unidade,
+  passoX = 6,
+  mostrarPercentis,
+}: Props) {
   const [ativo, setAtivo] = useState<number | null>(null)
 
   const geometria = useMemo(() => {
     if (curva.length === 0) return null
 
-    const semanas = curva.map((c) => c.semana)
-    const xMin = Math.min(...semanas)
-    const xMax = Math.max(...semanas)
+    const xs = curva.map((c) => c.x)
+    const xMin = Math.min(...xs)
+    const xMax = Math.max(...xs)
+    if (xMax === xMin) return null
+
     const yMax = Math.max(...curva.map((c) => c.faixa.p97), ...medidas.map((m) => m.valor)) * 1.05
 
     const larguraPlot = LARGURA - MARGEM.left - MARGEM.right
     const alturaPlot = ALTURA - MARGEM.top - MARGEM.bottom
-    const x = (s: number) => MARGEM.left + ((s - xMin) / (xMax - xMin)) * larguraPlot
+    const x = (v: number) => MARGEM.left + ((v - xMin) / (xMax - xMin)) * larguraPlot
     const y = (v: number) => MARGEM.top + alturaPlot - (v / yMax) * alturaPlot
 
-    const linha = (sel: (f: FaixaPercentil) => number) =>
-      curva.map((c, i) => `${i === 0 ? 'M' : 'L'}${x(c.semana)},${y(sel(c.faixa))}`).join(' ')
+    const medianaPath = curva
+      .map((c, i) => `${i === 0 ? 'M' : 'L'}${x(c.x)},${y(c.faixa.p50)}`)
+      .join(' ')
 
-    // The band is drawn as one closed shape: P90 out, P10 back.
+    // The band is one closed shape: P90 out, P10 back.
     const banda = [
-      ...curva.map((c, i) => `${i === 0 ? 'M' : 'L'}${x(c.semana)},${y(c.faixa.p90)}`),
-      ...[...curva].reverse().map((c) => `L${x(c.semana)},${y(c.faixa.p10)}`),
+      ...curva.map((c, i) => `${i === 0 ? 'M' : 'L'}${x(c.x)},${y(c.faixa.p90)}`),
+      ...[...curva].reverse().map((c) => `L${x(c.x)},${y(c.faixa.p10)}`),
       'Z',
     ].join(' ')
 
-    const ordenadas = [...medidas].sort((a, b) => a.semana - b.semana)
-    const caminhoBebe = ordenadas
-      .map((m, i) => `${i === 0 ? 'M' : 'L'}${x(m.semana)},${y(m.valor)}`)
-      .join(' ')
+    const ordenadas = [...medidas].sort((a, b) => a.x - b.x)
+    const caminhoBebe = ordenadas.map((m, i) => `${i === 0 ? 'M' : 'L'}${x(m.x)},${y(m.valor)}`).join(' ')
 
     // Clean tick values rather than raw maxima.
-    const passoY = yMax > 3000 ? 1000 : yMax > 1000 ? 500 : 100
+    const passoY = yMax > 3000 ? 1000 : yMax > 1000 ? 500 : yMax > 100 ? 50 : yMax > 20 ? 5 : 2
     const ticksY: number[] = []
     for (let v = 0; v <= yMax; v += passoY) ticksY.push(v)
 
-    const ticksX = semanas.filter((s) => s % 6 === 0)
+    const ticksX = xs.filter((v) => v % passoX === 0)
 
-    return { x, y, banda, medianaPath: linha((f) => f.p50), caminhoBebe, ordenadas, ticksX, ticksY, xMin, xMax }
-  }, [curva, medidas])
+    return { x, y, banda, medianaPath, caminhoBebe, ordenadas, ticksX, ticksY }
+  }, [curva, medidas, passoX])
 
   if (!geometria) return null
   const { x, y, banda, medianaPath, caminhoBebe, ordenadas, ticksX, ticksY } = geometria
   const ultimo = ordenadas[ordenadas.length - 1]
-  const pontoAtivo = ativo != null ? ordenadas.find((m) => m.semana === ativo) : null
+  const pontoAtivo = ativo != null ? ordenadas.find((m) => m.x === ativo) : null
 
   return (
     <figure className="m-0">
-      <div className="overflow-x-auto">
+      {/* Bleeds into the card's padding on small screens: that's ~64px of width
+          the chart can use, which is the difference between fitting and scrolling
+          on a phone. Still scrolls below `min-w`, so nothing is ever cropped. */}
+      <div className="-mx-lg overflow-x-auto px-lg sm:mx-0 sm:px-0">
         <svg
           viewBox={`0 0 ${LARGURA} ${ALTURA}`}
-          className="h-auto w-full min-w-[420px]"
+          className="h-auto w-full min-w-[380px]"
           role="img"
           aria-label={
             ultimo
-              ? `Curva de crescimento. Última medida na semana ${ultimo.semana}: ${Math.round(ultimo.valor)} gramas.`
+              ? `Curva de crescimento. Última medida: ${formatar(ultimo.valor, unidade)} com ${ultimo.x} ${rotuloX}.`
               : 'Curva de crescimento, ainda sem medidas.'
           }
         >
@@ -142,24 +169,24 @@ export function CurvaCrescimento({ curva, medidas, mostrarPercentis }: Props) {
             />
           )}
           {ordenadas.map((m) => (
-            <g key={m.semana}>
+            <g key={m.x}>
               {/* Hit target larger than the mark. */}
               <circle
-                cx={x(m.semana)}
+                cx={x(m.x)}
                 cy={y(m.valor)}
                 r={14}
                 fill="transparent"
-                onMouseEnter={() => setAtivo(m.semana)}
+                onMouseEnter={() => setAtivo(m.x)}
                 onMouseLeave={() => setAtivo(null)}
-                onFocus={() => setAtivo(m.semana)}
+                onFocus={() => setAtivo(m.x)}
                 onBlur={() => setAtivo(null)}
                 tabIndex={0}
                 role="button"
-                aria-label={`Semana ${m.semana}: ${Math.round(m.valor)} gramas${m.percentil ? `, percentil ${m.percentil}` : ''}`}
+                aria-label={`${m.x} ${rotuloX}: ${formatar(m.valor, unidade)}${m.percentil ? `, percentil ${m.percentil}` : ''}`}
               />
               {/* 2px surface ring keeps the dot legible where it crosses the band. */}
               <circle
-                cx={x(m.semana)}
+                cx={x(m.x)}
                 cy={y(m.valor)}
                 r={5}
                 fill="var(--color-azul)"
@@ -172,11 +199,11 @@ export function CurvaCrescimento({ curva, medidas, mostrarPercentis }: Props) {
           {/* Only the endpoint gets a direct label. */}
           {ultimo && (
             <text
-              x={x(ultimo.semana) + 10}
+              x={Math.min(x(ultimo.x) + 10, LARGURA - MARGEM.right + 4)}
               y={y(ultimo.valor) + 4}
               className="fill-[var(--color-ink)] text-[12px] font-semibold"
             >
-              {Math.round(ultimo.valor)} g
+              {formatar(ultimo.valor, unidade)}
             </text>
           )}
 
@@ -192,30 +219,24 @@ export function CurvaCrescimento({ curva, medidas, mostrarPercentis }: Props) {
               {v >= 1000 ? `${(v / 1000).toLocaleString('pt-BR')}k` : v}
             </text>
           ))}
-          {ticksX.map((s) => (
+          {ticksX.map((v) => (
             <text
-              key={s}
-              x={x(s)}
+              key={v}
+              x={x(v)}
               y={ALTURA - 10}
               textAnchor="middle"
               className="fill-[var(--color-ink-mute)] text-[11px]"
             >
-              {s}
+              {v}
             </text>
           ))}
-          <text
-            x={LARGURA - MARGEM.right}
-            y={ALTURA - 10}
-            textAnchor="end"
-            className="fill-[var(--color-ink-mute)] text-[11px]"
-          >
-            semanas
-          </text>
         </svg>
       </div>
 
-      {/* Three distinct marks, so the key earns its place. */}
+      {/* Three distinct marks, so the key earns its place. The x unit lives here
+          rather than at the end of the axis, where it collided with the last tick. */}
       <figcaption className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-mute">
+        <span>Eixo horizontal em {rotuloX}</span>
         <span className="inline-flex items-center gap-1.5">
           <span className="size-2.5 rounded-full bg-[var(--color-azul)]" aria-hidden />
           Seu bebê
@@ -225,23 +246,17 @@ export function CurvaCrescimento({ curva, medidas, mostrarPercentis }: Props) {
           Mediana esperada
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span
-            className="h-2.5 w-4 rounded-sm bg-[var(--color-lilas)] opacity-30"
-            aria-hidden
-          />
+          <span className="h-2.5 w-4 rounded-sm bg-[var(--color-lilas)] opacity-30" aria-hidden />
           Faixa esperada
         </span>
       </figcaption>
 
       {pontoAtivo && (
-        <p
-          role="status"
-          className={cn(
-            'mt-2 inline-block rounded-xl bg-paper-2 px-3 py-2 text-sm text-ink-soft',
-          )}
-        >
-          <strong className="text-ink">Semana {pontoAtivo.semana}</strong> ·{' '}
-          {Math.round(pontoAtivo.valor)} g
+        <p role="status" className="mt-2 inline-block rounded-xl bg-paper-2 px-3 py-2 text-sm text-ink-soft">
+          <strong className="text-ink">
+            {pontoAtivo.x} {rotuloX}
+          </strong>{' '}
+          · {formatar(pontoAtivo.valor, unidade)}
           {mostrarPercentis && pontoAtivo.percentil != null && ` · percentil ${pontoAtivo.percentil}`}
         </p>
       )}

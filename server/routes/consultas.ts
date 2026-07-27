@@ -85,6 +85,7 @@ consultasRouter.post('/', requireAuth, requireRole('medico'), async (req, res) =
     autorId: req.user!.id,
     autorNome: req.user!.nome,
     tipo: d.tipo,
+    data: d.data ? new Date(d.data) : new Date(),
     agendamento: d.agendamentoId && isValidObjectId(d.agendamentoId) ? d.agendamentoId : null,
     subjetivo: normalizeField(d.subjetivo ?? '', 3000),
     objetivo: normalizeField(d.objetivo ?? '', 3000),

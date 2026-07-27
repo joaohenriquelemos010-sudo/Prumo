@@ -139,6 +139,70 @@ export function zScore(
   return Math.round(z * 100) / 100
 }
 
+/** The value that sits at a given z-score — the inverse of `zScore`. */
+export function valorParaZ(
+  medida: MedidaInfantil,
+  sexo: Sexo,
+  meses: number,
+  z: number,
+): number | null {
+  const lms = lmsPara(medida, sexo, meses)
+  if (!lms) return null
+  const { l, m, s } = lms
+  const valor = l === 0 ? m * Math.exp(s * z) : m * Math.pow(1 + l * s * z, 1 / l)
+  return Math.round(valor * 100) / 100
+}
+
+/** z-scores that bound the bands we draw (≈P3 / P15 / P50 / P85 / P97). */
+const Z_FAIXAS = { p3: -1.881, p10: -1.036, p50: 0, p90: 1.036, p97: 1.881 }
+
+export interface FaixaInfantil {
+  p3: number
+  p10: number
+  p50: number
+  p90: number
+  p97: number
+}
+
+/**
+ * The expected band for an age, as the UNION across both sexes.
+ *
+ * The journey doesn't record the child's sex, and guessing would be worse than a
+ * slightly wider band — so the lower bound takes the lower of the two curves and
+ * the upper bound the higher. Same reasoning the alerts already use: only flag
+ * what falls outside for BOTH. The chart says "referência OMS" and means it.
+ */
+export function faixaInfantil(medida: MedidaInfantil, meses: number): FaixaInfantil | null {
+  const f = (chave: keyof typeof Z_FAIXAS, escolher: (a: number, b: number) => number) => {
+    const vf = valorParaZ(medida, 'F', meses, Z_FAIXAS[chave])
+    const vm = valorParaZ(medida, 'M', meses, Z_FAIXAS[chave])
+    if (vf === null || vm === null) return null
+    return escolher(vf, vm)
+  }
+
+  const p3 = f('p3', Math.min)
+  const p10 = f('p10', Math.min)
+  // The median is the average of the two — it is a reference line, not a bound.
+  const vfMed = valorParaZ(medida, 'F', meses, 0)
+  const vmMed = valorParaZ(medida, 'M', meses, 0)
+  const p50 = vfMed !== null && vmMed !== null ? Math.round(((vfMed + vmMed) / 2) * 100) / 100 : null
+  const p90 = f('p90', Math.max)
+  const p97 = f('p97', Math.max)
+
+  if (p3 === null || p10 === null || p50 === null || p90 === null || p97 === null) return null
+  return { p3, p10, p50, p90, p97 }
+}
+
+/** The whole reference curve for a measure, month by month, for plotting. */
+export function curvaInfantil(medida: MedidaInfantil): { meses: number; faixa: FaixaInfantil }[] {
+  const pontos: { meses: number; faixa: FaixaInfantil }[] = []
+  for (let meses = 0; meses <= 24; meses++) {
+    const faixa = faixaInfantil(medida, meses)
+    if (faixa) pontos.push({ meses, faixa })
+  }
+  return pontos
+}
+
 /** Percentile from a z-score, via the normal CDF (Abramowitz & Stegun 26.2.17). */
 export function percentilDeZ(z: number): number {
   const t = 1 / (1 + 0.2316419 * Math.abs(z))

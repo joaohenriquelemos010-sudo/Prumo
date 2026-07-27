@@ -16,14 +16,21 @@ export function Balanca({
   semana,
   pesoG,
   vazio,
+  legenda,
+  progresso: progressoForcado,
 }: {
   semana: number
   pesoG: number | null
   /** Voice-aware empty message — the family and the clinician read different sentences. */
   vazio?: string
+  /** Caption under the weight. Defaults to the gestational wording. */
+  legenda?: string
+  /** 0–1 growth of the illustration. Defaults to the gestational progress; after
+   *  birth the baby is simply here, so callers pass 1. */
+  progresso?: number
 }) {
   const reduzir = useReducedMotion()
-  const progresso = progressoGestacional(semana)
+  const progresso = progressoForcado ?? progressoGestacional(semana)
 
   // The pan tips with weight, capped so it stays a gesture rather than a slide.
   const inclinacao = pesoG ? Math.min(9, (pesoG / 3600) * 9) : 0
@@ -41,9 +48,7 @@ export function Balanca({
         className="h-auto w-full max-w-[280px]"
         role="img"
         aria-label={
-          pesoG
-            ? `Ilustração: bebê de aproximadamente ${Math.round(pesoG)} gramas na semana ${semana}.`
-            : `Ilustração do bebê na semana ${semana}.`
+          pesoG ? `Ilustração: bebê de aproximadamente ${Math.round(pesoG)} gramas.` : 'Ilustração do bebê.'
         }
       >
         <defs>
@@ -140,7 +145,9 @@ export function Balanca({
           <span className="u-gradient-text font-display text-4xl font-extrabold">
             {pesoG >= 1000 ? `${(pesoG / 1000).toFixed(2).replace('.', ',')} kg` : `${Math.round(pesoG)} g`}
           </span>
-          <span className="mt-1 block text-sm text-ink-mute">peso estimado na semana {semana}</span>
+          <span className="mt-1 block text-sm text-ink-mute">
+            {legenda ?? `peso estimado na semana ${semana}`}
+          </span>
         </p>
       ) : (
         <p className="max-w-prose text-center text-sm text-ink-soft">

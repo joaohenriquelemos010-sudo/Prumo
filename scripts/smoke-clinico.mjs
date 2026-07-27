@@ -151,6 +151,50 @@ export async function registrarTestesClinicos({ navegador, BASE, DESKTOP, secao,
     'a família também lê o resumo do nascimento',
   )
 
+  /* ---- after birth the Bebê page must follow the journey, not dead-end ---- */
+  const posNatal = await (await ctxMae.request.get(`${BASE}/api/bebe`)).json()
+  afirmar(posNatal.fase === 'pos-natal', 'a área Bebê vira para a fase pós-natal')
+  afirmar(Boolean(posNatal.curvasInfantis), 'as curvas da OMS acompanham os dados')
+  afirmar(
+    posNatal.medidasInfantis.some((m) => m.meses === 0 && m.origem === 'nascimento'),
+    'o nascimento entra como o mês zero da curva',
+  )
+
+  // A consultation recorded for a past date must land on the right month —
+  // without a `data` field everything piled onto the month of typing.
+  const dataNasc = new Date()
+  dataNasc.setMonth(dataNasc.getMonth() - 4)
+  await ctxMae.request.put(`${BASE}/api/perfil`, {
+    data: { momento: 'ja-nasceu', dataNascimento: dataNasc.toISOString() },
+  })
+  const doisMeses = new Date(dataNasc)
+  doisMeses.setMonth(doisMeses.getMonth() + 2)
+  await ctxMedica.request.post(`${BASE}/api/consultas?crianca=${criancaId}`, {
+    data: {
+      tipo: 'pediatrica',
+      data: doisMeses.toISOString(),
+      objetivo: 'Exame normal.',
+      medidas: { pesoKg: 5.6, comprimentoCm: 58, perimetroCefalicoCm: 39.5 },
+    },
+  })
+
+  const comConsulta = await (await ctxMae.request.get(`${BASE}/api/bebe`)).json()
+  afirmar(
+    comConsulta.medidasInfantis.some((m) => m.meses === 2 && m.pesoKg === 5.6),
+    'consulta com data passada cai no mês certo da curva',
+  )
+  afirmar(
+    !('percentis' in (comConsulta.medidasInfantis.at(-1) ?? {})),
+    'família NÃO recebe percentis infantis',
+  )
+  const visaoClinica = await (
+    await ctxMedica.request.get(`${BASE}/api/bebe?crianca=${criancaId}`)
+  ).json()
+  afirmar(
+    typeof visaoClinica.medidasInfantis.at(-1)?.percentis?.pesoKg === 'number',
+    'equipe recebe o percentil infantil calculado',
+  )
+
   await ctxMae.close()
   await ctxMedica.close()
 }
