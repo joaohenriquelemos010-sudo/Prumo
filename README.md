@@ -156,6 +156,35 @@ recusa. Clínicas do catálogo, que não têm conta, recebem uma **proposta de h
 admin responde por elas. O servidor recalcula a disponibilidade a cada marcação em vez de
 confiar no slot que o cliente devolveu — dois pedidos para o mesmo horário dão 409.
 
+### O prontuário não se edita
+
+A história clínica vive na coleção `Evolucao`, **append-only**. Não existe rota de
+update nem de delete: corrigir é **retificar**, o que escreve uma entrada nova
+apontando para a anterior — e as duas ficam. É como um prontuário funciona no papel
+há um século, e é o que a Res. CFM 1.821/2007 e o nível NGS2 da certificação
+SBIS/CFM cobram de quem quer ser 100% digital.
+
+Cada entrada carrega o hash da anterior. Adulterar uma evolução direto no banco
+quebra a cadeia dali em diante, e `GET /api/prontuario/integridade` aponta o elo
+exato. Não impede a escrita — torna a adulteração **detectável**, que é o que dá
+para prometer de verdade sem um serviço externo de selagem.
+
+### Transferência para o próximo médico
+
+Três atos, nessa ordem: o médico **pede**, a responsável **autoriza**, o colega
+**baixa**. O token só nasce no consentimento — antes disso não existe link, então
+não há como vazar o que ainda não foi permitido. Expira em 7 dias por TTL, e
+revogar mata o acesso na hora.
+
+O pacote é nomeado como **recursos FHIR** (`paciente` → Patient, `encontros` →
+Encounter, `observacoes` → Observation, `imunizacoes` → Immunization, `documentos`
+→ DocumentReference, `condicoes` → Condition, `narrativa` → Composition). A RNDS
+exige HL7 FHIR; nomear certo agora é a diferença entre escrever um mapeamento
+depois e reescrever o exportador inteiro.
+
+Notas privadas e avaliações marcadas como "só para mim" **não vão** no pacote:
+são o raciocínio em aberto de um profissional específico, não o registro do caso.
+
 ### O que a família lê
 
 O prontuário não mostra tudo. `notasPrivadas` fica só com a equipe, e a médica decide se a

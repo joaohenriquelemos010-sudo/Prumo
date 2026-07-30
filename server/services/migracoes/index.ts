@@ -1,6 +1,7 @@
 import { Migracao } from '../../models/Migracao.js'
 import { up as up001 } from './001-solicitacoes-para-agendamentos.js'
 import { up as up002 } from './002-programa-em-jornadas.js'
+import { up as up003 } from './003-eventos-para-evolucoes.js'
 
 /**
  * Runner de migrações.
@@ -33,6 +34,7 @@ interface Migracion {
 const MIGRACOES: Migracion[] = [
   { nome: '001-solicitacoes-para-agendamentos', up: up001 },
   { nome: '002-programa-em-jornadas', up: up002 },
+  { nome: '003-eventos-para-evolucoes', up: up003 },
 ]
 
 /**

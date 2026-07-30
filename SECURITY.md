@@ -83,6 +83,24 @@ O backend Express + MongoDB (Atlas) já entrega parte do que antes era "a fazer"
 - **Segredos só no ambiente**: `MONGODB_URI` e `JWT_SECRET` vivem em `.env` / painel
   da Vercel, nunca no repositório.
 
+## Integridade do prontuário
+
+A coleção `Evolucao` é **append-only e encadeada por hash**. Cada entrada guarda o
+hash da anterior (SHA-256 sobre um JSON canônico — chaves ordenadas
+recursivamente, para que a serialização não dependa da ordem em que os campos
+aparecem). Não há rota de update nem de delete; a única mutação permitida é
+carimbar `retificadaPor`, uma vez, com guarda.
+
+Consequência prática: reescrever uma entrada exige recalcular todas as posteriores,
+e mesmo assim o hash final muda. `GET /api/prontuario/integridade` recalcula a
+cadeia e devolve a posição do primeiro elo quebrado — disponível também para o
+dono do prontuário, que tem tanto direito de auditar quanto nós.
+
+Isto **não** é selagem temporal: alguém com escrita irrestrita no banco pode
+reescrever a cadeia inteira de forma coerente. O que a cadeia garante é que
+adulteração parcial (a mais provável — corrigir um trecho incômodo) é detectável.
+Selagem externa entra junto com a assinatura ICP-Brasil.
+
 ## O que ainda precisa evoluir no backend
 
 Estes itens **não** podem ser garantidos só no cliente — são responsabilidade do

@@ -15,6 +15,7 @@ import {
 } from '../validation.js'
 import { normalizeTexto } from '../sanitize.js'
 import { avaliarAntropometria } from '../services/alertas.js'
+import { registrar } from '../services/evolucao.js'
 import { serializeConsulta } from './consultas.js'
 import { serializeProntuario } from './prontuario.js'
 
@@ -295,6 +296,44 @@ atendimentoRouter.post('/:id/finalizar', requireAuth, requireRole('medico'), asy
 
   const jornada = await resolveJornada(req.user!, String(consulta.crianca))
   if (jornada) {
+    /**
+     * A consulta entra na história clínica como uma evolução encadeada.
+     *
+     * É isso que faz a linha do tempo do prontuário ser UMA query em vez de
+     * costurar consultas, anotações e marcos em memória — e é o que faz o
+     * atendimento contar para a cadeia de integridade em vez de viver fora dela.
+     *
+     * `visibilidade: 'equipe'` quando a avaliação é privada: a entrada inteira
+     * carrega a impressão diagnóstica, então publicá-la contornaria a escolha
+     * que a médica acabou de fazer na tela.
+     */
+    await registrar(jornada._id, {
+      tipo: 'consulta',
+      consulta: consulta._id,
+      autorId: req.user!.id,
+      autorNome: req.user!.nome,
+      autorPapel: req.user!.papel,
+      em: consulta.data ? new Date(consulta.data) : agora,
+      texto: [
+        consulta.subjetivo && `S: ${consulta.subjetivo}`,
+        consulta.objetivo && `O: ${consulta.objetivo}`,
+        !consulta.avaliacaoPrivada && consulta.avaliacao && `A: ${consulta.avaliacao}`,
+        consulta.plano && `P: ${consulta.plano}`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      estruturado: {
+        tipo: consulta.tipo,
+        igSemanas: consulta.igSemanas,
+        igDias: consulta.igDias,
+        medidas: consulta.medidas ?? {},
+        checklist: consulta.checklist ?? [],
+      },
+      visibilidade: consulta.avaliacaoPrivada ? 'equipe' : 'familia',
+    }).catch(() => {
+      /* a história é importante, mas não a ponto de custar o registro da consulta */
+    })
+
     await avaliarAntropometria(consulta, jornada).catch(() => {
       /* um alerta que falha nunca pode custar o registro da consulta */
     })

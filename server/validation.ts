@@ -4,6 +4,7 @@ import { CATEGORIAS_EXAME } from './models/Exame.js'
 import { CATEGORIAS_POST } from './models/Post.js'
 import { OBJETIVOS_AGENDAMENTO } from './models/Agendamento.js'
 import { TIPOS_CONSULTA } from './models/Consulta.js'
+import { ESCOPOS_TRANSFERENCIA } from './models/Transferencia.js'
 import { validarCPF, somenteDigitos, UFS } from './br-docs.js'
 
 /**
@@ -338,6 +339,14 @@ export const consultaPatchSchema = z.object({
 export const consultaFinalizarSchema = z.object({
   /** Manda o resumo junto no mesmo gesto — é o fluxo normal. */
   enviarResumo: z.boolean().optional(),
+})
+
+/** POST /api/transferencias — pedido de passagem do caso. */
+export const transferenciaCreateSchema = z.object({
+  paraMedicoEmail: z.string().trim().toLowerCase().email('Confere o e-mail do colega.'),
+  paraMedicoNome: z.string().trim().max(80).optional(),
+  escopo: z.array(z.enum(ESCOPOS_TRANSFERENCIA)).min(1).optional(),
+  motivo: z.string().trim().max(300).optional(),
 })
 
 export const medidaFetalSchema = z.object({

@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { isValidObjectId } from 'mongoose'
 import { requireAuth, requireRole } from '../auth.js'
 import { resolveCriancaOr403 } from '../services/acesso.js'
 import { Prontuario } from '../models/Prontuario.js'
@@ -6,6 +7,8 @@ import type { ProntuarioDoc } from '../models/Prontuario.js'
 import type { HydratedDocument, Types } from 'mongoose'
 import { resumoNascimentoSchema, prontuarioUpdateSchema, prontuarioEventoSchema } from '../validation.js'
 import { normalizeField } from '../sanitize.js'
+import { Evolucao } from '../models/Evolucao.js'
+import { registrar, retificar, verificarCadeia, linhaDoTempo } from '../services/evolucao.js'
 
 export const prontuarioRouter = Router()
 
@@ -60,7 +63,10 @@ prontuarioRouter.get('/', requireAuth, async (req, res) => {
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
   const prontuario = await getOrCreateProntuario(crianca._id)
-  res.json({ prontuario: serializeProntuario(prontuario) })
+  res.json({
+    prontuario: serializeProntuario(prontuario),
+    evolucoes: await linhaDoTempo(crianca._id, req.user!.papel === 'medico'),
+  })
 })
 
 /**
@@ -117,14 +123,19 @@ prontuarioRouter.put('/nascimento', requireAuth, requireRole('medico'), async (r
     .filter(Boolean)
     .join(' · ')
 
-  prontuario.eventos.push({
-    data: d.dataNascimento ? new Date(d.dataNascimento) : new Date(),
+  await prontuario.save()
+
+  // A virada é um marco da história clínica, não uma anotação solta: entra na
+  // cadeia como `admissao`, que é o que a pediatra vai ler como ponto de partida.
+  await registrar(crianca._id, {
+    tipo: 'admissao',
     autorId: req.user!.id,
     autorNome: req.user!.nome,
     autorPapel: req.user!.papel,
+    em: d.dataNascimento ? new Date(d.dataNascimento) : new Date(),
     texto: `Nascimento registrado${resumo ? `: ${resumo}` : ''}. Acompanhamento segue com a pediatria.`,
+    estruturado: { resumoNascimento: prontuario.resumoNascimento },
   })
-  await prontuario.save()
 
   // Flip the journey, so every derived schedule (vaccines, puericultura) starts.
   crianca.momento = 'ja-nasceu'
@@ -154,7 +165,12 @@ prontuarioRouter.put('/', requireAuth, requireRole('medico'), async (req, res) =
   res.json({ prontuario: serializeProntuario(prontuario) })
 })
 
-// POST /api/prontuario/evento — append a dated note.
+/**
+ * POST /api/prontuario/evento — acrescenta uma entrada à história clínica.
+ *
+ * Mantém o caminho antigo (o cliente ainda chama assim) mas grava numa
+ * `Evolucao` encadeada por hash, e não mais num subdocumento editável.
+ */
 prontuarioRouter.post('/evento', requireAuth, async (req, res) => {
   const parsed = prontuarioEventoSchema.safeParse(req.body)
   if (!parsed.success) {
@@ -163,57 +179,84 @@ prontuarioRouter.post('/evento', requireAuth, async (req, res) => {
   }
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
-  const prontuario = await getOrCreateProntuario(crianca._id)
-  prontuario.eventos.push({
-    data: new Date(),
+
+  await registrar(crianca._id, {
+    tipo: 'evolucao',
     autorId: req.user!.id,
     autorNome: req.user!.nome,
     autorPapel: req.user!.papel,
-    texto: normalizeField(parsed.data.texto, 2000),
+    texto: parsed.data.texto,
   })
-  await prontuario.save()
-  res.status(201).json({ prontuario: serializeProntuario(prontuario) })
+
+  const prontuario = await getOrCreateProntuario(crianca._id)
+  res.status(201).json({
+    prontuario: serializeProntuario(prontuario),
+    evolucoes: await linhaDoTempo(crianca._id, req.user!.papel === 'medico'),
+  })
 })
 
-// PUT /api/prontuario/evento/:id — edit an annotation (author only).
-prontuarioRouter.put('/evento/:id', requireAuth, async (req, res) => {
+/**
+ * POST /api/prontuario/evolucao/:id/retificacao — corrige uma entrada anterior.
+ *
+ * Substitui o antigo par PUT/DELETE de `/evento/:id`. Um prontuário não se
+ * edita nem se apaga: corrige-se escrevendo uma entrada nova que aponta para a
+ * anterior, e as duas ficam na história. Foi assim no papel por um século, e a
+ * versão eletrônica só é aceitável se preservar isso — é o que a Res. CFM
+ * 1.821/2007 e o nível NGS2 da SBIS cobram.
+ *
+ * Só o autor da entrada original retifica: corrigir o registro de outra pessoa
+ * seria reescrever o que ELA observou.
+ */
+prontuarioRouter.post('/evolucao/:id/retificacao', requireAuth, async (req, res) => {
   const parsed = prontuarioEventoSchema.safeParse(req.body)
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Escreva a anotação.' })
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Escreva a correção.' })
+    return
+  }
+  if (!isValidObjectId(req.params.id)) {
+    res.status(404).json({ error: 'Não encontramos essa anotação.' })
     return
   }
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
-  const prontuario = await getOrCreateProntuario(crianca._id)
-  const evento = prontuario.eventos.find((e) => String(e._id) === req.params.id)
-  if (!evento) {
+
+  const original = await Evolucao.findOne({ _id: req.params.id, jornada: crianca._id })
+  if (!original) {
     res.status(404).json({ error: 'Não encontramos essa anotação.' })
     return
   }
-  if (evento.autorId !== req.user!.id) {
-    res.status(403).json({ error: 'Você só pode editar as suas próprias anotações.' })
+  if (original.autorId !== req.user!.id) {
+    res.status(403).json({ error: 'Você só pode retificar as suas próprias anotações.' })
     return
   }
-  evento.texto = normalizeField(parsed.data.texto, 2000)
-  await prontuario.save()
-  res.json({ prontuario: serializeProntuario(prontuario) })
+  if (original.retificadaPor) {
+    res.status(409).json({ error: 'Essa anotação já foi retificada.' })
+    return
+  }
+
+  await retificar(crianca._id, original._id, {
+    tipo: original.tipo as 'evolucao',
+    autorId: req.user!.id,
+    autorNome: req.user!.nome,
+    autorPapel: req.user!.papel,
+    texto: parsed.data.texto,
+    visibilidade: original.visibilidade as 'familia' | 'equipe',
+  })
+
+  res.status(201).json({
+    evolucoes: await linhaDoTempo(crianca._id, req.user!.papel === 'medico'),
+  })
 })
 
-// DELETE /api/prontuario/evento/:id — remove an annotation (author only).
-prontuarioRouter.delete('/evento/:id', requireAuth, async (req, res) => {
+/**
+ * GET /api/prontuario/integridade — recalcula a cadeia inteira.
+ *
+ * É o que transforma "prometemos que não adulteramos" em "dá para conferir".
+ * Aberto a quem já tem acesso à jornada: o dono do prontuário tem tanto direito
+ * de auditar quanto nós.
+ */
+prontuarioRouter.get('/integridade', requireAuth, async (req, res) => {
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
-  const prontuario = await getOrCreateProntuario(crianca._id)
-  const evento = prontuario.eventos.find((e) => String(e._id) === req.params.id)
-  if (!evento) {
-    res.status(404).json({ error: 'Não encontramos essa anotação.' })
-    return
-  }
-  if (evento.autorId !== req.user!.id) {
-    res.status(403).json({ error: 'Você só pode remover as suas próprias anotações.' })
-    return
-  }
-  prontuario.eventos.pull({ _id: req.params.id })
-  await prontuario.save()
-  res.json({ prontuario: serializeProntuario(prontuario) })
+  res.json(await verificarCadeia(crianca._id))
 })

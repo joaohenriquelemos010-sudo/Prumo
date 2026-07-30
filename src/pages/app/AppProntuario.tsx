@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
-import { Activity, FileHeart, Plus, Baby, Save, Pencil, X, Check } from 'lucide-react'
+import { Activity, Baby, Save } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { useAuth } from '@/lib/stores/auth'
 import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
@@ -10,10 +10,12 @@ const BaixarProntuario = lazy(() =>
 )
 import { MARCOS, REFERENCIA_MARCOS, NOTA_MARCOS } from '@/features/clinico/sus-marcos'
 import { Button } from '@/components/Button'
-import { BotaoExcluir } from '@/components/BotaoExcluir'
 import { Skeleton } from '@/components/Skeleton'
 import { ResumoNascimento } from '@/features/clinico/ResumoNascimento'
 import type { ResumoNascimento as ResumoNascimentoDados } from '@/features/clinico/ResumoNascimento'
+import { LinhaDoTempo } from '@/features/prontuario/LinhaDoTempo'
+import { Transferencias } from '@/features/prontuario/Transferencias'
+import type { Evolucao } from '@/features/prontuario/LinhaDoTempo'
 import { cn } from '@/lib/cn'
 
 interface Evento {
@@ -30,6 +32,7 @@ interface Prontuario {
   alergias: string
   resumoGestacional: string
   condicoes: string[]
+  /** Legado: congelado, lido só por telas antigas. A história vive em `Evolucao`. */
   eventos: Evento[]
   resumoNascimento: ResumoNascimentoDados | null
 }
@@ -40,13 +43,17 @@ export default function AppProntuario() {
   const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
   const podeEditar = papel === 'medico'
   const [prontuario, setProntuario] = useState<Prontuario | null>(null)
+  const [evolucoes, setEvolucoes] = useState<Evolucao[]>([])
   const [loading, setLoading] = useState(true)
 
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
-      const d = await api.get<{ prontuario: Prontuario }>(`/prontuario${criancaQuery(criancaAtiva)}`)
+      const d = await api.get<{ prontuario: Prontuario; evolucoes: Evolucao[] }>(
+        `/prontuario${criancaQuery(criancaAtiva)}`,
+      )
       setProntuario(d.prontuario)
+      setEvolucoes(d.evolucoes ?? [])
     } catch {
       /* the page keeps whatever it already had */
     } finally {
@@ -81,7 +88,9 @@ export default function AppProntuario() {
           {podeEditar && (
             <ResumoNascimento resumo={prontuario.resumoNascimento} onSalvo={() => void carregar()} />
           )}
-          <Eventos prontuario={prontuario} onChange={setProntuario} />
+          <LinhaDoTempo evolucoes={evolucoes} onMudou={setEvolucoes} />
+
+          <Transferencias />
           <Marcos />
           <Suspense fallback={null}>
             <BaixarProntuario dados={{ nome, ...prontuario }} />
@@ -214,159 +223,6 @@ function Campo({ termo, valor }: { termo: string; valor: string }) {
       <dt className="text-xs font-semibold text-ink-mute">{termo}</dt>
       <dd className="font-medium text-ink">{valor || <span className="text-ink-mute">— ainda não informado</span>}</dd>
     </div>
-  )
-}
-
-function Eventos({ prontuario, onChange }: { prontuario: Prontuario; onChange: (p: Prontuario) => void }) {
-  const userId = useAuth((s) => s.user?.id)
-  const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
-  const [texto, setTexto] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
-  const [editId, setEditId] = useState<string | null>(null)
-  const [editTexto, setEditTexto] = useState('')
-
-  async function adicionar() {
-    setErro(null)
-    if (texto.trim().length < 2) {
-      setErro('Escreva a anotação.')
-      return
-    }
-    setSaving(true)
-    try {
-      const { prontuario: novo } = await api.post<{ prontuario: Prontuario }>(`/prontuario/evento${criancaQuery(criancaAtiva)}`, { texto })
-      onChange(novo)
-      setTexto('')
-    } catch {
-      setErro('Não consegui salvar a anotação. Tenta de novo?')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function salvarEdicao(id: string) {
-    if (editTexto.trim().length < 2) return
-    try {
-      const { prontuario: novo } = await api.put<{ prontuario: Prontuario }>(`/prontuario/evento/${id}${criancaQuery(criancaAtiva)}`, {
-        texto: editTexto,
-      })
-      onChange(novo)
-      setEditId(null)
-    } catch {
-      /* keep editing on failure */
-    }
-  }
-
-  async function remover(id: string) {
-    try {
-      const { prontuario: novo } = await api.del<{ prontuario: Prontuario }>(`/prontuario/evento/${id}${criancaQuery(criancaAtiva)}`)
-      onChange(novo)
-    } catch {
-      /* ignore — the item stays */
-    }
-  }
-
-  return (
-    <section className="rounded-2xl border border-line bg-paper p-lg shadow-soft">
-      <h2 className="inline-flex items-center gap-2 text-lg">
-        <FileHeart className="size-5 text-indigo" aria-hidden />
-        Linha do tempo
-      </h2>
-
-      <div className="mt-md flex flex-col gap-2 sm:flex-row">
-        <input
-          value={texto}
-          onChange={(e) => {
-            setTexto(e.target.value)
-            if (erro) setErro(null)
-          }}
-          onKeyDown={(e) => e.key === 'Enter' && adicionar()}
-          placeholder="Adicionar uma anotação…"
-          className="input"
-          maxLength={2000}
-        />
-        <Button size="md" loading={saving} iconLeft={<Plus className="size-4" aria-hidden />} onClick={adicionar}>
-          Anotar
-        </Button>
-      </div>
-      {erro && (
-        <p role="alert" className="mt-2 text-sm font-semibold text-warn-ink">
-          {erro}
-        </p>
-      )}
-
-      {prontuario.eventos.length === 0 ? (
-        <p className="mt-md text-sm text-ink-mute">Ainda não há anotações. A primeira pode ser agora.</p>
-      ) : (
-        <ol className="mt-md flex flex-col gap-3 border-l-2 border-line pl-4">
-          {prontuario.eventos.map((ev) => {
-            const meu = Boolean(userId) && ev.autorId === userId
-            const editando = editId === ev.id
-            return (
-              <li key={ev.id} className="group relative">
-                <span className="absolute -left-[1.35rem] top-1.5 size-2.5 rounded-full [background-image:var(--grad-brand)]" aria-hidden />
-                {editando ? (
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      value={editTexto}
-                      onChange={(e) => setEditTexto(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && salvarEdicao(ev.id)}
-                      className="input"
-                      maxLength={2000}
-                      autoFocus
-                    />
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        onClick={() => salvarEdicao(ev.id)}
-                        aria-label="Salvar edição"
-                        className="grid size-9 place-items-center rounded-lg text-success-ink hover:bg-paper-2"
-                      >
-                        <Check className="size-4" aria-hidden />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditId(null)}
-                        aria-label="Cancelar edição"
-                        className="grid size-9 place-items-center rounded-lg text-ink-mute hover:bg-paper-2"
-                      >
-                        <X className="size-4" aria-hidden />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm text-ink">{ev.texto}</p>
-                      <p className="text-xs text-ink-mute">
-                        {new Date(ev.data).toLocaleDateString('pt-BR')}
-                        {ev.autorNome && ` · ${ev.autorNome}`}
-                      </p>
-                    </div>
-                    {meu && (
-                      <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditId(ev.id)
-                            setEditTexto(ev.texto)
-                          }}
-                          aria-label="Editar anotação"
-                          className="grid size-8 place-items-center rounded-lg text-ink-soft hover:bg-paper-2 hover:text-indigo"
-                        >
-                          <Pencil className="size-3.5" aria-hidden />
-                        </button>
-                        <BotaoExcluir onConfirm={() => remover(ev.id)} titulo="Remover anotação" />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </li>
-            )
-          })}
-        </ol>
-      )}
-    </section>
   )
 }
 
