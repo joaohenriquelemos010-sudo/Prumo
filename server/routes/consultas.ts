@@ -52,6 +52,17 @@ export function serializeConsulta(c: HydratedDocument<ConsultaDoc>, user: Sessio
     igDias: c.igDias,
     medidas: c.medidas ?? {},
     checklist: c.checklist ?? [],
+    status: c.status,
+    iniciadaEm: c.iniciadaEm ? new Date(c.iniciadaEm).toISOString() : null,
+    finalizadaEm: c.finalizadaEm ? new Date(c.finalizadaEm).toISOString() : null,
+    duracaoSegundos: c.duracaoSegundos,
+    /**
+     * O resumo em linguagem leiga só existe para a família depois de a médica
+     * finalizar e mandar. Antes disso é rascunho — e um rascunho de resumo
+     * aparecendo na tela da paciente é pior que resumo nenhum.
+     */
+    resumoParaFamilia: equipe || c.resumoEnviadoEm ? c.resumoParaFamilia : '',
+    resumoEnviadoEm: c.resumoEnviadoEm ? new Date(c.resumoEnviadoEm).toISOString() : null,
     // Only ever leaves the server for clinical staff.
     ...(equipe ? { notasPrivadas: c.notasPrivadas, avaliacaoPrivada: c.avaliacaoPrivada } : {}),
     peso: c.peso,
@@ -64,7 +75,21 @@ export function serializeConsulta(c: HydratedDocument<ConsultaDoc>, user: Sessio
 consultasRouter.get('/', requireAuth, async (req, res) => {
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
-  const consultas = await Consulta.find({ crianca: crianca._id }).sort({ data: -1 })
+
+  /**
+   * Um rascunho é o atendimento ainda acontecendo, e ele só existe para quem o
+   * está escrevendo. A família não pode ver meio SOAP aparecendo em tempo real
+   * enquanto a médica digita, e outro médico vinculado também não — o registro
+   * clínico entra na história quando o autor diz que entrou.
+   *
+   * O filtro é montado a partir da sessão assinada, nunca de um parâmetro.
+   */
+  const filtro: Record<string, unknown> = {
+    crianca: crianca._id,
+    $or: [{ status: { $ne: 'rascunho' } }, { autorId: req.user!.id }],
+  }
+
+  const consultas = await Consulta.find(filtro).sort({ data: -1 })
   res.json({ consultas: consultas.map((c) => serializeConsulta(c, req.user!)) })
 })
 

@@ -85,6 +85,31 @@ const consultaSchema = new Schema(
     /** Quando true, a impressão diagnóstica também fica só com a equipe. */
     avaliacaoPrivada: { type: Boolean, default: false },
 
+    /**
+     * Ciclo de vida do atendimento.
+     *
+     * O default é `finalizada`, e isso não é descuido: todo registro que já
+     * existe foi criado de uma vez só, pela tela antiga, e tem que continuar
+     * lendo como consulta pronta. Só o cockpit cria rascunho.
+     *
+     * Um rascunho é privado do autor — ele existe para o médico poder digitar
+     * durante a consulta sem que meio prontuário apareça para a família.
+     */
+    status: { type: String, enum: ['rascunho', 'finalizada'], default: 'finalizada', index: true },
+    iniciadaEm: { type: Date, default: null },
+    finalizadaEm: { type: Date, default: null },
+    duracaoSegundos: { type: Number, default: null },
+
+    /**
+     * O que a família vai ler, em linguagem leiga — distinto de `plano`, que é
+     * escrito para o próprio médico e para o colega seguinte.
+     *
+     * Esse é o ponto: hoje a paciente ou lê a conduta clínica crua ou não lê
+     * nada. Este campo é o resumo que a médica de fato quer mandar.
+     */
+    resumoParaFamilia: { type: String, default: '', maxlength: 2000 },
+    resumoEnviadoEm: { type: Date, default: null },
+
     // Legado — mantido para os registros já existentes; preenchido a partir de
     // `medidas` na escrita, para que nada antigo deixe de renderizar.
     peso: { type: String, default: '' },

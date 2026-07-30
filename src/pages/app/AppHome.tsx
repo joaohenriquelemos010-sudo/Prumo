@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, CalendarDays, Route, Syringe, ShieldQuestion, Stethoscope, FlaskConical, NotebookPen, X, Sparkles, Users } from 'lucide-react'
+import { ArrowRight, CalendarDays, Route, Syringe, ShieldQuestion, FlaskConical, NotebookPen, X, Sparkles, Users } from 'lucide-react'
 import { useAuth } from '@/lib/stores/auth'
 import { useTrilha } from '@/lib/stores/trilha'
 import { usePerfil } from '@/lib/stores/perfil'
@@ -11,6 +11,7 @@ import { PainelClinico } from '@/features/painel/PainelClinico'
 import { STATUS_ATIVOS, ehFuturo, distanciaHumana, quandoPorExtenso } from '@/features/agenda/agenda'
 import type { Agendamento } from '@/features/agenda/agenda'
 import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
+import { MeuDia } from '@/features/atendimento/MeuDia'
 import { PainelAlertas } from '@/features/clinico/PainelAlertas'
 import AppAdmin from '@/pages/app/AppAdmin'
 
@@ -166,21 +167,31 @@ function MedicoHome() {
       <Blob variant="c" intensity={0.25} className="-right-16 -top-10 size-80" />
 
       <header className="flex flex-col gap-1">
-        <p className="u-eyebrow">Painel clínico</p>
+        <p className="u-eyebrow">Meu dia</p>
         <h1 className="text-3xl sm:text-4xl">Olá, Dr(a). {primeiroNome}</h1>
-        <p className="text-ink-soft">O panorama do seu paciente, da gestação à pediatria, num relance.</p>
+        <p className="text-ink-soft">Seus atendimentos de hoje, e o que precisa de você.</p>
       </header>
 
       <VerificacaoBanner />
 
-      <SeletorPaciente />
+      {/*
+        A fila do dia vem PRIMEIRO. A pergunta que essa tela responde é "o que eu
+        faço agora?", e ela se responde com um horário e um botão — não com um
+        seletor de paciente e um painel de indicadores, que era o que estava aqui.
+      */}
+      <MeuDia />
 
-      <PainelAlertas />
+      <section>
+        <h2 className="u-eyebrow mb-2">Precisa de você</h2>
+        <PainelAlertas />
+      </section>
+
+      <SeletorPaciente />
 
       <PainelClinico />
 
       <div className="grid gap-md sm:grid-cols-3">
-        <MedicoAtalho to="/app/consultas" label="Registrar consulta" icon={Stethoscope} />
+        <MedicoAtalho to="/app/pacientes" label="Meus pacientes" icon={Users} />
         <MedicoAtalho to="/app/exames" label="Ver exames" icon={FlaskConical} />
         <MedicoAtalho to="/app/vacinas" label="Vacinas do paciente" icon={Syringe} />
       </div>

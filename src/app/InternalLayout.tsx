@@ -53,14 +53,20 @@ const NAV_PACIENTE: NavItem[] = [
   { to: '/app/compartilhar', label: 'Conectar', icon: Link2 },
 ]
 
+/**
+ * Rótulos de consultório, não de software. Quem usa isto é uma obstetra entre
+ * duas consultas — "Painel" não diz o que tem lá dentro, "Meu dia" diz. Nomes
+ * específicos criam previsibilidade; guarda-chuvas genéricos custam um clique de
+ * descoberta toda vez.
+ */
 const NAV_MEDICO: NavItem[] = [
-  { to: '/app', label: 'Painel', icon: Activity },
+  { to: '/app', label: 'Meu dia', icon: Activity },
   { to: '/app/agenda', label: 'Agenda', icon: CalendarDays },
-  { to: '/app/prontuario', label: 'Prontuário', icon: FileHeart },
+  { to: '/app/pacientes', label: 'Meus pacientes', icon: Users },
+  { to: '/app/prontuario', label: 'Prontuários', icon: FileHeart },
   { to: '/app/bebe', label: 'Bebê', icon: Baby },
   { to: '/app/consultas', label: 'Consultas', icon: Stethoscope },
   { to: '/app/exames', label: 'Exames', icon: FlaskConical },
-  { to: '/app/compartilhar', label: 'Pacientes', icon: Link2 },
   { to: '/app/caderninho', label: 'Dúvidas', icon: NotebookPen },
 ]
 

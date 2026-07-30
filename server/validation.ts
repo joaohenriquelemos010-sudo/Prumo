@@ -300,6 +300,46 @@ export const consultaCreateSchema = z.object({
   pressao: z.string().trim().max(20).optional(),
 })
 
+/** POST /api/consultas/iniciar — abre (ou reabre) o rascunho de um agendamento. */
+export const consultaIniciarSchema = z.object({
+  agendamentoId: z.string().trim().min(1, 'Sem agendamento não há atendimento para iniciar.'),
+})
+
+/**
+ * PATCH /api/consultas/:id — autosave do cockpit.
+ *
+ * Todo campo é opcional porque o cliente manda só o que mudou; um autosave que
+ * exigisse o documento inteiro sobrescreveria o que outra aba acabou de gravar.
+ */
+export const consultaPatchSchema = z.object({
+  subjetivo: campoLongo,
+  objetivo: campoLongo,
+  avaliacao: campoLongo,
+  plano: campoLongo,
+  notasPrivadas: campoLongo,
+  resumoParaFamilia: z.string().trim().max(2000).optional(),
+  avaliacaoPrivada: z.boolean().optional(),
+  igSemanas: z.number().int().min(0).max(45).nullable().optional(),
+  igDias: z.number().int().min(0).max(6).nullable().optional(),
+  medidas: medidasSchema.optional(),
+  checklist: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(60),
+        feito: z.boolean(),
+        observacao: z.string().trim().max(300).optional(),
+      }),
+    )
+    .max(60)
+    .optional(),
+})
+
+/** POST /api/consultas/:id/finalizar — fecha o atendimento. */
+export const consultaFinalizarSchema = z.object({
+  /** Manda o resumo junto no mesmo gesto — é o fluxo normal. */
+  enviarResumo: z.boolean().optional(),
+})
+
 export const medidaFetalSchema = z.object({
   semana: z.number().int().min(10).max(42),
   data: dataISO.optional(),

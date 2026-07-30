@@ -1,11 +1,14 @@
 import { Router } from 'express'
 import { isValidObjectId } from 'mongoose'
 import { randomBytes } from 'node:crypto'
-import { requireAuth } from '../auth.js'
+import { requireAuth, requireRole } from '../auth.js'
 import { getOrCreateCrianca } from '../services/crianca.js'
 import { Crianca } from '../models/Crianca.js'
 import { Vinculo } from '../models/Vinculo.js'
 import { ConviteVinculo } from '../models/ConviteVinculo.js'
+import { Agendamento } from '../models/Agendamento.js'
+import { Alerta } from '../models/Alerta.js'
+import { Duvida } from '../models/Duvida.js'
 
 export const vinculosRouter = Router()
 
@@ -152,6 +155,80 @@ vinculosRouter.get('/', requireAuth, async (req, res) => {
   const vinculos = await Vinculo.find({ pacienteId: req.user!.id, status: 'ativo' }).sort({ createdAt: -1 })
   res.json({
     vinculos: vinculos.map((v) => ({ id: String(v._id), nome: v.medicoNome, papel: 'medico' })),
+  })
+})
+
+/**
+ * GET /api/vinculos/pacientes — a lista de "Meus pacientes", já com o que faz
+ * alguém abrir a ficha.
+ *
+ * Nome sozinho não ajuda ninguém a decidir quem olhar primeiro. Aqui vêm também
+ * o próximo horário marcado, quantos alertas estão abertos e quantas dúvidas
+ * esperam resposta — que é a ordem de urgência real de uma manhã de consultório.
+ *
+ * Três agregações em vez de N+1 consultas: com 200 pacientes vinculados, o laço
+ * ingênuo seria 600 idas ao banco.
+ */
+vinculosRouter.get('/pacientes', requireAuth, requireRole('medico'), async (req, res) => {
+  const vinculos = await Vinculo.find({ medicoId: req.user!.id, status: 'ativo' }).sort({
+    createdAt: -1,
+  })
+  if (vinculos.length === 0) {
+    res.json({ pacientes: [] })
+    return
+  }
+
+  const ids = vinculos.map((v) => v.crianca)
+  const agora = new Date()
+
+  const [jornadas, proximos, alertas, duvidas] = await Promise.all([
+    Crianca.find({ _id: { $in: ids } }),
+    Agendamento.find({
+      crianca: { $in: ids },
+      medicoId: req.user!.id,
+      inicio: { $gte: agora },
+      status: { $in: ['pendente', 'confirmado'] },
+    })
+      .sort({ inicio: 1 })
+      .select('crianca inicio status modalidade'),
+    Alerta.aggregate([
+      { $match: { crianca: { $in: ids }, resolvido: false } },
+      { $group: { _id: '$crianca', total: { $sum: 1 } } },
+    ]),
+    Duvida.aggregate([
+      { $match: { crianca: { $in: ids }, respondida: false, compartilhada: true } },
+      { $group: { _id: '$crianca', total: { $sum: 1 } } },
+    ]),
+  ])
+
+  const contar = (linhas: { _id: unknown; total: number }[], id: unknown) =>
+    linhas.find((l) => String(l._id) === String(id))?.total ?? 0
+
+  res.json({
+    pacientes: vinculos.map((v) => {
+      const jornada = jornadas.find((j) => String(j._id) === String(v.crianca))
+      const proximo = proximos.find((a) => String(a.crianca) === String(v.crianca))
+      return {
+        vinculoId: String(v._id),
+        crianca: String(v.crianca),
+        nome: v.pacienteNome || jornada?.nome || 'Paciente',
+        momento: jornada?.momento ?? null,
+        dpp: jornada?.dpp ? new Date(jornada.dpp).toISOString() : null,
+        dataNascimento: jornada?.dataNascimento
+          ? new Date(jornada.dataNascimento).toISOString()
+          : null,
+        proximo: proximo
+          ? {
+              id: String(proximo._id),
+              inicio: new Date(proximo.inicio).toISOString(),
+              status: proximo.status,
+              modalidade: proximo.modalidade,
+            }
+          : null,
+        alertas: contar(alertas, v.crianca),
+        duvidas: contar(duvidas, v.crianca),
+      }
+    }),
   })
 })
 

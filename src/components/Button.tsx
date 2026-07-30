@@ -1,12 +1,23 @@
 import { forwardRef } from 'react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { motion } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
+import { useMovimento } from '@/lib/motion'
 import { cn } from '@/lib/cn'
 
 type Variant = 'primary' | 'secondary' | 'ghost'
-type Size = 'md' | 'lg'
+type Size = 'sm' | 'md' | 'lg'
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+/**
+ * Os handlers de drag/animação do DOM colidem com os do framer-motion, que têm
+ * assinatura própria. Nenhum deles fazia sentido num botão, então saem do tipo.
+ */
+type PropsDOM = Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'onDrag' | 'onDragStart' | 'onDragEnd' | 'onAnimationStart' | 'onAnimationEnd' | 'onAnimationIteration'
+>
+
+interface ButtonProps extends PropsDOM {
   variant?: Variant
   size?: Size
   loading?: boolean
@@ -17,9 +28,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const base =
   'relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-pill font-display font-semibold ' +
-  'transition-[transform,background,box-shadow,color] duration-[var(--dur-fast)] ease-out ' +
+  'transition-[background,box-shadow,color] duration-[var(--dur-fast)] ease-out ' +
   'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus)] ' +
-  'disabled:cursor-not-allowed disabled:opacity-60 active:translate-y-px'
+  'disabled:cursor-not-allowed disabled:opacity-60'
 
 const variants: Record<Variant, string> = {
   primary:
@@ -30,6 +41,8 @@ const variants: Record<Variant, string> = {
 }
 
 const sizes: Record<Size, string> = {
+  /** Barras densas (cockpit, cartões de lista). Continua acima de 36px de alvo. */
+  sm: 'h-9 px-3.5 text-[0.875rem]',
   md: 'h-11 px-5 text-[0.95rem]',
   lg: 'h-14 px-8 text-[1.05rem]',
 }
@@ -54,18 +67,30 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   },
   ref,
 ) {
+  const { ativo, mola } = useMovimento()
+
   return (
-    <button
+    <motion.button
       ref={ref}
       className={cn(base, variants[variant], sizes[size], fullWidth && 'w-full', className)}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
+      /**
+       * Feedback no pointer-DOWN, não no release.
+       *
+       * O `active:translate-y-px` anterior dependia do estado `:active` do CSS e
+       * de uma transição de duração fixa — que não pode ser interrompida nem
+       * revertida no meio. Uma mola parte sempre do valor que está na tela, então
+       * tocar, arrastar para fora e voltar acompanha o dedo em vez de saltar.
+       */
+      whileTap={ativo && !disabled && !loading ? { scale: 0.97 } : undefined}
+      transition={mola('rapida')}
       {...rest}
     >
       {loading && <Loader2 className="size-[1.15em] animate-spin" aria-hidden />}
       {!loading && iconLeft}
       <span>{children}</span>
       {!loading && iconRight}
-    </button>
+    </motion.button>
   )
 })

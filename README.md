@@ -120,11 +120,33 @@ remarcar, cancelar, exportar `.ics`) · **Agendar** (escolhe profissional, dia e
 (calendário SUS/PNI) · **Comunidade** (feed estilo FLO + quizzes mito×verdade) ·
 **Conectar** (link + QR para o médico) · Perfil (plano de saúde; exportar/excluir dados — LGPD).
 
-**Médico:** Painel clínico · **Agenda** (próximos, fila de pedidos para confirmar/recusar,
-e o editor de disponibilidade) · **Prontuário** contínuo, incluindo o resumo de nascimento
-que passa o caso para a pediatria · **Bebê** (registro de biometria fetal) · **Consultas**
-(roteiro da diretriz + SOAP) · **Exames** · **Dúvidas** · **Pacientes**. O acesso do médico
-aos dados de um paciente é **escopado por vínculo consentido e revogável**.
+**Médico:** **Meu dia** (a fila de hoje, cada horário com *Iniciar atendimento*) ·
+**Agenda** (próximos, fila de pedidos para confirmar/recusar, e o editor de disponibilidade) ·
+**Meus pacientes** (ordenados por urgência: próximo horário, alertas abertos, dúvidas sem
+resposta) · **Prontuários** contínuos, incluindo o resumo de nascimento que passa o caso
+para a pediatria · **Bebê** (registro de biometria fetal) · **Consultas** (leitura) ·
+**Exames** · **Dúvidas**. O acesso do médico aos dados de um paciente é **escopado por
+vínculo consentido e revogável**.
+
+### O cockpit de atendimento
+
+`/app/atendimento/:id` é a tela onde a consulta acontece — e é a única fora do shell da
+plataforma: ocupa a viewport inteira e não oferece navegação para fora no meio de um
+atendimento.
+
+Uma requisição (`POST /api/atendimento/iniciar`) devolve tudo de uma vez: a consulta, o
+resumo do prontuário, as últimas medidas, os alertas abertos e as dúvidas sem resposta.
+É um round trip porque a médica está com a paciente na frente.
+
+Três colunas em telas grandes — contexto da paciente · S-O-A-P · roteiro da diretriz e
+medidas — cada uma com seu próprio contexto de rolagem dentro de um `h-dvh overflow-hidden`.
+**A página não rola.** No celular os três painéis viram um seletor.
+
+O que se digita é salvo sozinho (`PATCH`, debounce de 1,5s); o único feedback é "salvo há
+Xs". Enquanto a consulta é `rascunho`, ela existe **só para quem a está escrevendo** — nem a
+família nem outro médico vinculado a enxergam. O registro clínico entra na história quando o
+autor diz que entrou, em *Finalizar atendimento*, que também fecha o agendamento como
+realizado e roda a verificação de padrões.
 
 ### Agendamento
 

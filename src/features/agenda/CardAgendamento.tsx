@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { CalendarPlus, Check, X, Clock, MapPin as MapPinIcon, Repeat, UserCheck, UserX } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { CalendarPlus, Check, X, Clock, MapPin as MapPinIcon, Play, Repeat, UserCheck, UserX } from 'lucide-react'
 import {
   MODALIDADE_ICON,
   MODALIDADE_LABEL,
@@ -48,6 +49,17 @@ export function CardAgendamento({
   const ativo = a.status === 'pendente' || a.status === 'confirmado'
   const jaPassou = new Date(a.inicio).getTime() < Date.now()
   const podeFechar = papel !== 'paciente' && a.status === 'confirmado' && jaPassou
+
+  /**
+   * "Iniciar atendimento" só aparece para quem vai atender, num confirmado, e
+   * dentro de ±4h do horário. A janela é o que impede o botão de significar a
+   * consulta errada numa agenda cheia — cedo o bastante para quem adianta,
+   * tarde o bastante para quem atrasou.
+   */
+  const podeIniciar =
+    papel === 'profissional' &&
+    a.status === 'confirmado' &&
+    Math.abs(new Date(a.inicio).getTime() - Date.now()) <= 4 * 60 * 60 * 1000
 
   const titulo = mostrarPaciente ? a.pacienteNome : a.profissionalNome
 
@@ -106,6 +118,16 @@ export function CardAgendamento({
 
           {/* Actions */}
           <div className="mt-3 flex flex-wrap gap-2">
+            {podeIniciar && (
+              <Link
+                to={`/app/atendimento/novo?agendamento=${a.id}`}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-pill px-4 text-sm font-semibold text-white shadow-soft [background-image:var(--grad-brand)]"
+              >
+                <Play className="size-4" aria-hidden />
+                Iniciar atendimento
+              </Link>
+            )}
+
             {a.status === 'confirmado' && (
               <button
                 type="button"

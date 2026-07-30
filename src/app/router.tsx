@@ -1,7 +1,7 @@
 import { lazy } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import { Layout } from './Layout'
-import { ProtectedRoute } from './ProtectedRoute'
+import { ProtectedRoute, ProtectedFullscreen } from './ProtectedRoute'
 
 // Lazy-loaded routes → code splitting per route.
 const Home = lazy(() => import('@/pages/Home'))
@@ -31,6 +31,8 @@ const AppProfissionais = lazy(() => import('@/pages/app/AppProfissionais'))
 const AppCompartilhar = lazy(() => import('@/pages/app/AppCompartilhar'))
 const AppComunidade = lazy(() => import('@/pages/app/AppComunidade'))
 const AppAdmin = lazy(() => import('@/pages/app/AppAdmin'))
+const AppPacientes = lazy(() => import('@/pages/app/AppPacientes'))
+const AppAtendimento = lazy(() => import('@/pages/app/AppAtendimento'))
 
 export const router = createBrowserRouter(
   [
@@ -51,6 +53,16 @@ export const router = createBrowserRouter(
       ],
     },
     {
+      /**
+       * O cockpit de atendimento fica FORA do shell da plataforma: ele ocupa a
+       * viewport inteira e não oferece navegação para fora no meio de uma
+       * consulta. Por isso é uma árvore própria, e não uma rota do `/app`.
+       */
+      path: '/app/atendimento',
+      element: <ProtectedFullscreen />,
+      children: [{ path: ':consultaId', element: <AppAtendimento /> }],
+    },
+    {
       path: '/app',
       element: <ProtectedRoute />,
       children: [
@@ -64,6 +76,7 @@ export const router = createBrowserRouter(
         { path: 'exames', element: <AppExames /> },
         { path: 'consultas', element: <AppConsultas /> },
         { path: 'profissionais', element: <AppProfissionais /> },
+        { path: 'pacientes', element: <AppPacientes /> },
         { path: 'compartilhar', element: <AppCompartilhar /> },
         { path: 'comunidade', element: <AppComunidade /> },
         { path: 'admin', element: <AppAdmin /> },

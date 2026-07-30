@@ -10,6 +10,7 @@ import { vacinasRouter } from './routes/vacinas.js'
 import { prontuarioRouter } from './routes/prontuario.js'
 import { caderninhoRouter } from './routes/caderninho.js'
 import { consultasRouter } from './routes/consultas.js'
+import { atendimentoRouter } from './routes/atendimento.js'
 import { examesRouter } from './routes/exames.js'
 import { prestadoresRouter } from './routes/prestadores.js'
 import { agendamentosRouter } from './routes/agendamentos.js'
@@ -64,6 +65,7 @@ export function createApp() {
   app.use('/api/prontuario', prontuarioRouter)
   app.use('/api/caderninho', caderninhoRouter)
   app.use('/api/consultas', consultasRouter)
+  app.use('/api/atendimento', atendimentoRouter)
   app.use('/api/exames', examesRouter)
   app.use('/api/prestadores', prestadoresRouter)
   app.use('/api/agendamentos', agendamentosRouter)

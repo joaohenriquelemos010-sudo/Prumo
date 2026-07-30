@@ -45,9 +45,11 @@ jobs:
       - name: Esperar o app responder
         run: npx wait-on -t 90000 http://localhost:5173
 
+      # smoke.mjs compõe os sub-suites (agenda, clínico, atendimento) — rodar os
+      # arquivos soltos seria no-op, porque eles só exportam a função.
       - run: node scripts/smoke.mjs
-      - run: node scripts/smoke-agenda.mjs
-      - run: node scripts/smoke-clinico.mjs
+        env:
+          SHOTS: '1'
 
       - name: Guardar screenshots quando falhar
         if: failure()
