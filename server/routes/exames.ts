@@ -31,7 +31,7 @@ examesRouter.param('id', (_req, res, next, id) => {
   next()
 })
 
-function serialize(e: HydratedDocument<ExameDoc>) {
+export function serializeExame(e: HydratedDocument<ExameDoc>) {
   return {
     id: String(e._id),
     autorId: e.autorId,
@@ -52,7 +52,7 @@ examesRouter.get('/', requireAuth, async (req, res) => {
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
   const exames = await Exame.find({ crianca: crianca._id }).sort({ dataExame: -1 })
-  res.json({ exames: exames.map(serialize) })
+  res.json({ exames: exames.map(serializeExame) })
 })
 
 // POST /api/exames — multipart: metadata fields + optional file.
@@ -95,7 +95,7 @@ examesRouter.post('/', requireAuth, upload.single('arquivo'), async (req, res) =
     mimeType,
     tamanho,
   })
-  res.status(201).json({ exame: serialize(exame) })
+  res.status(201).json({ exame: serializeExame(exame) })
 })
 
 // GET /api/exames/:id/arquivo — stream the file (auth + scoped to own patient).

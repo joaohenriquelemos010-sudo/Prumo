@@ -281,10 +281,10 @@ export interface MeusDadosExport {
       alergias?: string
       resumoGestacional?: string
       condicoes?: string[]
-      eventos?: { _id: string; data: string; autorNome?: string; texto: string }[]
+      eventos?: { id: string; data: string; autorNome?: string; texto: string }[]
     } | null
     consultas: {
-      _id: string
+      id: string
       data: string
       tipo: string
       subjetivo?: string
@@ -293,7 +293,7 @@ export interface MeusDadosExport {
       plano?: string
     }[]
     exames: {
-      _id: string
+      id: string
       nome: string
       categoria: string
       dataExame: string
@@ -301,9 +301,9 @@ export interface MeusDadosExport {
       arquivoNome?: string
     }[]
     duvidas: {
-      _id: string
+      id: string
       texto: string
-      createdAt: string
+      criadaEm: string
       respondida: boolean
       respostaTexto?: string
       respondidaPor?: string
@@ -311,7 +311,13 @@ export interface MeusDadosExport {
   }[]
   vinculos: { pacienteNome?: string; medicoNome?: string; medicoId: string; pacienteId: string }[]
   convitesEnviados: { criadorPapel: string; expiraEm: string; usado: boolean }[]
-  solicitacoes: { prestadorNome?: string; objetivo: string; modalidade: string; status: string; createdAt: string }[]
+  agendamentos: {
+    profissionalNome?: string
+    objetivo: string
+    modalidade: string
+    status: string
+    inicio: string
+  }[]
 }
 
 const PAPEL_LABEL: Record<string, string> = { gestante: 'Gestante', mae: 'Mãe', pai: 'Pai', medico: 'Médico(a)', admin: 'Administrador' }
@@ -333,15 +339,15 @@ export function MeusDadosDocument({ dados }: { dados: MeusDadosExport }) {
           {campo('Conta criada em', data(dados.conta.criadaEm))}
         </View>
 
-        {dados.jornadas.map((j, i) => (
+        {(dados.jornadas ?? []).map((j, i) => (
           <View key={i}>
             <Text style={s.section}>{j.nome || 'Sua jornada'}</Text>
             <View style={s.card}>
               {campo('Momento', j.momento)}
               {j.dpp && campo('Data provável do parto', data(j.dpp))}
               {j.dataNascimento && campo('Data de nascimento', data(j.dataNascimento))}
-              {campo('Etapas concluídas na trilha', String(j.etapasConcluidas.length))}
-              {campo('Doses de vacina aplicadas', String(j.vacinasAplicadas.length))}
+              {campo('Etapas concluídas na trilha', String(j.etapasConcluidas?.length ?? 0))}
+              {campo('Doses de vacina aplicadas', String(j.vacinasAplicadas?.length ?? 0))}
             </View>
 
             {j.prontuario && (
@@ -359,7 +365,7 @@ export function MeusDadosDocument({ dados }: { dados: MeusDadosExport }) {
               <View>
                 <Text style={{ ...s.cardTitle, marginTop: 4, marginBottom: 4 }}>Eventos do prontuário</Text>
                 {j.prontuario!.eventos!.map((e) => (
-                  <View key={e._id} style={s.card} wrap={false}>
+                  <View key={e.id} style={s.card} wrap={false}>
                     <Text>{e.texto}</Text>
                     <Text style={s.small}>
                       {data(e.data)}
@@ -370,11 +376,11 @@ export function MeusDadosDocument({ dados }: { dados: MeusDadosExport }) {
               </View>
             )}
 
-            {j.consultas.length > 0 && (
+            {(j.consultas?.length ?? 0) > 0 && (
               <View>
                 <Text style={{ ...s.cardTitle, marginTop: 4, marginBottom: 4 }}>Consultas</Text>
                 {j.consultas.map((c) => (
-                  <View key={c._id} style={s.card} wrap={false}>
+                  <View key={c.id} style={s.card} wrap={false}>
                     <Text style={s.small}>
                       {data(c.data)} · {c.tipo}
                     </Text>
@@ -387,11 +393,11 @@ export function MeusDadosDocument({ dados }: { dados: MeusDadosExport }) {
               </View>
             )}
 
-            {j.exames.length > 0 && (
+            {(j.exames?.length ?? 0) > 0 && (
               <View>
                 <Text style={{ ...s.cardTitle, marginTop: 4, marginBottom: 4 }}>Exames</Text>
                 {j.exames.map((e) => (
-                  <View key={e._id} style={s.row}>
+                  <View key={e.id} style={s.row}>
                     <Text style={{ flex: 1 }}>
                       {e.nome} · {e.categoria}
                     </Text>
@@ -401,11 +407,11 @@ export function MeusDadosDocument({ dados }: { dados: MeusDadosExport }) {
               </View>
             )}
 
-            {j.duvidas.length > 0 && (
+            {(j.duvidas?.length ?? 0) > 0 && (
               <View>
                 <Text style={{ ...s.cardTitle, marginTop: 4, marginBottom: 4 }}>Dúvidas</Text>
                 {j.duvidas.map((d) => (
-                  <View key={d._id} style={s.card} wrap={false}>
+                  <View key={d.id} style={s.card} wrap={false}>
                     <Text>• {d.texto}</Text>
                     {d.respondida && <Text style={s.small}>Resposta: {d.respostaTexto}</Text>}
                   </View>
@@ -415,7 +421,7 @@ export function MeusDadosDocument({ dados }: { dados: MeusDadosExport }) {
           </View>
         ))}
 
-        {dados.vinculos.length > 0 && (
+        {(dados.vinculos?.length ?? 0) > 0 && (
           <View>
             <Text style={s.section}>Conexões (vínculos)</Text>
             {dados.vinculos.map((v, i) => (
@@ -426,15 +432,17 @@ export function MeusDadosDocument({ dados }: { dados: MeusDadosExport }) {
           </View>
         )}
 
-        {dados.solicitacoes.length > 0 && (
+        {(dados.agendamentos?.length ?? 0) > 0 && (
           <View>
-            <Text style={s.section}>Solicitações de agendamento</Text>
-            {dados.solicitacoes.map((sol, i) => (
+            <Text style={s.section}>Agendamentos</Text>
+            {dados.agendamentos.map((ag, i) => (
               <View key={i} style={s.row}>
                 <Text style={{ flex: 1 }}>
-                  {sol.prestadorNome} · {sol.objetivo}
+                  {ag.profissionalNome || '—'} · {ag.objetivo}
                 </Text>
-                <Text style={s.small}>{sol.status}</Text>
+                <Text style={s.small}>
+                  {data(ag.inicio)} · {ag.status}
+                </Text>
               </View>
             ))}
           </View>

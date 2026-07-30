@@ -1,60 +1,15 @@
-import { isValidObjectId } from 'mongoose'
-import type { HydratedDocument } from 'mongoose'
-import type { Request, Response } from 'express'
-import { Crianca } from '../models/Crianca.js'
-import type { CriancaDoc } from '../models/Crianca.js'
-import { Vinculo } from '../models/Vinculo.js'
-import { getOrCreateCrianca } from './crianca.js'
-import type { SessionUser } from '../types.js'
-
 /**
- * Resolves which Criança (patient journey) a request may act on.
+ * Camada de compatibilidade sobre `services/jornada.ts`.
  *
- * - No `criancaId` → the user's OWN journey (default, unchanged behaviour).
- * - A `criancaId` that belongs to the user → allowed.
- * - A `criancaId` the user is a CO-RESPONSÁVEL of (the other parent) → allowed.
- * - A `criancaId` that a DOCTOR has an active Vínculo to → allowed (this is how a
- *   connected doctor reaches the patient's exams/prontuário/consultas).
- * - Otherwise → null (the caller should answer 403).
+ * A lógica de acesso mudou de casa (e de vocabulário: `Crianca` → `Jornada`), mas
+ * as ~15 rotas que importam daqui não têm motivo para saber disso. Elas seguem
+ * compilando sem uma linha de diferença, e migram para `jornada.js` no ritmo em
+ * que forem editadas por outro motivo — nunca numa refatoração de um commit só.
+ *
+ * Código novo deve importar de `services/jornada.js`.
  */
-export async function resolveCrianca(
-  user: SessionUser,
-  criancaId?: unknown,
-): Promise<HydratedDocument<CriancaDoc> | null> {
-  const id = typeof criancaId === 'string' ? criancaId : ''
-  if (!id) return getOrCreateCrianca(user.id)
-  if (!isValidObjectId(id)) return null
-
-  const crianca = await Crianca.findById(id)
-  if (!crianca) return null
-
-  // Own journey.
-  if (String(crianca.responsavel) === user.id) return crianca
-
-  // The other parent (co-responsável) — full access.
-  if (crianca.coResponsaveis?.includes(user.id)) return crianca
-
-  // Connected doctor.
-  if (user.papel === 'medico') {
-    const vinculo = await Vinculo.exists({ crianca: crianca._id, medicoId: user.id, status: 'ativo' })
-    if (vinculo) return crianca
-  }
-
-  return null
-}
-
-/**
- * Route helper: resolves the target Criança from `?crianca` (defaulting to the
- * user's own), answering 403 and returning null when access isn't allowed.
- */
-export async function resolveCriancaOr403(
-  req: Request,
-  res: Response,
-): Promise<HydratedDocument<CriancaDoc> | null> {
-  const crianca = await resolveCrianca(req.user!, req.query.crianca)
-  if (!crianca) {
-    res.status(403).json({ error: 'Você não tem acesso a esses dados.' })
-    return null
-  }
-  return crianca
-}
+export {
+  resolveJornada as resolveCrianca,
+  resolveJornadaOr403 as resolveCriancaOr403,
+  programaDe,
+} from './jornada.js'

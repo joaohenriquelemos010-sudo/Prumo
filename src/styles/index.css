@@ -42,12 +42,29 @@
     font-style: normal;
     font-weight: 700;
     line-height: 1.08;
-    letter-spacing: -0.02em;
+    letter-spacing: var(--track-title);
     color: var(--color-ink);
     text-wrap: balance;
     overflow-wrap: anywhere;
     min-width: 0;
     margin: 0;
+  }
+
+  /* Leading acompanha o tamanho ao contrário: apertado no grande, folgado no
+   * pequeno. E o tracking do display é mais apertado que o dos títulos, porque
+   * as letras se afastam à medida que crescem. */
+  h1 {
+    letter-spacing: var(--track-display);
+  }
+
+  h4 {
+    line-height: 1.2;
+    letter-spacing: var(--track-body);
+  }
+
+  small,
+  figcaption {
+    letter-spacing: var(--track-caption);
   }
 
   p {
@@ -261,5 +278,18 @@
   .u-reveal {
     opacity: 1;
     transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root {
+    /* Superfícies translúcidas viram sólidas. Uma variável, todo o produto. */
+    --material-opacidade: 100%;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --color-line: oklch(0.62 0.04 285);
   }
 }

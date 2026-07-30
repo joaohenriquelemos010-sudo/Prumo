@@ -13,7 +13,6 @@ import { agendamentoCreateSchema, agendamentoUpdateSchema } from '../validation.
 import { normalizeField } from '../sanitize.js'
 import { rateLimit } from '../rate-limit.js'
 import { slotDisponivel } from '../services/slots.js'
-import { migrarSolicitacoes } from '../services/migracoes.js'
 import { ocupadosDoMedico, paraConfig } from './disponibilidade.js'
 
 export const agendamentosRouter = Router()
@@ -127,8 +126,6 @@ agendamentosRouter.param('id', (_req, res, next, id) => {
  *   &de=&ate=&status=
  */
 agendamentosRouter.get('/', requireAuth, async (req, res) => {
-  await migrarSolicitacoes().catch(() => {})
-
   const filtro: Record<string, unknown> = {}
 
   if (String(req.query.meus ?? '') === 'true') {

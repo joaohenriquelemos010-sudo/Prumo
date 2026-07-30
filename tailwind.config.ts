@@ -65,6 +65,15 @@ export default {
         in: 'var(--ease-in)',
         'in-out': 'var(--ease-in-out)',
       },
+      // Tracking é específico por tamanho: aperta o texto grande, deixa o corpo
+      // em zero, abre um pouco nas legendas. Um valor único está errado em
+      // algum lugar da escala.
+      letterSpacing: {
+        display: 'var(--track-display)',
+        title: 'var(--track-title)',
+        body: 'var(--track-body)',
+        caption: 'var(--track-caption)',
+      },
       maxWidth: {
         prose: '68ch',
         page: '1140px',

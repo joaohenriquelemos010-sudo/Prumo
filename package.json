@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Prumo — a trilha clínica contínua da gestação à pediatria.",
+  "description": "Prumo \u2014 a trilha cl\u00ednica cont\u00ednua da gesta\u00e7\u00e3o \u00e0 pediatria.",
   "scripts": {
     "dev": "vite",
     "dev:api": "tsx watch server/index.ts",
@@ -11,6 +11,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit && tsc -p tsconfig.server.json",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
@@ -59,6 +61,8 @@
     "tailwindcss": "^3.4.17",
     "tsx": "^4.23.1",
     "typescript": "^5.6.3",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "vitest": "^2.1.9",
+    "wait-on": "^8.0.5"
   }
 }

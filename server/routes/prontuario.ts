@@ -15,7 +15,7 @@ async function getOrCreateProntuario(criancaId: Types.ObjectId): Promise<Hydrate
   return Prontuario.create({ crianca: criancaId })
 }
 
-function serialize(p: HydratedDocument<ProntuarioDoc>) {
+export function serializeProntuario(p: HydratedDocument<ProntuarioDoc>) {
   return {
     tipoSanguineo: p.tipoSanguineo,
     alergias: p.alergias,
@@ -60,7 +60,7 @@ prontuarioRouter.get('/', requireAuth, async (req, res) => {
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
   const prontuario = await getOrCreateProntuario(crianca._id)
-  res.json({ prontuario: serialize(prontuario) })
+  res.json({ prontuario: serializeProntuario(prontuario) })
 })
 
 /**
@@ -132,7 +132,7 @@ prontuarioRouter.put('/nascimento', requireAuth, requireRole('medico'), async (r
   else if (!crianca.dataNascimento) crianca.dataNascimento = new Date()
   await crianca.save()
 
-  res.json({ prontuario: serialize(prontuario) })
+  res.json({ prontuario: serializeProntuario(prontuario) })
 })
 
 // PUT /api/prontuario — update the structured summary (doctor-only).
@@ -151,7 +151,7 @@ prontuarioRouter.put('/', requireAuth, requireRole('medico'), async (req, res) =
   if (resumoGestacional !== undefined) prontuario.resumoGestacional = normalizeField(resumoGestacional, 2000)
   if (condicoes !== undefined) prontuario.condicoes = condicoes.map((c) => normalizeField(c, 120)).filter(Boolean)
   await prontuario.save()
-  res.json({ prontuario: serialize(prontuario) })
+  res.json({ prontuario: serializeProntuario(prontuario) })
 })
 
 // POST /api/prontuario/evento — append a dated note.
@@ -172,7 +172,7 @@ prontuarioRouter.post('/evento', requireAuth, async (req, res) => {
     texto: normalizeField(parsed.data.texto, 2000),
   })
   await prontuario.save()
-  res.status(201).json({ prontuario: serialize(prontuario) })
+  res.status(201).json({ prontuario: serializeProntuario(prontuario) })
 })
 
 // PUT /api/prontuario/evento/:id — edit an annotation (author only).
@@ -196,7 +196,7 @@ prontuarioRouter.put('/evento/:id', requireAuth, async (req, res) => {
   }
   evento.texto = normalizeField(parsed.data.texto, 2000)
   await prontuario.save()
-  res.json({ prontuario: serialize(prontuario) })
+  res.json({ prontuario: serializeProntuario(prontuario) })
 })
 
 // DELETE /api/prontuario/evento/:id — remove an annotation (author only).
@@ -215,5 +215,5 @@ prontuarioRouter.delete('/evento/:id', requireAuth, async (req, res) => {
   }
   prontuario.eventos.pull({ _id: req.params.id })
   await prontuario.save()
-  res.json({ prontuario: serialize(prontuario) })
+  res.json({ prontuario: serializeProntuario(prontuario) })
 })

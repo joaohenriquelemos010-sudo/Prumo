@@ -20,7 +20,7 @@ caderninhoRouter.param('id', (_req, res, next, id) => {
   next()
 })
 
-function serialize(d: HydratedDocument<DuvidaDoc>) {
+export function serializeDuvida(d: HydratedDocument<DuvidaDoc>) {
   return {
     id: String(d._id),
     texto: d.texto,
@@ -45,7 +45,7 @@ caderninhoRouter.get('/', requireAuth, async (req, res) => {
       ? { crianca: crianca._id, compartilhada: true }
       : { crianca: crianca._id }
   const duvidas = await Duvida.find(filtro).sort({ createdAt: -1 })
-  res.json({ duvidas: duvidas.map(serialize) })
+  res.json({ duvidas: duvidas.map(serializeDuvida) })
 })
 
 // POST /api/caderninho — only the family (owner/co-parent) writes questions.
@@ -64,7 +64,7 @@ caderninhoRouter.post('/', requireAuth, requireRole('gestante', 'mae', 'pai'), a
     texto: normalizeField(parsed.data.texto, 1000),
     compartilhada: parsed.data.compartilhada ?? true,
   })
-  res.status(201).json({ duvida: serialize(duvida) })
+  res.status(201).json({ duvida: serializeDuvida(duvida) })
 })
 
 // PUT /api/caderninho/:id — author edits text / share flag.
@@ -86,7 +86,7 @@ caderninhoRouter.put('/:id', requireAuth, async (req, res) => {
   if (parsed.data.texto !== undefined) duvida.texto = normalizeField(parsed.data.texto, 1000)
   if (parsed.data.compartilhada !== undefined) duvida.compartilhada = parsed.data.compartilhada
   await duvida.save()
-  res.json({ duvida: serialize(duvida) })
+  res.json({ duvida: serializeDuvida(duvida) })
 })
 
 // DELETE /api/caderninho/:id — author removes.
@@ -124,5 +124,5 @@ caderninhoRouter.post('/:id/resposta', requireAuth, requireRole('medico'), async
   duvida.respondidaPor = req.user!.nome
   duvida.respondidaEm = new Date()
   await duvida.save()
-  res.json({ duvida: serialize(duvida) })
+  res.json({ duvida: serializeDuvida(duvida) })
 })

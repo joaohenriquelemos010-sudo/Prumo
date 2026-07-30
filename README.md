@@ -31,6 +31,7 @@ npm run build      # build de produção (typecheck + bundle)
 npm run preview    # serve o build de produção
 npm run typecheck  # checagem de tipos (frontend + backend)
 npm run lint       # eslint
+npm test           # testes unitários (vitest)
 npm run smoke      # E2E num navegador real — precisa do dev rodando
 ```
 
@@ -39,6 +40,24 @@ paridade da navegação no celular, tema claro/escuro, marcar → confirmar → 
 a separação do que a família lê, e a passagem do pré-natal para a pediatria. Use
 `SHOTS=1` para gravar as telas em `.smoke/`, e `CHROME_PATH=…` para apontar um Chromium
 que a máquina já tenha.
+
+Os testes unitários (`npm test`) cobrem os módulos puros — as curvas clínicas
+(Hadlock e OMS), a física de movimento e o registro de programas. As curvas são
+os números em que os alertas disparam, então estão fixados à mão contra a tabela
+de referência, e não derivados da própria implementação.
+
+### Migrações
+
+Mongoose schemas são o schema — não há DDL. Mas mover documentos existentes passa
+por um runner (`server/services/migracoes/`), executado uma vez na conexão e
+antes de qualquer requisição. Cada migração é um arquivo numerado com um `up()`
+idempotente; o registro de quais já rodaram fica na coleção `migracoes`, e o
+`_id` ser o nome da migração é o que torna o claim atômico entre dois cold starts
+serverless simultâneos.
+
+Para adicionar uma: crie `NNN-descricao.ts` com um `up()` idempotente e registre-o
+no array de `migracoes/index.ts`. Nunca reordene nem renomeie uma entrada já
+publicada.
 
 Em desenvolvimento, a API Express roda **dentro do servidor do Vite** (um plugin
 monta o app Express como middleware em `/api`) — um processo só, sem porta extra.

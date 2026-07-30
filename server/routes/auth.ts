@@ -5,13 +5,11 @@ import { Prontuario } from '../models/Prontuario.js'
 import { Duvida } from '../models/Duvida.js'
 import { Consulta } from '../models/Consulta.js'
 import { Exame } from '../models/Exame.js'
-import { Vinculo } from '../models/Vinculo.js'
-import { ConviteVinculo } from '../models/ConviteVinculo.js'
-import { Agendamento } from '../models/Agendamento.js'
 import { registerSchema, loginSchema, esqueciSenhaSchema } from '../validation.js'
 import { hashPassword, verifyPassword, issueSession, clearSession, requireAuth } from '../auth.js'
 import { rateLimit } from '../rate-limit.js'
 import { excluirConta } from '../services/conta.js'
+import { montarExportacao } from '../services/exportacao.js'
 import { env } from '../env.js'
 import type { SessionUser } from '../types.js'
 
@@ -190,58 +188,13 @@ authRouter.get('/me', requireAuth, async (req, res) => {
 // holds for this account (LGPD data portability). No CPF, no other patients'
 // data — only what this account owns or is directly connected to.
 authRouter.get('/exportar', requireAuth, async (req, res) => {
-  const userId = req.user!.id
-  const user = await User.findById(userId).lean()
+  const user = await User.findById(req.user!.id).lean()
   if (!user) {
     clearSession(res)
     res.status(401).json({ error: 'Conta não encontrada.' })
     return
   }
-
-  const criancas = await Crianca.find({ responsavel: userId }).lean()
-  const criancaIds = criancas.map((c) => c._id)
-
-  const [prontuarios, consultas, exames, duvidas, vinculos, convites, agendamentos] = await Promise.all([
-    Prontuario.find({ crianca: { $in: criancaIds } }).lean(),
-    Consulta.find({ crianca: { $in: criancaIds } }).sort({ data: 1 }).lean(),
-    Exame.find({ crianca: { $in: criancaIds } }).sort({ dataExame: 1 }).lean(),
-    Duvida.find({ crianca: { $in: criancaIds } }).sort({ createdAt: 1 }).lean(),
-    Vinculo.find({ $or: [{ pacienteId: userId }, { medicoId: userId }] }).lean(),
-    ConviteVinculo.find({ $or: [{ criadorId: userId }, { medicoId: userId }] }).lean(),
-    Agendamento.find({ $or: [{ crianca: { $in: criancaIds } }, { pacienteId: userId }] })
-      .sort({ inicio: 1 })
-      .lean(),
-  ])
-
-  res.json({
-    exportadoEm: new Date().toISOString(),
-    conta: {
-      nome: user.nome,
-      email: user.email,
-      papel: user.papel,
-      crm: user.crm || undefined,
-      crmUf: user.crmUf || undefined,
-      verificacaoStatus: user.verificacaoStatus,
-      criadaEm: user.createdAt,
-    },
-    jornadas: criancas.map((c) => ({
-      nome: c.nome,
-      momento: c.momento,
-      dpp: c.dpp,
-      dataNascimento: c.dataNascimento,
-      etapasConcluidas: c.etapasConcluidas,
-      vacinasAplicadas: c.vacinasAplicadas,
-      prontuario: prontuarios.find((p) => String(p.crianca) === String(c._id)) ?? null,
-      consultas: consultas.filter((x) => String(x.crianca) === String(c._id)),
-      exames: exames
-        .filter((x) => String(x.crianca) === String(c._id))
-        .map(({ arquivoId: _arquivoId, ...meta }) => meta),
-      duvidas: duvidas.filter((x) => String(x.crianca) === String(c._id)),
-    })),
-    vinculos,
-    convitesEnviados: convites,
-    agendamentos,
-  })
+  res.json(await montarExportacao(user, req.user!))
 })
 
 // DELETE /api/auth/me — permanently deletes the account and every record tied

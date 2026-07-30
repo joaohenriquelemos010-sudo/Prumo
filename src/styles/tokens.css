@@ -87,6 +87,24 @@
   --dur-base: 240ms;
   --dur-slow: 420ms;
 
+  /* ---- Tracking (letter-spacing) ----
+   * Tracking é específico por tamanho — um valor único está errado em algum
+   * lugar. Texto grande precisa de tracking NEGATIVO (as letras se afastam
+   * demais conforme crescem); texto pequeno precisa de um pouco de POSITIVO para
+   * ganhar legibilidade. O corpo fica perto de zero.
+   *
+   * Antes daqui, h1–h4 dividiam um -0.02em chapado: apertado demais no h4,
+   * frouxo demais no display. */
+  --track-display: -0.032em;
+  --track-title: -0.021em;
+  --track-body: 0em;
+  --track-caption: 0.012em;
+
+  /* Opacidade das superfícies translúcidas (ver components/Material.tsx).
+   * Vira 100% sob prefers-reduced-transparency / prefers-contrast, o que
+   * desliga a translucidez do produto inteiro de uma vez. */
+  --material-opacidade: 72%;
+
   --rule-hair: 1px;
 
   /* Height of the mobile tab bar. Content padding and the tab hit areas both read

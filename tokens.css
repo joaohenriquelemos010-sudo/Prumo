@@ -1,8 +1,9 @@
-/* Hallmark · portable design tokens — theme: custom "Prumo"
- * This is the portable export of src/styles/tokens.css. Copy it into another
- * project to carry the Prumo design system forward.
- * vibe: "acolhimento materno fluindo para segurança clínica"
- * axes: light / rounded-sans / cool · display Outfit + body Nunito
+/* Hallmark · macrostructure: Marquee Hero · tone: soft/playful · anchor hue: violet→periwinkle
+ * theme: custom "Prumo" · vibe: "acolhimento materno fluindo para segurança clínica"
+ * paper oklch(99% 0.006 300) light · accent oklch(72% 0.15 300 → 63% 0.18 273) cool-violet
+ * display Outfit + body Nunito · axes: light / rounded-sans / cool
+ * Brand hex source (extracted from /img SVGs): lilás #b58bfd · azul #5b81fb · índigo #36408c
+ * Hallmark · pre-emit critique: P5 H4 E5 S5 R4 V4
  */
 
 :root {
@@ -86,7 +87,30 @@
   --dur-base: 240ms;
   --dur-slow: 420ms;
 
+  /* ---- Tracking (letter-spacing) ----
+   * Tracking é específico por tamanho — um valor único está errado em algum
+   * lugar. Texto grande precisa de tracking NEGATIVO (as letras se afastam
+   * demais conforme crescem); texto pequeno precisa de um pouco de POSITIVO para
+   * ganhar legibilidade. O corpo fica perto de zero.
+   *
+   * Antes daqui, h1–h4 dividiam um -0.02em chapado: apertado demais no h4,
+   * frouxo demais no display. */
+  --track-display: -0.032em;
+  --track-title: -0.021em;
+  --track-body: 0em;
+  --track-caption: 0.012em;
+
+  /* Opacidade das superfícies translúcidas (ver components/Material.tsx).
+   * Vira 100% sob prefers-reduced-transparency / prefers-contrast, o que
+   * desliga a translucidez do produto inteiro de uma vez. */
+  --material-opacidade: 72%;
+
   --rule-hair: 1px;
+
+  /* Height of the mobile tab bar. Content padding and the tab hit areas both read
+   * from this, so they can never drift apart. 3.5rem keeps every tab at or above
+   * the 44px minimum touch target with room for icon + label. */
+  --nav-h: 3.5rem;
 }
 
 /* Dark mode — applied by explicit choice (data-theme="dark"), set from the

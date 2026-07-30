@@ -21,6 +21,20 @@ const criancaSchema = new Schema(
      * server/services/acesso.ts). Managed through the co-parent invite flow.
      */
     coResponsaveis: { type: [String], default: [], index: true },
+    /**
+     * Qual programa de cuidado esta jornada segue (ver server/programas/).
+     * Decide quais checklists, protocolos, templates de prontuário e widgets de
+     * painel carregam. Hoje só existe `materno-infantil`, que é exatamente o
+     * produto atual — o campo existe para que a segunda especialidade seja um
+     * arquivo novo em vez de uma refatoração.
+     */
+    programa: { type: String, default: 'materno-infantil', index: true },
+    /**
+     * Reservado para multi-clínica. Não usado por nenhuma rota hoje, e é de
+     * propósito: o campo custa zero agora e um backfill sobre dezenas de milhares
+     * de documentos custa caro depois.
+     */
+    organizacao: { type: Schema.Types.ObjectId, ref: 'Organizacao', default: null, index: true },
     nome: { type: String, trim: true, maxlength: 80, default: '' },
     momento: {
       type: String,

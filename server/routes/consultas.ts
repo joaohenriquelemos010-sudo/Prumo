@@ -32,7 +32,7 @@ function ehEquipe(user: SessionUser): boolean {
   return user.papel === 'medico'
 }
 
-function serialize(c: HydratedDocument<ConsultaDoc>, user: SessionUser) {
+export function serializeConsulta(c: HydratedDocument<ConsultaDoc>, user: SessionUser) {
   const equipe = ehEquipe(user)
   const escondeAvaliacao = Boolean(c.avaliacaoPrivada) && !equipe
 
@@ -65,7 +65,7 @@ consultasRouter.get('/', requireAuth, async (req, res) => {
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
   const consultas = await Consulta.find({ crianca: crianca._id }).sort({ data: -1 })
-  res.json({ consultas: consultas.map((c) => serialize(c, req.user!)) })
+  res.json({ consultas: consultas.map((c) => serializeConsulta(c, req.user!)) })
 })
 
 // POST /api/consultas — only doctors record consultations.
@@ -120,7 +120,7 @@ consultasRouter.post('/', requireAuth, requireRole('medico'), async (req, res) =
     /* an alert failure must never cost the doctor their consultation record */
   })
 
-  res.status(201).json({ consulta: serialize(consulta, req.user!) })
+  res.status(201).json({ consulta: serializeConsulta(consulta, req.user!) })
 })
 
 // DELETE /api/consultas/:id — author only.

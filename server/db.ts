@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import { env } from './env.js'
 import { seedAdmin } from './services/seedAdmin.js'
+import { runMigracoes } from './services/migracoes/index.js'
 
 /**
  * Mongoose connection, cached on `globalThis`. In a serverless environment
@@ -17,6 +18,7 @@ interface Cache {
   conn: typeof mongoose | null
   promise: Promise<typeof mongoose> | null
   adminSeeded?: Promise<void>
+  migracoesRodadas?: Promise<void>
 }
 
 const globalForMongoose = globalThis as unknown as { __prumoMongoose?: Cache }
@@ -56,5 +58,18 @@ export async function connectDB(): Promise<typeof mongoose> {
     })
   }
   await cache.adminSeeded
+
+  // Move os documentos existentes para o formato que o código espera, antes de
+  // qualquer requisição rodar. Awaited pelo mesmo motivo do seed: um handler não
+  // pode chegar na frente de uma mudança de forma dos dados. Best-effort na
+  // falha — o runner já registrou o estado `falhou` e vai retentar no próximo
+  // cold start; derrubar a API inteira seria pior que rodar com o formato velho.
+  if (!cache.migracoesRodadas) {
+    cache.migracoesRodadas = runMigracoes().catch((err) => {
+      console.error('[migracao] runner falhou:', err)
+    })
+  }
+  await cache.migracoesRodadas
+
   return cache.conn
 }
