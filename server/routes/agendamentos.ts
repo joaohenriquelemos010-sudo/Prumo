@@ -13,6 +13,7 @@ import { agendamentoCreateSchema, agendamentoUpdateSchema } from '../validation.
 import { normalizeField } from '../sanitize.js'
 import { rateLimit } from '../rate-limit.js'
 import { slotDisponivel } from '../services/slots.js'
+import { aoConfirmarAgendamento, aoCancelarAgendamento } from '../services/lembretes/programar.js'
 import { ocupadosDoMedico, paraConfig } from './disponibilidade.js'
 
 export const agendamentosRouter = Router()
@@ -87,6 +88,38 @@ const TRANSICOES: Record<StatusAgendamento, { para: StatusAgendamento; por: Ator
 
 /** Terminal states can't be rescheduled either. */
 const REMARCAVEIS: StatusAgendamento[] = ['pendente', 'confirmado']
+
+/**
+ * Keeps the reminder queue in sync with the appointment's real state.
+ *
+ * Driven by the state the appointment ended up in, not by which branch above ran
+ * — a reschedule, a confirmation and a cancellation all end here, and each one
+ * gets the queue it deserves. Both `aoConfirmarAgendamento` and
+ * `aoCancelarAgendamento` are idempotent by dedup key, so calling this on every
+ * save is cheap and never duplicates a nudge.
+ *
+ * Never throws into the request: a reminder that failed to schedule must not
+ * turn a successful confirmation into a 500 for the doctor standing there.
+ */
+async function sincronizarLembretes(a: HydratedDocument<AgendamentoDoc>) {
+  try {
+    if (a.status === 'confirmado') {
+      await aoConfirmarAgendamento({
+        agendamentoId: String(a._id),
+        jornada: a.crianca,
+        pacienteId: a.pacienteId,
+        inicio: new Date(a.inicio),
+        profissionalNome: a.origem === 'medico' ? a.medicoNome : a.prestadorNome,
+      })
+      return
+    }
+    // Anything else — cancelled, declined, done, no-show, or back to pending
+    // after a reschedule — means the pending nudges no longer describe reality.
+    await aoCancelarAgendamento(String(a._id))
+  } catch {
+    // Deliberately swallowed. The next confirmation reschedules from scratch.
+  }
+}
 
 /**
  * Resolves who the caller is on this appointment, answering 403 when they are
@@ -344,6 +377,7 @@ agendamentosRouter.patch('/:id', requireAuth, async (req, res) => {
   }
 
   await agendamento.save()
+  await sincronizarLembretes(agendamento)
   res.json({ agendamento: serialize(agendamento) })
 })
 
@@ -371,6 +405,7 @@ agendamentosRouter.delete('/:id', requireAuth, async (req, res) => {
   agendamento.status = 'cancelado'
   registrarHistorico(agendamento, req.user!, anterior, 'cancelado')
   await agendamento.save()
+  await sincronizarLembretes(agendamento)
   res.json({ agendamento: serialize(agendamento) })
 })
 

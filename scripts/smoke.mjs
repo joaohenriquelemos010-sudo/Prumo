@@ -215,6 +215,9 @@ try {
 
   const { registrarTestesDeChecklist } = await import('./smoke-checklist.mjs')
   await registrarTestesDeChecklist(contexto)
+
+  const { registrarTestesDeLembretes } = await import('./smoke-lembretes.mjs')
+  await registrarTestesDeLembretes(contexto)
 } catch (e) {
   falhou('execução do smoke', e instanceof Error ? e.message : String(e))
 } finally {

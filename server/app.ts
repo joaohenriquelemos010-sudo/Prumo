@@ -13,6 +13,8 @@ import { consultasRouter } from './routes/consultas.js'
 import { atendimentoRouter } from './routes/atendimento.js'
 import { transferenciasRouter } from './routes/transferencias.js'
 import { checklistsRouter } from './routes/checklists.js'
+import { lembretesRouter } from './routes/lembretes.js'
+import { cronRouter } from './routes/cron.js'
 import { examesRouter } from './routes/exames.js'
 import { prestadoresRouter } from './routes/prestadores.js'
 import { agendamentosRouter } from './routes/agendamentos.js'
@@ -70,6 +72,8 @@ export function createApp() {
   app.use('/api/atendimento', atendimentoRouter)
   app.use('/api/transferencias', transferenciasRouter)
   app.use('/api/checklists', checklistsRouter)
+  app.use('/api/lembretes', lembretesRouter)
+  app.use('/api/cron', cronRouter)
   app.use('/api/exames', examesRouter)
   app.use('/api/prestadores', prestadoresRouter)
   app.use('/api/agendamentos', agendamentosRouter)

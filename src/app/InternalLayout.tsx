@@ -19,6 +19,7 @@ import {
   BarChart3,
   MoreHorizontal,
   Baby,
+  BellRing,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { BottomSheet } from '@/components/BottomSheet'
@@ -50,6 +51,7 @@ const NAV_PACIENTE: NavItem[] = [
   { to: '/app/caderninho', label: 'Caderninho', icon: NotebookPen },
   { to: '/app/vacinas', label: 'Vacinas', icon: Syringe },
   { to: '/app/comunidade', label: 'Comunidade', icon: Users },
+  { to: '/app/lembretes', label: 'Lembretes', icon: BellRing },
   { to: '/app/compartilhar', label: 'Conectar', icon: Link2 },
 ]
 

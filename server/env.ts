@@ -26,4 +26,25 @@ export const env = {
     'prumo-dev-insecure-secret-do-not-use-in-prod',
   ),
   PORT: Number(process.env.PORT ?? 3001),
+
+  /** Base pública, usada nos links dos e-mails. */
+  APP_URL: process.env.APP_URL ?? 'http://localhost:5173',
+
+  /**
+   * Segredo do agendador externo (cron-job.org). **Sem ele o endpoint de cron
+   * fica fechado**, não aberto — o padrão inseguro seria um agendador anônimo
+   * conseguindo disparar e-mail para as pacientes.
+   */
+  CRON_SECRET: process.env.CRON_SECRET ?? '',
+
+  /**
+   * SMTP. Enquanto `SMTP_HOST` estiver vazio o envio fica **encostado**: as
+   * mensagens são montadas, passam pela política e são registradas, mas não
+   * saem. Ligar é preencher estas variáveis — nenhuma linha de código muda.
+   */
+  SMTP_HOST: process.env.SMTP_HOST ?? '',
+  SMTP_PORT: Number(process.env.SMTP_PORT ?? 587),
+  SMTP_USER: process.env.SMTP_USER ?? '',
+  SMTP_PASS: process.env.SMTP_PASS ?? '',
+  SMTP_FROM: process.env.SMTP_FROM ?? 'Prumo <nao-responda@prumo.app>',
 }

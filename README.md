@@ -76,6 +76,36 @@ Copie `.env.example` para `.env`. As duas do backend:
 Lembre: só variáveis `VITE_*` chegam ao cliente e **elas são públicas**. Segredos
 (`MONGODB_URI`, `JWT_SECRET`) ficam só no servidor / painel da Vercel.
 
+### Lembretes — hoje encostados
+
+A fila de lembretes está construída e rodando; **o envio de e-mail está
+desligado**. Enquanto `SMTP_HOST` estiver vazio, o transporte é `noop`: o
+lembrete é marcado como enviado, nada sai, e os limites de frequência e a
+deduplicação se exercitam de verdade. É a escolha deliberada — quando o SMTP for
+ligado, o comportamento já é o que a gente observou, e não uma estreia em cima da
+caixa de entrada das pacientes. A tela `/app/lembretes` diz isso à paciente em
+vez de deixá-la esperando um e-mail que ninguém mandou.
+
+**O agendador é externo — [cron-job.org](https://cron-job.org), não Vercel Cron.**
+A consequência prática: o gatilho é uma requisição HTTP vinda da internet aberta,
+então a autenticação é nossa responsabilidade.
+
+Para configurar, quando for a hora:
+
+| Campo | Valor |
+|---|---|
+| URL | `https://<seu-domínio>/api/cron/lembretes` |
+| Método | `POST` (o `GET` também funciona, para agendadores que só sabem GET) |
+| Agendamento | `*/15 * * * *` |
+| Cabeçalho | `Authorization: Bearer <CRON_SECRET>` |
+
+Use o **cabeçalho**, não `?token=`. A query string funciona e está documentada,
+mas vaza em log de servidor, em histórico de proxy e no `Referer`.
+
+Sem `CRON_SECRET` configurado o endpoint responde **503** — fechado, e não
+aberto. `GET /api/cron/saude` responde 200 com o mesmo segredo e sem efeito
+colateral, para o agendador ter um alvo antes de a fila existir.
+
 ## Backend e deploy (Vercel)
 
 - **Backend**: Express + Mongoose (`server/`), empacotado como uma função

@@ -16,6 +16,7 @@ import {
 import { normalizeTexto } from '../sanitize.js'
 import { avaliarAntropometria } from '../services/alertas.js'
 import { registrar } from '../services/evolucao.js'
+import { aoFinalizarConsulta } from '../services/lembretes/programar.js'
 import { serializeConsulta } from './consultas.js'
 import { serializeProntuario } from './prontuario.js'
 
@@ -337,6 +338,23 @@ atendimentoRouter.post('/:id/finalizar', requireAuth, requireRole('medico'), asy
     await avaliarAntropometria(consulta, jornada).catch(() => {
       /* um alerta que falha nunca pode custar o registro da consulta */
     })
+
+    /**
+     * O aviso de que há um resumo para ler.
+     *
+     * Só quando a médica de fato marcou "enviar resumo" e escreveu alguma coisa
+     * — avisar sobre um resumo vazio é o tipo de lembrete que ensina a paciente
+     * a ignorar os próximos.
+     */
+    if (consulta.resumoEnviadoEm) {
+      await aoFinalizarConsulta({
+        consultaId: String(consulta._id),
+        jornada: jornada._id,
+        pacienteId: String(jornada.responsavel),
+      }).catch(() => {
+        /* fila de lembrete não é motivo para falhar o fim de um atendimento */
+      })
+    }
   }
 
   res.json({ consulta: serializeConsulta(consulta, req.user!) })

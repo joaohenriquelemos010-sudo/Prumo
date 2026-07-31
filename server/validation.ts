@@ -365,6 +365,48 @@ export const checklistPassoSchema = z.object({
   feito: z.boolean(),
 })
 
+/* ------------------------------- Lembretes ------------------------------- */
+
+const horaSilencio = z
+  .string()
+  .trim()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use o formato HH:MM.')
+
+export const preferenciasUpdateSchema = z.object({
+  canais: z
+    .object({
+      email: z.boolean().optional(),
+      inapp: z.boolean().optional(),
+      push: z.boolean().optional(),
+    })
+    .optional(),
+  tipos: z
+    .object({
+      consulta: z.boolean().optional(),
+      checklist: z.boolean().optional(),
+      exame: z.boolean().optional(),
+      vacina: z.boolean().optional(),
+      resumo: z.boolean().optional(),
+      sequencia: z.boolean().optional(),
+    })
+    .optional(),
+  silencio: z
+    .object({
+      de: horaSilencio.optional(),
+      ate: horaSilencio.optional(),
+      fuso: z.string().trim().max(60).optional(),
+    })
+    .optional(),
+  limites: z
+    .object({
+      porDia: z.number().int().min(0).max(10).optional(),
+      porSemana: z.number().int().min(0).max(50).optional(),
+    })
+    .optional(),
+  /** 0 tira a pausa. */
+  pausarDias: z.number().int().min(0).max(90).optional(),
+})
+
 export const medidaFetalSchema = z.object({
   semana: z.number().int().min(10).max(42),
   data: dataISO.optional(),

@@ -11,6 +11,8 @@ import {
   chavesDoPrograma,
 } from '../services/checklist.js'
 import type { ContextoTemporal } from '../services/checklist.js'
+import { aoAtribuirChecklist } from '../services/lembretes/programar.js'
+import { quandoLembrar } from '../services/lembretes/quando.js'
 import { checklistAtribuirSchema, checklistGrupoSchema, checklistPassoSchema } from '../validation.js'
 import { normalizeField } from '../sanitize.js'
 import type { JornadaDoc } from '../models/Jornada.js'
@@ -106,6 +108,33 @@ checklistsRouter.post('/atribuir', requireAuth, requireRole('medico'), async (re
   }
 
   await garantirInstancia(jornada._id, parsed.data.chave, req.user!.id, req.user!.nome)
+
+  /**
+   * Um lembrete por grupo, na abertura da janela dele.
+   *
+   * `quandoLembrar` devolve `null` para janela já fechada, e é o que evita o
+   * defeito óbvio: atribuir na semana 30 e disparar de uma vez o lembrete de
+   * cada grupo das semanas 1 a 29. O que sobrar devido no mesmo dia vira um
+   * resumo só, no despacho.
+   */
+  await aoAtribuirChecklist({
+    jornada: jornada._id,
+    destinatarioId: String(jornada.responsavel),
+    chave: template.chave,
+    grupos: template.grupos.map((g) => ({
+      id: g.id,
+      titulo: g.titulo,
+      porqueImporta: g.porqueImporta,
+      canal: g.lembrete?.canal ?? 'inapp',
+      quando: quandoLembrar(g.janela, g.lembrete?.antecedenciaDias ?? 0, {
+        dpp: jornada.dpp ? new Date(jornada.dpp) : null,
+        nascimento: jornada.dataNascimento ? new Date(jornada.dataNascimento) : null,
+      }),
+    })),
+  }).catch(() => {
+    /* atribuir o checklist é o ato; a fila de lembrete não pode custá-lo */
+  })
+
   const checklist = await montarChecklist(
     jornada._id,
     parsed.data.chave,

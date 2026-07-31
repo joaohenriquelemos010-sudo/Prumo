@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { LogOut, ShieldCheck, Download, Trash2 } from 'lucide-react'
+import { LogOut, ShieldCheck, Download, Trash2, BellRing } from 'lucide-react'
 import { useAuth } from '@/lib/stores/auth'
 import { useTrilha } from '@/lib/stores/trilha'
 import { Button } from '@/components/Button'
 import { MeuConvenio } from '@/features/clinico/MeuConvenio'
+import { PainelPreferencias } from '@/features/lembretes/Preferencias'
 
 const PAPEL_LABEL: Record<string, string> = {
   gestante: 'Gestante',
@@ -67,6 +68,26 @@ export default function AppPerfil() {
       </header>
 
       {user?.papel !== 'medico' && user?.papel !== 'admin' && <MeuConvenio />}
+
+      {user?.papel !== 'admin' && (
+        <section className="flex flex-col gap-md">
+          <div className="flex items-center gap-2">
+            <BellRing className="size-5 text-indigo" aria-hidden />
+            <h2 className="text-lg">Lembretes</h2>
+          </div>
+          <p className="-mt-2 text-ink-soft">
+            O quanto o Prumo pode falar com você. Dá para mudar quando quiser, e{' '}
+            <Link
+              to="/app/lembretes"
+              className="font-semibold text-indigo underline underline-offset-4"
+            >
+              ver o que vem por aí
+            </Link>
+            .
+          </p>
+          <PainelPreferencias />
+        </section>
+      )}
 
       <section className="rounded-2xl border border-line bg-paper p-lg shadow-soft">
         <div className="flex items-center gap-2">
