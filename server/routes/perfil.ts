@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../auth.js'
 import { getOrCreateCrianca } from '../services/crianca.js'
+import { Crianca } from '../models/Crianca.js'
 import { resolveCriancaOr403 } from '../services/acesso.js'
 import { perfilCriancaSchema } from '../validation.js'
 import { normalizeField } from '../sanitize.js'
@@ -63,15 +64,31 @@ perfilRouter.put('/', requireAuth, async (req, res) => {
   if (dataNascimento !== undefined) crianca.dataNascimento = dataNascimento ? new Date(dataNascimento) : null
 
   if (convenio !== undefined) {
+    const novoNumero =
+      convenio.numeroCarteirinha && !convenio.numeroCarteirinha.includes('•')
+        ? normalizeField(convenio.numeroCarteirinha, 40)
+        : null
+
+    /**
+     * Quando o cliente devolve o placeholder mascarado, o número guardado tem
+     * que ser preservado — e `crianca` não o traz, porque o campo é
+     * `select: false`. Lê-lo aqui, sob demanda, é o que evita o defeito
+     * silencioso: sem esta busca, trocar só a operadora **apagava** a
+     * carteirinha, e ninguém veria acontecer porque a tela mostra os mesmos
+     * bolinhas antes e depois.
+     */
+    const numeroAtual =
+      novoNumero === null
+        ? ((
+            await Crianca.findById(crianca._id).select('+convenio.numeroCarteirinha')
+          )?.convenio?.numeroCarteirinha ?? '')
+        : ''
+
     crianca.convenio = {
       tipo: convenio.tipo,
       operadora: normalizeField(convenio.operadora ?? '', 80),
       plano: normalizeField(convenio.plano ?? '', 80),
-      // Keep the stored number when the client sends the masked placeholder back.
-      numeroCarteirinha:
-        convenio.numeroCarteirinha && !convenio.numeroCarteirinha.includes('•')
-          ? normalizeField(convenio.numeroCarteirinha, 40)
-          : (crianca.convenio?.numeroCarteirinha ?? ''),
+      numeroCarteirinha: novoNumero ?? numeroAtual,
       validade: convenio.validade ? new Date(convenio.validade) : null,
       informado: true,
     }

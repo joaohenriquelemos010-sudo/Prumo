@@ -55,11 +55,16 @@ está implementado no cliente e o que precisa vir do backend.
 ### Rate limiting e anti-duplo-submit
 - `src/lib/rate-limit.ts` limita tentativas por ação (ex.: envio do onboarding) e
   o botão entra em estado `loading` para evitar submissão dupla.
+- No servidor, `server/rate-limit.ts` conta em documento com TTL no MongoDB
+  (`server/models/Limite.ts`), e não mais num `Map` do processo — num deploy
+  serverless o mapa zerava a cada cold start, então o limite existia no código e
+  não na prática.
 
 ### Audit trail conceitual
 - Toda ação sensível emite um evento tipado (`src/lib/audit.ts`). Hoje só loga no
-  console em desenvolvimento; a arquitetura já nasce pronta para um log de
-  auditoria imutável no backend — basta trocar o *sink*.
+  console em desenvolvimento; o *sink* para o backend continua sendo o gancho.
+- No servidor o log **existe de verdade**: `server/models/Auditoria.ts` e
+  `server/services/auditoria.ts`. Ver a seção "Log de auditoria" abaixo.
 
 ### Acessibilidade e resiliência
 - **Error boundaries por rota** com fallback acolhedor (nunca tela branca ou stack
@@ -113,11 +118,87 @@ servidor / infraestrutura:
 - **Sessão em cookie `httpOnly` + `SameSite=Strict` + `Secure`**, emitido pelo
   backend. O cliente só usa `credentials: 'include'` — nunca manipula o token.
 - **Autenticação e autorização** de verdade: quem vê a trilha de quem.
-- **Rate limiting no servidor** (o do cliente é só anti-spam, não é barreira).
-- **Criptografia em repouso** dos dados de saúde e **log de auditoria imutável**.
-- **Fluxos LGPD reais** por trás dos botões de exportar / excluir: verificação de
-  identidade, prazo legal, confirmação e efetivação.
+- **Fluxos LGPD reais** com verificação de identidade (ver abaixo).
 - **Rotação de segredos** e gestão de chaves fora do repositório.
+- **Assinatura ICP-Brasil** dos documentos clínicos (exigência da NGS2 para
+  prontuário 100% digital). Os PDFs já declaram, no rodapé, que são cópia digital
+  não assinada — a declaração sai quando a assinatura entrar.
+- **Backup redundante** com política escrita e restauração testada.
+
+## Criptografia de campo
+
+`server/security/cripto.ts` — AES-256-GCM sobre os campos que valem dinheiro no
+mercado paralelo mesmo isolados do resto: `User.cpf` e
+`Crianca.convenio.numeroCarteirinha`. Aplicada como getter/setter do Mongoose,
+então nenhuma rota mudou.
+
+- **Formato:** `v1.<iv>.<tag>.<cifrado>`, tudo em base64. O prefixo de versão é o
+  que permite trocar o algoritmo depois sem adivinhar o que está gravado.
+- **GCM e não CBC:** é autenticado. Adulterar o texto cifrado faz a decifragem
+  falhar em vez de devolver lixo plausível.
+- **Idempotente:** cifrar um valor já cifrado devolve o mesmo texto. É o que
+  torna a migração `005-cifrar-campos-sensiveis` segura de rodar duas vezes.
+- **Chave:** `CAMPO_CHAVE`, hexadecimal de 64 caracteres. Ausente, os campos são
+  gravados em claro e o servidor avisa uma vez no boot — o produto continua de
+  pé e a lacuna fica visível em vez de silenciosa. Malformada, o servidor falha
+  alto: gravar em claro por causa de um typo seria pior.
+- ⚠️ **Rotacionar a chave sem re-cifrar torna ilegível o que já foi gravado.**
+  Para trocar: cifre com a chave nova antes de aposentar a velha. Se a migração
+  precisar rodar de novo (por exemplo, a chave foi definida depois do primeiro
+  deploy), apague o documento `005-cifrar-campos-sensiveis` da coleção de
+  migrações e reinicie.
+
+**O que esta camada não resolve:** ela protege contra vazamento de *dump de
+banco* e contra quem lê a coleção sem passar pela aplicação. Não protege contra
+a aplicação comprometida — o servidor precisa decifrar para usar. É a proteção
+certa para a ameaça certa, e vale dizer isso em voz alta.
+
+## Log de auditoria
+
+`server/models/Auditoria.ts` + `server/services/auditoria.ts`. Registra quem
+acessou o quê, quando e de onde. Coberto hoje: leitura e escrita de prontuário,
+retificação, download de exame, as três etapas da transferência, exportação de
+dados (LGPD) e login (sucesso e falha).
+
+Três decisões que valem estar escritas:
+
+1. **Nenhum conteúdo clínico entra no log.** Ele guarda que a Dra. Alice leu o
+   prontuário da jornada X às 14h32; não guarda o que estava escrito. Um log que
+   copia o dado sensível dobra a superfície de vazamento — e é justamente a
+   coleção que mais gente precisa poder ler.
+2. **Registrar nunca derruba a requisição.** Um `registrar()` que lança
+   transformaria a exigência de conformidade na peça mais frágil do produto. A
+   troca é explícita: prefere-se perder uma linha de log a perder um atendimento.
+3. **Falha de login não guarda o e-mail digitado** quando a conta não existe —
+   senão o log viraria uma lista de e-mails testados.
+
+### ⚠️ A imutabilidade ainda precisa ser imposta no Atlas
+
+O código não expõe update nem delete nessa coleção, mas isso é disciplina de
+código, não controle. **Antes de reivindicar conformidade com a NGS2**, crie no
+Atlas um usuário de banco cujo papel na coleção `auditorias` permita apenas
+`find` e `insert`, e use-o na string de conexão da aplicação. Sem esse passo, o
+log é auditável mas não é imutável.
+
+## Conta de administrador
+
+A senha do admin **não mora mais no repositório**. Ela estava em texto claro em
+`server/services/seedAdmin.ts`, o que significa que qualquer pessoa com acesso ao
+código — hoje, num fork, num backup, no histórico do git — tinha a credencial de
+administrador de uma plataforma de saúde.
+
+- **Em produção**, sem `ADMIN_SENHA_INICIAL` a conta **não é criada**, e o
+  servidor avisa. É a menos ruim das duas opções: um admin faltando se resolve
+  em um minuto definindo a variável; um admin com credencial pública não se
+  resolve, porque não dá para saber quem entrou.
+- **Em desenvolvimento**, sem a variável a conta é criada com senha aleatória
+  impressa uma vez no log.
+- Em ambos os casos ela nasce com `trocaSenhaObrigatoria`, e o `/app` serve a
+  tela de troca no lugar de qualquer rota até a senha ser trocada. Uma senha
+  inicial que ninguém troca é uma senha compartilhada.
+- `POST /api/auth/trocar-senha` exige a senha atual mesmo com a sessão válida:
+  um cookie roubado não pode virar troca de senha, que é como um invasor tranca
+  a dona do lado de fora da própria conta.
 
 ## Documentos do médico (CPF e CRM)
 

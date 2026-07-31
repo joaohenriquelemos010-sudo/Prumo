@@ -1,5 +1,6 @@
 import mongoose, { Schema } from 'mongoose'
 import type { InferSchemaType } from 'mongoose'
+import { campoCifrado } from '../security/cripto.js'
 
 /**
  * A "Criança" holds the continuous track for one journey: the gestation phase
@@ -82,7 +83,8 @@ const criancaSchema = new Schema(
       tipo: { type: String, enum: ['convenio', 'particular', 'sus'], default: 'particular' },
       operadora: { type: String, default: '', maxlength: 80 },
       plano: { type: String, default: '', maxlength: 80 },
-      numeroCarteirinha: { type: String, default: '', maxlength: 40, select: false },
+      /** Cifrado em repouso — ver o comentário em `User.cpf`. */
+      numeroCarteirinha: { type: String, default: '', select: false, ...campoCifrado },
       validade: { type: Date, default: null },
       informado: { type: Boolean, default: false },
     },

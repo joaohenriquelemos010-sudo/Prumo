@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { isValidObjectId } from 'mongoose'
 import { requireAuth, requireRole } from '../auth.js'
 import { resolveCriancaOr403 } from '../services/acesso.js'
+import { auditar } from '../services/auditoria.js'
 import { Prontuario } from '../models/Prontuario.js'
 import type { ProntuarioDoc } from '../models/Prontuario.js'
 import type { HydratedDocument, Types } from 'mongoose'
@@ -59,7 +60,7 @@ export function serializeProntuario(p: HydratedDocument<ProntuarioDoc>) {
 }
 
 // GET /api/prontuario
-prontuarioRouter.get('/', requireAuth, async (req, res) => {
+prontuarioRouter.get('/', requireAuth, auditar('prontuario.ler', 'prontuarios'), async (req, res) => {
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
   const prontuario = await getOrCreateProntuario(crianca._id)
@@ -171,7 +172,7 @@ prontuarioRouter.put('/', requireAuth, requireRole('medico'), async (req, res) =
  * Mantém o caminho antigo (o cliente ainda chama assim) mas grava numa
  * `Evolucao` encadeada por hash, e não mais num subdocumento editável.
  */
-prontuarioRouter.post('/evento', requireAuth, async (req, res) => {
+prontuarioRouter.post('/evento', requireAuth, auditar('prontuario.escrever', 'evolucoes'), async (req, res) => {
   const parsed = prontuarioEventoSchema.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Escreva a anotação.' })
@@ -207,7 +208,7 @@ prontuarioRouter.post('/evento', requireAuth, async (req, res) => {
  * Só o autor da entrada original retifica: corrigir o registro de outra pessoa
  * seria reescrever o que ELA observou.
  */
-prontuarioRouter.post('/evolucao/:id/retificacao', requireAuth, async (req, res) => {
+prontuarioRouter.post('/evolucao/:id/retificacao', requireAuth, auditar('prontuario.retificar', 'evolucoes'), async (req, res) => {
   const parsed = prontuarioEventoSchema.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Escreva a correção.' })

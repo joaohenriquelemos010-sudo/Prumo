@@ -4,6 +4,7 @@ import type { HydratedDocument } from 'mongoose'
 import { randomBytes } from 'node:crypto'
 import { requireAuth, requireRole } from '../auth.js'
 import { resolveJornadaOr403, resolveJornada } from '../services/jornada.js'
+import { auditar } from '../services/auditoria.js'
 import { Transferencia } from '../models/Transferencia.js'
 import type { TransferenciaDoc } from '../models/Transferencia.js'
 import { ESCOPOS_TRANSFERENCIA } from '../models/Transferencia.js'
@@ -48,7 +49,7 @@ function serialize(t: HydratedDocument<TransferenciaDoc>) {
  * quando a responsável consentir — antes disso não existe link que baixe coisa
  * alguma, nem por engano nem por vazamento.
  */
-transferenciasRouter.post('/', requireAuth, requireRole('medico'), async (req, res) => {
+transferenciasRouter.post('/', requireAuth, requireRole('medico'), auditar('transferencia.solicitar', 'transferencias'), async (req, res) => {
   const parsed = transferenciaCreateSchema.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Confere os dados.' })
@@ -105,7 +106,7 @@ transferenciasRouter.get('/', requireAuth, async (req, res) => {
  * pode: seria o solicitante aprovando o próprio pedido. É aqui que o token
  * nasce.
  */
-transferenciasRouter.post('/:id/consentir', requireAuth, async (req, res) => {
+transferenciasRouter.post('/:id/consentir', requireAuth, auditar('transferencia.consentir', 'transferencias'), async (req, res) => {
   if (!isValidObjectId(req.params.id)) {
     res.status(404).json({ error: 'Não encontramos esse pedido.' })
     return
@@ -199,7 +200,7 @@ transferenciasRouter.post('/:id/revogar', requireAuth, async (req, res) => {
  * vazado numa caixa de e-mail comprometida ainda esbarra na necessidade de
  * estar autenticado como profissional.
  */
-transferenciasRouter.get('/:token/pacote', requireAuth, requireRole('medico'), async (req, res) => {
+transferenciasRouter.get('/:token/pacote', requireAuth, requireRole('medico'), auditar('transferencia.baixar', 'transferencias'), async (req, res) => {
   const transferencia = await Transferencia.findOne({ token: req.params.token })
   if (!transferencia || !transferencia.token) {
     res.status(404).json({ error: 'Esse link não é mais válido. Peça um novo.' })

@@ -47,4 +47,27 @@ export const env = {
   SMTP_USER: process.env.SMTP_USER ?? '',
   SMTP_PASS: process.env.SMTP_PASS ?? '',
   SMTP_FROM: process.env.SMTP_FROM ?? 'Prumo <nao-responda@prumo.app>',
+
+  /**
+   * A conta de administrador. A senha **não tem fallback de produção** de
+   * propósito: sem `ADMIN_SENHA_INICIAL` a conta simplesmente não é criada lá.
+   * Um admin faltando se resolve definindo a variável; um admin com senha
+   * conhecida numa plataforma de saúde não se resolve, porque não dá para saber
+   * quem entrou. Ver `services/seedAdmin.ts`.
+   */
+  ADMIN_EMAIL: process.env.ADMIN_EMAIL ?? 'admin@prumo.com',
+  ADMIN_SENHA_INICIAL: process.env.ADMIN_SENHA_INICIAL ?? '',
+
+  /**
+   * Chave de criptografia de campo (AES-256-GCM), em hex de 64 caracteres.
+   * Ausente, os campos sensíveis são gravados em claro e o servidor avisa uma
+   * vez no boot — o produto continua de pé, e a lacuna fica visível em vez de
+   * silenciosa.
+   *
+   * Gere: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   *
+   * ⚠️ Rotacionar esta chave sem re-cifrar os dados torna ilegível o que já foi
+   * gravado. Ver `security/cripto.ts`.
+   */
+  CAMPO_CHAVE: process.env.CAMPO_CHAVE ?? '',
 }

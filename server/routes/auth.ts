@@ -5,7 +5,13 @@ import { Prontuario } from '../models/Prontuario.js'
 import { Duvida } from '../models/Duvida.js'
 import { Consulta } from '../models/Consulta.js'
 import { Exame } from '../models/Exame.js'
-import { registerSchema, loginSchema, esqueciSenhaSchema } from '../validation.js'
+import {
+  registerSchema,
+  loginSchema,
+  esqueciSenhaSchema,
+  trocarSenhaSchema,
+} from '../validation.js'
+import { auditar, registrar, origem } from '../services/auditoria.js'
 import { hashPassword, verifyPassword, issueSession, clearSession, requireAuth } from '../auth.js'
 import { rateLimit } from '../rate-limit.js'
 import { excluirConta } from '../services/conta.js'
@@ -128,6 +134,19 @@ authRouter.post('/login', rateLimit({ key: 'login', limit: 10, windowMs: 60_000 
 
   const user = await User.findOne({ email })
   if (!user || !(await verifyPassword(senha, user.senhaHash))) {
+    /**
+     * O log guarda a tentativa, mas **não guarda o e-mail digitado** quando a
+     * conta não existe: o log de auditoria viraria uma lista de e-mails
+     * testados, e ele é justamente a coleção que mais gente precisa poder ler.
+     */
+    registrar({
+      acao: 'login.falha',
+      atorId: user ? String(user._id) : '',
+      atorPapel: user?.papel ?? '',
+      ...origem(req),
+      resultado: 'negado',
+      metadados: { contaExiste: Boolean(user) },
+    })
     // Same message either way — never reveal whether the e-mail exists.
     res.status(401).json({ error: 'E-mail ou senha não conferem. Tenta de novo?' })
     return
@@ -135,6 +154,12 @@ authRouter.post('/login', rateLimit({ key: 'login', limit: 10, windowMs: 60_000 
 
   const sessionUser = toSessionUser(user)
   issueSession(res, sessionUser)
+  registrar({
+    acao: 'login.sucesso',
+    atorId: sessionUser.id,
+    atorPapel: sessionUser.papel,
+    ...origem(req),
+  })
   res.json({ user: sessionUser })
 })
 
@@ -180,14 +205,70 @@ authRouter.get('/me', requireAuth, async (req, res) => {
       crmUf: user.crmUf || undefined,
       especialidade: user.especialidade || undefined,
       verificacaoStatus: user.verificacaoStatus,
+      /**
+       * O cliente precisa saber para poder empurrar a troca. Não é segredo — é
+       * um fato sobre a própria conta de quem está pedindo, e escondê-lo só
+       * significaria a pessoa não entender por que o app insiste.
+       */
+      trocaSenhaObrigatoria: Boolean(user.trocaSenhaObrigatoria),
     },
   })
 })
 
+/**
+ * POST /api/auth/trocar-senha
+ *
+ * Exige a senha atual mesmo com a sessão já válida. Um cookie roubado não pode
+ * virar troca de senha — é assim que um invasor tranca a dona do lado de fora
+ * da própria conta, e é a razão de todo produto sério pedir a senha atual aqui.
+ *
+ * Trocar limpa `trocaSenhaObrigatoria`: é este endpoint que fecha o ciclo da
+ * conta de administrador provisionada.
+ */
+authRouter.post(
+  '/trocar-senha',
+  requireAuth,
+  rateLimit({ key: 'trocar-senha', limit: 5, windowMs: 60_000 }),
+  async (req, res) => {
+    const parsed = trocarSenhaSchema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Confere os dados.' })
+      return
+    }
+
+    const user = await User.findById(req.user!.id)
+    if (!user) {
+      clearSession(res)
+      res.status(401).json({ error: 'Conta não encontrada.' })
+      return
+    }
+
+    const confere = await verifyPassword(parsed.data.senhaAtual, user.senhaHash)
+    if (!confere) {
+      registrar({
+        acao: 'login.falha',
+        atorId: String(user._id),
+        atorPapel: user.papel,
+        ...origem(req),
+        resultado: 'negado',
+        metadados: { contexto: 'trocar-senha' },
+      })
+      res.status(401).json({ error: 'A senha atual não confere.' })
+      return
+    }
+
+    user.senhaHash = await hashPassword(parsed.data.novaSenha)
+    user.trocaSenhaObrigatoria = false
+    await user.save()
+
+    res.json({ ok: true })
+  },
+)
+
 // GET /api/auth/exportar — a full, human-readable copy of everything Prumo
 // holds for this account (LGPD data portability). No CPF, no other patients'
 // data — only what this account owns or is directly connected to.
-authRouter.get('/exportar', requireAuth, async (req, res) => {
+authRouter.get('/exportar', requireAuth, auditar('dados.exportar'), async (req, res) => {
   const user = await User.findById(req.user!.id).lean()
   if (!user) {
     clearSession(res)

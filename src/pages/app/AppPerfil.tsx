@@ -6,6 +6,7 @@ import { useTrilha } from '@/lib/stores/trilha'
 import { Button } from '@/components/Button'
 import { MeuConvenio } from '@/features/clinico/MeuConvenio'
 import { PainelPreferencias } from '@/features/lembretes/Preferencias'
+import { TrocarSenha } from '@/features/conta/TrocarSenha'
 
 const PAPEL_LABEL: Record<string, string> = {
   gestante: 'Gestante',
@@ -155,6 +156,8 @@ export default function AppPerfil() {
           </div>
         )}
       </section>
+
+      <TrocarSenha />
 
       <section className="rounded-2xl border border-line bg-paper p-lg shadow-soft">
         <h2 className="text-lg">Sessão</h2>

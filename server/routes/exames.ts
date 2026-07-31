@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { isValidObjectId } from 'mongoose'
 import multer from 'multer'
 import { requireAuth } from '../auth.js'
+import { auditar } from '../services/auditoria.js'
 import { resolveCriancaOr403 } from '../services/acesso.js'
 import { Exame } from '../models/Exame.js'
 import type { ExameDoc } from '../models/Exame.js'
@@ -116,7 +117,7 @@ examesRouter.post('/', requireAuth, upload.single('arquivo'), async (req, res) =
 })
 
 // GET /api/exames/:id/arquivo — stream the file (auth + scoped to own patient).
-examesRouter.get('/:id/arquivo', requireAuth, async (req, res) => {
+examesRouter.get('/:id/arquivo', requireAuth, auditar('exame.baixar', 'exames'), async (req, res) => {
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
   const exame = await Exame.findById(req.params.id)

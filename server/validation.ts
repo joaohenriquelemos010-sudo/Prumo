@@ -451,3 +451,23 @@ export const comentarioCreateSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>
 export type LoginInput = z.infer<typeof loginSchema>
+
+/**
+ * POST /api/auth/trocar-senha.
+ *
+ * Exige a senha atual mesmo com a sessão válida: um cookie roubado não pode
+ * virar troca de senha, que é a forma de o invasor trancar a dona da conta do
+ * lado de fora. É a mesma regra das mesmas regras de tamanho do cadastro.
+ */
+export const trocarSenhaSchema = z
+  .object({
+    senhaAtual: z.string().min(1, 'Digite sua senha atual.'),
+    novaSenha: z
+      .string()
+      .min(8, 'Sua senha precisa de pelo menos 8 caracteres.')
+      .max(100, 'Senha longa demais.'),
+  })
+  .refine((d) => d.senhaAtual !== d.novaSenha, {
+    path: ['novaSenha'],
+    message: 'A nova senha precisa ser diferente da atual.',
+  })

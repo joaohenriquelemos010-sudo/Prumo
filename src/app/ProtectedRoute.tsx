@@ -3,6 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/lib/stores/auth'
 import { InternalLayout } from './InternalLayout'
 import { PageFallback } from './PageFallback'
+import { TrocarSenha } from '@/features/conta/TrocarSenha'
 
 /**
  * Portão da área interna: resolve a sessão uma vez, mostra esqueleto enquanto
@@ -27,12 +28,41 @@ function usePortao(): 'carregando' | 'visitante' | 'ok' {
   return 'ok'
 }
 
-/** Autenticado, dentro do shell da plataforma. O caso comum. */
+/**
+ * Autenticado, dentro do shell da plataforma. O caso comum.
+ *
+ * Uma conta com senha provisória não passa daqui: enquanto
+ * `trocaSenhaObrigatoria` for verdadeiro, toda rota do `/app` vira a tela de
+ * troca. É o que fecha o ciclo da conta de administrador provisionada — sem
+ * isso, a senha inicial vira a senha permanente, que é o defeito que o
+ * provisionamento tentava evitar.
+ *
+ * A tela de troca é servida **no lugar** da rota pedida, e não por redirect: a
+ * URL de destino fica preservada, então terminar a troca leva a pessoa para
+ * onde ela estava indo em vez de despejá-la no início.
+ */
 export function ProtectedRoute() {
   const portao = usePortao()
+  const precisaTrocar = useAuth((s) => s.user?.trocaSenhaObrigatoria)
+
   if (portao === 'carregando') return <PageFallback />
   if (portao === 'visitante') return <Navigate to="/entrar" replace />
+  if (precisaTrocar) return <PortaoSenha />
   return <InternalLayout />
+}
+
+function PortaoSenha() {
+  return (
+    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-lg p-lg">
+      <header className="flex flex-col gap-1">
+        <p className="u-eyebrow">Antes de continuar</p>
+        <h1 className="text-3xl sm:text-4xl">Sua senha precisa ser trocada</h1>
+      </header>
+      <Suspense fallback={<PageFallback />}>
+        <TrocarSenha obrigatoria />
+      </Suspense>
+    </div>
+  )
 }
 
 /** Autenticado, tela cheia, sem shell. Para o cockpit de atendimento. */

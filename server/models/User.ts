@@ -1,5 +1,6 @@
 import mongoose, { Schema } from 'mongoose'
 import type { InferSchemaType } from 'mongoose'
+import { campoCifrado } from '../security/cripto.js'
 
 export const PAPEIS = ['gestante', 'mae', 'pai', 'medico', 'admin'] as const
 export type Papel = (typeof PAPEIS)[number]
@@ -26,11 +27,28 @@ const userSchema = new Schema(
 
     // Doctor-only. CPF is sensitive PII — stored only for doctors, never returned
     // to the client, and should be encrypted at rest in production (see SECURITY.md).
-    cpf: { type: String, default: '', select: false },
+    /**
+     * Cifrado em repouso (AES-256-GCM, ver server/security/cripto.ts). O
+     * getter/setter do Mongoose faz a volta, então nenhuma rota muda: quem lê
+     * `user.cpf` continua lendo o CPF.
+     *
+     * `maxlength` sairia errado aqui — o valor gravado é o texto cifrado, e é
+     * bem maior que o CPF. O tamanho de entrada é validado no zod, que é onde
+     * ele deve ser validado.
+     */
+    cpf: { type: String, default: '', select: false, ...campoCifrado },
     crm: { type: String, default: '' },
     crmUf: { type: String, default: '' },
     especialidade: { type: String, default: '', maxlength: 60 },
     verificacaoStatus: { type: String, enum: VERIFICACAO, default: 'nao_aplicavel' },
+
+    /**
+     * A conta nasceu com senha que outra pessoa escolheu (hoje só a de admin,
+     * provisionada). O `/app` empurra para a troca antes de deixar usar
+     * qualquer coisa — uma senha inicial que nunca é trocada é uma senha
+     * compartilhada.
+     */
+    trocaSenhaObrigatoria: { type: Boolean, default: false },
   },
   { timestamps: true },
 )

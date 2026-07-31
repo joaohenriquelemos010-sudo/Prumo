@@ -16,6 +16,12 @@ export interface AuthUser {
   crmUf?: string
   especialidade?: string
   verificacaoStatus?: VerificacaoStatus
+  /**
+   * A conta nasceu com uma senha que outra pessoa escolheu. Só `GET /auth/me`
+   * devolve isso — o login não devolve, e é de propósito: o portão precisa do
+   * dado depois que a sessão existe, e não durante a autenticação.
+   */
+  trocaSenhaObrigatoria?: boolean
 }
 
 export interface RegisterInput {
@@ -52,6 +58,16 @@ interface AuthStore {
   limparAvisoSessao: () => void
   /** Loads the session once (from the httpOnly cookie). Safe to call repeatedly. */
   bootstrap: () => Promise<void>
+  /**
+   * Relê `GET /auth/me` ignorando o guard do `bootstrap`.
+   *
+   * Existe porque `bootstrap` sai cedo quando a sessão já foi resolvida — o que
+   * está certo para a montagem de rota e errado para depois de uma ação que
+   * muda a própria conta. Trocar a senha é o caso: sem reler, o portão
+   * continuaria vendo `trocaSenhaObrigatoria: true` e prendendo a pessoa numa
+   * tela que ela acabou de concluir.
+   */
+  recarregar: () => Promise<void>
   register: (input: RegisterInput) => Promise<Result>
   login: (email: string, senha: string) => Promise<Result>
   logout: () => Promise<void>
@@ -80,6 +96,15 @@ export const useAuth = create<AuthStore>((set, get) => ({
   bootstrap: async () => {
     if (get().status !== 'idle') return
     set({ status: 'loading' })
+    try {
+      const { user } = await api.get<{ user: AuthUser }>('/auth/me')
+      set({ user, status: 'authed' })
+    } catch {
+      set({ user: null, status: 'guest' })
+    }
+  },
+
+  recarregar: async () => {
     try {
       const { user } = await api.get<{ user: AuthUser }>('/auth/me')
       set({ user, status: 'authed' })
