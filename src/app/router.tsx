@@ -34,6 +34,7 @@ const AppAdmin = lazy(() => import('@/pages/app/AppAdmin'))
 const AppPacientes = lazy(() => import('@/pages/app/AppPacientes'))
 const AppAtendimento = lazy(() => import('@/pages/app/AppAtendimento'))
 const AppLembretes = lazy(() => import('@/pages/app/AppLembretes'))
+const AppTeleconsulta = lazy(() => import('@/pages/app/AppTeleconsulta'))
 
 export const router = createBrowserRouter(
   [
@@ -62,6 +63,16 @@ export const router = createBrowserRouter(
       path: '/app/atendimento',
       element: <ProtectedFullscreen />,
       children: [{ path: ':consultaId', element: <AppAtendimento /> }],
+    },
+    {
+      /**
+       * A teleconsulta também é tela cheia, e pelo mesmo motivo do cockpit: no
+       * meio de uma consulta ninguém navega para outro lugar, e uma barra de
+       * navegação ali só oferece maneiras de estragar a chamada.
+       */
+      path: '/app/teleconsulta',
+      element: <ProtectedFullscreen />,
+      children: [{ path: ':agendamentoId', element: <AppTeleconsulta /> }],
     },
     {
       path: '/app',

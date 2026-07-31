@@ -1,7 +1,18 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { CalendarPlus, Check, X, Clock, MapPin as MapPinIcon, Play, Repeat, UserCheck, UserX } from 'lucide-react'
+import {
+  CalendarPlus,
+  Check,
+  X,
+  Clock,
+  MapPin as MapPinIcon,
+  Play,
+  Repeat,
+  UserCheck,
+  UserX,
+  Video,
+} from 'lucide-react'
 import {
   MODALIDADE_ICON,
   MODALIDADE_LABEL,
@@ -63,6 +74,20 @@ export function CardAgendamento({
     papel === 'profissional' &&
     a.status === 'confirmado' &&
     Math.abs(new Date(a.inicio).getTime() - Date.now()) <= 4 * 60 * 60 * 1000
+
+  /**
+   * A sala de teleconsulta, para os **dois** lados.
+   *
+   * A janela é a mesma do servidor — abre 15 minutos antes e fecha 30 depois do
+   * fim. Mostrar o botão fora dela seria oferecer uma porta que responde 425 ou
+   * 410, e a paciente não tem como saber que o problema é a hora.
+   */
+  const inicioMs = new Date(a.inicio).getTime()
+  const podeEntrarNaSala =
+    a.modalidade === 'teleconsulta' &&
+    a.status === 'confirmado' &&
+    Date.now() >= inicioMs - 15 * 60_000 &&
+    Date.now() <= inicioMs + (a.duracaoMin + 30) * 60_000
 
   const titulo = mostrarPaciente ? a.pacienteNome : a.profissionalNome
 
@@ -138,6 +163,16 @@ export function CardAgendamento({
 
           {/* Actions */}
           <div className="mt-3 flex flex-wrap gap-2">
+            {podeEntrarNaSala && (
+              <Link
+                to={`/app/teleconsulta/${a.id}`}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-pill px-4 text-sm font-semibold text-white shadow-soft [background-image:var(--grad-brand)]"
+              >
+                <Video className="size-4" aria-hidden />
+                Entrar na consulta
+              </Link>
+            )}
+
             {podeIniciar && (
               <Link
                 to={`/app/atendimento/novo?agendamento=${a.id}`}

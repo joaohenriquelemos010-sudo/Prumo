@@ -85,4 +85,19 @@ export const env = {
   VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY ?? '',
   /** Como o serviço de push fala com a gente quando algo dá errado do lado dele. */
   VAPID_CONTATO: process.env.VAPID_CONTATO ?? 'suporte@prumo.app',
+
+  /**
+   * Teleconsulta. O vídeo é ponto a ponto: nenhuma mídia passa por aqui, e por
+   * isso o custo padrão é **zero**.
+   *
+   * STUN só responde "qual é o seu IP visto de fora" — não vê mídia, e o do
+   * Google é gratuito e público. TURN é o relay para as redes em que o ponto a
+   * ponto não fecha (NAT simétrico, algumas corporativas e móveis): é o único
+   * componente que custa, e fica opcional até valer a pena.
+   */
+  STUN_URLS:
+    process.env.STUN_URLS ?? 'stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302',
+  TURN_URL: process.env.TURN_URL ?? '',
+  TURN_USUARIO: process.env.TURN_USUARIO ?? '',
+  TURN_SENHA: process.env.TURN_SENHA ?? '',
 }

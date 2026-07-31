@@ -112,6 +112,42 @@ medida, nem diagnóstico. Uma notificação aparece na tela bloqueada, à vista 
 quem estiver por perto. Ela diz que há algo para ver e leva até lá; o conteúdo
 fica atrás do login.
 
+### Teleconsulta — ponto a ponto, custo zero
+
+`Agendamento.modalidade` já tinha `teleconsulta` e isso **não significava nada** —
+era uma lacuna visível para quem usa. O que faltava não era um provedor de vídeo,
+era a costura.
+
+O vídeo vai direto de um navegador ao outro. O servidor só entrega as mensagens
+que os dois trocam para se encontrar (`server/routes/teleconsulta.ts`) e sai de
+cena. Daily.co e 100ms cobram por minuto porque **retransmitem mídia**; aqui não
+há mídia para retransmitir, então o custo é o de uma coleção com TTL.
+
+A sinalização é por poll curto, e não WebSocket, porque o backend roda como
+função serverless — onde não existe conexão de longa duração. A alternativa seria
+um serviço de realtime pago para trocar seis mensagens. O custo do poll aparece
+só na latência de **estabelecer** a chamada, não na conversa.
+
+| Peça | Custo | Estado |
+|---|---|---|
+| Mídia (áudio/vídeo) | **R$ 0** — nunca toca o servidor | pronto |
+| STUN | **R$ 0** — o público do Google, que só responde "qual é o seu IP" | pronto |
+| Sinalização | **R$ 0** — MongoDB com TTL de 5 min | pronto |
+| TURN (relay) | pago, **opcional** | desligado |
+
+**O que TURN resolve, e por que fica desligado.** Numa parcela das redes (NAT
+simétrico, algumas corporativas e móveis) o ponto a ponto não fecha. Sem TURN,
+essas chamadas falham — e a tela **diz isso** e sugere trocar de rede ou combinar
+por telefone, em vez de girar um spinner e fazer a pessoa achar que a internet
+dela é o problema. Quando valer a pena: `coturn` num VPS pequeno (grátis fora o
+servidor) ou um provedor de TURN cobrado por GB, que é ordens de grandeza mais
+barato que vídeo por minuto.
+
+**Sem gravação**, e isso é decisão de produto, não limitação: gravar dispara
+deveres pesados de retenção do CFM e obrigações de dado sensível da LGPD por
+valor marginal. O que fica registrado é o atendimento, no prontuário, como em
+qualquer consulta presencial.
+
 ### Lembretes — hoje encostados
 
 A fila de lembretes está construída e rodando; **o envio de e-mail está

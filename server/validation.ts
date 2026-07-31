@@ -486,3 +486,19 @@ export const assinaturaPushSchema = z.object({
     auth: z.string().trim().min(1).max(300),
   }),
 })
+
+/**
+ * POST /api/teleconsulta/:id/sinal.
+ *
+ * A `carga` é opaca de propósito — é SDP ou candidato ICE, e o servidor
+ * encaminha sem interpretar. O que se valida é o formato do envelope e o
+ * **tamanho**: um SDP real tem alguns KB, e sem teto isso vira um jeito barato
+ * de escrever megabytes na coleção de outra pessoa.
+ */
+export const sinalSchema = z.object({
+  tipo: z.enum(['oferta', 'resposta', 'candidato', 'tchau']),
+  carga: z
+    .unknown()
+    .refine((v) => JSON.stringify(v ?? null).length <= 16_000, 'Sinal grande demais.')
+    .optional(),
+})
