@@ -1,87 +1,91 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
-import { useTrilha } from '@/lib/stores/trilha'
+import { lazy, Suspense, useEffect } from 'react'
 import { useAuth } from '@/lib/stores/auth'
-import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
+import { useMedicoContext } from '@/lib/stores/medico-context'
+import { useChecklist } from '@/lib/stores/checklist'
 import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
-import { api } from '@/lib/api/client'
-import { TrilhaPath } from '@/features/trilha/TrilhaPath'
-import { ProgressHeader } from '@/features/trilha/ProgressHeader'
-import { Confetti } from '@/features/trilha/Confetti'
-import { FASES } from '@/features/trilha/data'
+import { TrilhaChecklist } from '@/features/checklist/TrilhaChecklist'
 import { TrilhaSkeleton } from '@/components/Skeleton'
+import { AlertaErro } from '@/components/AlertaErro'
+import { EmptyState } from '@/components/EmptyState'
 import { Blob } from '@/components/Blob'
-import { SectionHead } from '@/components/Section'
+import { Route } from 'lucide-react'
 
 const BaixarTrilha = lazy(() =>
   import('@/features/pdf/documents').then((m) => ({ default: m.BaixarTrilha })),
 )
 
-const FASE_NOME = Object.fromEntries(FASES.map((f) => [f.fase, f.nome]))
-
-/** The real, persisted trilha for a logged-in user. */
+/**
+ * A trilha da família — agora uma projeção do checklist.
+ *
+ * Antes daqui existiam duas coisas paralelas: uma trilha com nós mockados em
+ * `features/trilha/data.ts` e um conteúdo clínico que ninguém marcava. Eram duas
+ * metáforas para a mesma jornada, e a que tinha o conteúdo de verdade era a que
+ * não dava para tocar.
+ *
+ * Agora é uma só. Os nós **são** os grupos do checklist, o progresso é o que ela
+ * de fato marcou, e o conteúdo vem do servidor — o mesmo que a médica pode
+ * atribuir e que alimenta os lembretes.
+ */
 export default function AppTrilha() {
-  const hydrate = useTrilha((s) => s.hydrate)
-  const nodes = useTrilha((s) => s.nodes)
-  const progresso = useTrilha((s) => s.progress())
   const nome = useAuth((s) => s.user?.nome)
   const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
-  const celebratingId = useTrilha((s) => s.celebratingId)
-  const clearCelebration = useTrilha((s) => s.clearCelebration)
-  const [ready, setReady] = useState(false)
+
+  const checklists = useChecklist((s) => s.checklists)
+  const carregando = useChecklist((s) => s.carregando)
+  const erro = useChecklist((s) => s.erro)
+  const carregar = useChecklist((s) => s.carregar)
 
   useEffect(() => {
-    let active = true
-    setReady(false)
-    api
-      .get<{ etapasConcluidas: string[] }>(`/trilha${criancaQuery(criancaAtiva)}`)
-      .then((data) => active && hydrate(data.etapasConcluidas))
-      .catch(() => {
-        /* keep whatever state we have; the UI still works */
-      })
-      .finally(() => active && setReady(true))
-    return () => {
-      active = false
-    }
-  }, [hydrate, criancaAtiva])
+    void carregar(criancaAtiva)
+  }, [carregar, criancaAtiva])
 
-  useEffect(() => {
-    if (!celebratingId) return
-    const t = setTimeout(clearCelebration, 2000)
-    return () => clearTimeout(t)
-  }, [celebratingId, clearCelebration])
+  // A jornada define qual checklist está em cena; os outros ficam abaixo.
+  const [principal, ...demais] = checklists
 
   return (
     <div className="relative flex flex-col gap-xl">
       <Blob variant="c" intensity={0.3} className="-left-20 top-24 size-96" />
-      <Confetti trigger={Boolean(celebratingId)} />
-
-      <SectionHead
-        eyebrow="Sua trilha"
-        titulo="Seu caminho, do pré-natal ao primeiro ano"
-        descricao="Toque num nó para ver a etapa. Ao concluir a etapa atual, seu progresso é salvo automaticamente."
-      />
 
       <SeletorPaciente />
 
-      {ready ? (
+      {erro && <AlertaErro>{erro}</AlertaErro>}
+
+      {carregando && checklists.length === 0 ? (
+        <TrilhaSkeleton />
+      ) : !principal ? (
+        <EmptyState
+          icon={<Route className="size-8" aria-hidden />}
+          titulo="Sua trilha está sendo preparada"
+          descricao="Assim que sua jornada estiver configurada, o caminho aparece aqui — com o que fazer em cada fase e por que importa."
+        />
+      ) : (
         <>
-          <ProgressHeader />
-          <TrilhaPath />
+          <TrilhaChecklist checklist={principal} crianca={criancaAtiva} />
+
+          {demais.map((c) => (
+            <TrilhaChecklist key={c.chave} checklist={c} crianca={criancaAtiva} />
+          ))}
+
           <Suspense fallback={null}>
             <BaixarTrilha
               nome={nome}
-              progresso={progresso}
-              nodes={nodes.map((n) => ({
-                id: n.id,
-                titulo: n.titulo,
-                fase: FASE_NOME[n.fase] ?? n.fase,
-                status: n.status,
-              }))}
+              progresso={principal.progresso}
+              nodes={checklists.flatMap((c) =>
+                c.grupos.map((g) => ({
+                  id: `${c.chave}:${g.id}`,
+                  titulo: g.titulo,
+                  fase: c.titulo,
+                  status:
+                    g.estado === 'feito' || g.estado === 'nao-se-aplica'
+                      ? ('concluido' as const)
+                      : g.foraDaJanela
+                        ? ('bloqueado' as const)
+                        : ('atual' as const),
+                })),
+              )}
             />
           </Suspense>
         </>
-      ) : (
-        <TrilhaSkeleton />
       )}
     </div>
   )

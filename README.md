@@ -156,6 +156,28 @@ recusa. Clínicas do catálogo, que não têm conta, recebem uma **proposta de h
 admin responde por elas. O servidor recalcula a disponibilidade a cada marcação em vez de
 confiar no slot que o cliente devolveu — dois pedidos para o mesmo horário dão 409.
 
+### Checklist
+
+Conteúdo e estado vivem separados: `ChecklistTemplate` guarda os textos,
+`Checklist` guarda só o que a paciente marcou. É essa separação que permite
+corrigir uma explicação mal escrita sem tocar no progresso de ninguém —
+`templateVersao` registra qual redação ela tinha na frente quando marcou.
+
+**Exatamente dois níveis**: grupos (o que fazer) → passos (como fazer). Passos
+não têm filhos, e há teste garantindo. Um terceiro nível viraria uma árvore que
+ninguém navega no celular com uma mão.
+
+O conteúdo (`server/conteudo/checklists/`) deriva das mesmas fontes do roteiro
+clínico — Caderneta da Gestante, PNI, FEBRASGO — mas é **reescrito**, não
+traduzido. A régua: uma mulher sem formação em saúde, lendo no celular às onze
+da noite, precisa entender o que fazer, por que importa, e sair menos ansiosa do
+que entrou. Testes guardam isso: todo grupo precisa de explicação leiga com mais
+de 80 caracteres, fonte citada, e ao menos um passo obrigatório.
+
+A trilha (`/app/trilha`) passou a ser uma **projeção** do checklist. Antes eram
+duas metáforas paralelas para a mesma jornada — uma com nós mockados e outra com
+o conteúdo de verdade, que não dava para tocar.
+
 ### PDFs
 
 Os documentos vivem em `src/features/pdf/`: `sistema/` (fontes, paleta, capa,

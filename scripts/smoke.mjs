@@ -212,6 +212,9 @@ try {
 
   const { registrarTestesDeProntuario } = await import('./smoke-prontuario.mjs')
   await registrarTestesDeProntuario(contexto)
+
+  const { registrarTestesDeChecklist } = await import('./smoke-checklist.mjs')
+  await registrarTestesDeChecklist(contexto)
 } catch (e) {
   falhou('execução do smoke', e instanceof Error ? e.message : String(e))
 } finally {

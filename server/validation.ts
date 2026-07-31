@@ -5,6 +5,7 @@ import { CATEGORIAS_POST } from './models/Post.js'
 import { OBJETIVOS_AGENDAMENTO } from './models/Agendamento.js'
 import { TIPOS_CONSULTA } from './models/Consulta.js'
 import { ESCOPOS_TRANSFERENCIA } from './models/Transferencia.js'
+import { ESTADOS_GRUPO } from './models/Checklist.js'
 import { validarCPF, somenteDigitos, UFS } from './br-docs.js'
 
 /**
@@ -347,6 +348,21 @@ export const transferenciaCreateSchema = z.object({
   paraMedicoNome: z.string().trim().max(80).optional(),
   escopo: z.array(z.enum(ESCOPOS_TRANSFERENCIA)).min(1).optional(),
   motivo: z.string().trim().max(300).optional(),
+})
+
+/* ------------------------------- Checklist ------------------------------- */
+
+export const checklistAtribuirSchema = z.object({
+  chave: z.string().trim().min(1).max(60),
+})
+
+export const checklistGrupoSchema = z.object({
+  estado: z.enum(ESTADOS_GRUPO).optional(),
+  nota: z.string().trim().max(500).optional(),
+})
+
+export const checklistPassoSchema = z.object({
+  feito: z.boolean(),
 })
 
 export const medidaFetalSchema = z.object({
