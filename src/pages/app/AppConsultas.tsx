@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Stethoscope,
@@ -27,6 +27,10 @@ import { roteiroParaSemana, intervaloRecomendado } from '@/features/clinico/dire
 import { ROTEIRO_PEDIATRICO } from '@/features/clinico/diretrizes-pediatria'
 import type { BlocoChecklist } from '@/features/clinico/diretrizes-prenatal'
 import { cn } from '@/lib/cn'
+
+const BaixarResumo = lazy(() =>
+  import('@/features/pdf/documents').then((m) => ({ default: m.BaixarResumoDaConsulta })),
+)
 
 interface Medidas {
   pesoKg?: number | null
@@ -60,6 +64,8 @@ interface Consulta {
   igDias: number | null
   medidas: Medidas
   checklist: ItemMarcado[]
+  /** O texto em linguagem leiga, escrito para a família. */
+  resumoParaFamilia?: string
   notasPrivadas?: string
   avaliacaoPrivada?: boolean
   peso: string
@@ -586,6 +592,7 @@ function MedidasDaConsulta({
 /* -------------------------------- reading -------------------------------- */
 
 function ConsultaCard({ consulta, onRemove }: { consulta: Consulta; onRemove: (id: string) => void }) {
+  const nomePaciente = useMedicoContext((s) => s.nomeAtivo) ?? undefined
   const userId = useAuth((s) => s.user?.id)
   const papel = useAuth((s) => s.user?.papel)
   const meu = Boolean(userId) && consulta.autorId === userId
@@ -646,6 +653,39 @@ function ConsultaCard({ consulta, onRemove }: { consulta: Consulta; onRemove: (i
 
       {aberto && (
         <>
+          {/*
+            O resumo em linguagem leiga vem PRIMEIRO, antes do SOAP.
+            É o que foi escrito para quem está lendo; o resto é o registro
+            clínico, escrito para a próxima profissional.
+          */}
+          {consulta.resumoParaFamilia && (
+            <div className="mt-md rounded-xl border-l-[3px] border-[var(--color-lilas)] bg-paper-2 p-3">
+              <p className="text-xs font-semibold uppercase tracking-caption text-indigo">
+                O que conversamos
+              </p>
+              <p className="mt-1 whitespace-pre-line text-sm text-ink">
+                {consulta.resumoParaFamilia}
+              </p>
+              <div className="mt-3">
+                <Suspense fallback={null}>
+                  <BaixarResumo
+                    dados={{
+                      pacienteNome: nomePaciente,
+                      data: consulta.data,
+                      tipo: consulta.tipo,
+                      igSemanas: consulta.igSemanas,
+                      igDias: consulta.igDias,
+                      resumoParaFamilia: consulta.resumoParaFamilia,
+                      plano: consulta.plano,
+                      medidas: { ...consulta.medidas },
+                      medico: { nome: consulta.autorNome },
+                    }}
+                  />
+                </Suspense>
+              </div>
+            </div>
+          )}
+
           <dl className="mt-md grid gap-3 sm:grid-cols-2">
             {secoes.map(([label, valor]) => (
               <div key={label}>

@@ -15,7 +15,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['server/**/*.test.ts', 'src/**/*.test.ts'],
+    include: ['server/**/*.test.ts', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
     /** Os smokes falam com um servidor de verdade; não são trabalho do vitest. */
     exclude: ['node_modules/**', 'scripts/**'],
   },

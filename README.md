@@ -156,6 +156,32 @@ recusa. Clínicas do catálogo, que não têm conta, recebem uma **proposta de h
 admin responde por elas. O servidor recalcula a disponibilidade a cada marcação em vez de
 confiar no slot que o cliente devolveu — dois pedidos para o mesmo horário dão 409.
 
+### PDFs
+
+Os documentos vivem em `src/features/pdf/`: `sistema/` (fontes, paleta, capa,
+cabeçalho, rodapé, primitivas) e `documentos/` (um arquivo por documento).
+`documents.tsx` continua sendo o ponto de entrada — é o que mantém **um** chunk
+`@react-pdf` compartilhado por todas as páginas.
+
+As fontes da marca (Outfit + Nunito) são **embutidas**, nunca buscadas em CDN: o
+`Font.register` do react-pdf baixa a URL em tempo de render, e um soluço de rede
+produziria um documento quebrado na frente da paciente. A logo é transcrita para
+as primitivas `Svg`/`Path` do react-pdf, gerada a partir dos SVGs de
+`public/img/` — nada de PNG rasterizado, que borraria em impressão.
+
+Todo documento tem capa opcional, cabeçalho que se repete, rodapé com
+identificação e `pág. N de M`, e bloco de assinatura.
+
+> ⚠️ **Nunca declare `lineHeight` dentro de um elemento `fixed`** (nem na `Page`,
+> de onde ele é herdado). No react-pdf isso faz o elemento **não ser desenhado**
+> — sem erro, sem aviso. Foi o que deixou a primeira versão sair sem paginação
+> nenhuma. O leading do corpo mora em `s.corpo`, que não é fixo, e há teste
+> guardando isso.
+
+Cada documento é renderizado de verdade para um buffer em
+`documentos/documentos.test.tsx`, com dados e vazio — é o único jeito de pegar
+erro de layout do react-pdf, que só falha em runtime.
+
 ### O prontuário não se edita
 
 A história clínica vive na coleção `Evolucao`, **append-only**. Não existe rota de
