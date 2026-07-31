@@ -22,7 +22,20 @@ interface DocumentoProps {
   documentoId?: string
   /** Bloco de assinatura no fim — todo documento clínico deveria ter. */
   assinatura?: { nome: string; crm?: string; especialidade?: string }
-  children: ReactNode
+  /**
+   * Partes que começam **cada uma numa página nova**, com o cabeçalho e o rodapé
+   * fixos repetindo. Usado pelas vias da receita.
+   *
+   * ⚠️ Existe por causa de uma armadilha do react-pdf, e não por gosto: o
+   * `break` só é obedecido quando o elemento é **filho direto da `Page`**.
+   * Aninhado — inclusive dentro do wrapper do corpo — ele é ignorado **em
+   * silêncio**, sem erro e sem aviso, e o documento sai com uma página só. Foi
+   * exatamente assim que a segunda via do antimicrobiano sumiu na primeira
+   * tentativa. Por isso os blocos são renderizados no nível da página, e não
+   * dentro de `s.corpo`.
+   */
+  blocos?: ReactNode[]
+  children?: ReactNode
 }
 
 const s = StyleSheet.create({
@@ -174,6 +187,7 @@ export function DocumentoPrumo({
   capa = false,
   documentoId,
   assinatura,
+  blocos,
   children,
 }: DocumentoProps) {
   const geradoEm = agoraBR()
@@ -229,7 +243,14 @@ export function DocumentoPrumo({
           </View>
         )}
 
-        <View style={s.corpo}>{children}</View>
+        {blocos
+          ? blocos.map((bloco, i) => (
+              // `break` no nível da página — ver o comentário em `blocos`.
+              <View key={i} style={s.corpo} break={i > 0}>
+                {bloco}
+              </View>
+            ))
+          : <View style={s.corpo}>{children}</View>}
 
         {assinatura ? (
           <View style={s.assinatura} wrap={false}>

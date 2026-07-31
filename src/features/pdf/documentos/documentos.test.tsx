@@ -28,6 +28,7 @@ const { TrilhaDocument } = await import('./Trilha')
 const { MeusDadosDocument } = await import('./MeusDados')
 const { ResumoDaConsultaDocument } = await import('./ResumoDaConsulta')
 const { TransferenciaDocument } = await import('./Transferencia')
+const { ReceitaDocument } = await import('./Receita')
 
 const ISO = '2026-03-15T10:30:00.000Z'
 
@@ -403,4 +404,153 @@ describe('documentos PDF', () => {
     )
     expect(ehPdf(b)).toBe(true)
   })
+
+  /**
+   * ⚠️ Regressão: `break` só é obedecido em **filho direto da `Page`**.
+   *
+   * Aninhado — inclusive dentro do wrapper do corpo do `DocumentoPrumo` — ele é
+   * ignorado **em silêncio**, sem erro e sem aviso, e o documento sai com uma
+   * página só. Foi assim que a segunda via do antimicrobiano sumiu na primeira
+   * tentativa. Se alguém reintroduzir um wrapper entre a `Page` e os blocos,
+   * este teste cai antes de a receita chegar torta na farmácia.
+   */
+  it('a prop `blocos` de fato quebra a página', async () => {
+    const umBloco = await renderiza(
+      <ReceitaDocument
+        dados={{
+          id: 'abc12345',
+          tipo: 'simples',
+          vias: 1,
+          itens: [{ medicamento: 'Teste' }],
+          emitidaEm: ISO,
+          validaAte: ISO,
+          medico: { nome: 'Dra. Alice' },
+        }}
+      />,
+    )
+    const doisBlocos = await renderiza(
+      <ReceitaDocument
+        dados={{
+          id: 'abc12345',
+          tipo: 'especial',
+          vias: 2,
+          itens: [{ medicamento: 'Teste' }],
+          emitidaEm: ISO,
+          validaAte: ISO,
+          medico: { nome: 'Dra. Alice' },
+        }}
+      />,
+    )
+    expect(paginas(doisBlocos)).toBe(paginas(umBloco) + 1)
+  })
+
+  /* ------------------------------- receita ------------------------------- */
+
+  const RECEITA_BASE = {
+    id: '65f0c1a2b3c4d5e6f7a8b9c0',
+    pacienteNome: 'Marina Souza',
+    emitidaEm: ISO,
+    validaAte: '2026-04-14T10:30:00.000Z',
+    medico: { nome: 'Dra. Alice Ramos', crm: '123456', crmUf: 'SP', especialidade: 'Obstetrícia' },
+  }
+
+  it('receita simples sai numa via', async () => {
+    const b = await renderiza(
+      <ReceitaDocument
+        dados={{
+          ...RECEITA_BASE,
+          tipo: 'simples',
+          vias: 1,
+          itens: [
+            {
+              medicamento: 'Ácido fólico 5 mg',
+              dose: '1 comprimido',
+              posologia: 'ao dia',
+              duracao: 'uso contínuo',
+              quantidade: '1 caixa com 30',
+            },
+          ],
+          orientacoes: 'Tomar sempre no mesmo horário, junto de uma refeição.',
+        }}
+      />,
+    )
+    expect(ehPdf(b)).toBe(true)
+    expect(paginas(b)).toBe(1)
+  })
+
+  /**
+   * A regra que a farmácia cobra e que ninguém lembra: antimicrobiano exige
+   * duas vias (RDC 20/2011), uma delas retida no balcão. Emitir uma só faz a
+   * receita ser recusada — e quem descobre é a paciente, em pé.
+   */
+  it('antimicrobiano sai em duas vias, uma por página', async () => {
+    const b = await renderiza(
+      <ReceitaDocument
+        dados={{
+          ...RECEITA_BASE,
+          tipo: 'antimicrobiano',
+          vias: 2,
+          validaAte: '2026-03-25T10:30:00.000Z',
+          itens: [
+            {
+              medicamento: 'Amoxicilina 500 mg',
+              dose: '1 cápsula',
+              posologia: 'de 8 em 8 horas',
+              duracao: 'por 7 dias',
+              quantidade: '21 cápsulas',
+            },
+          ],
+        }}
+      />,
+    )
+    expect(paginas(b)).toBe(2)
+  })
+
+  it('receita cancelada continua sendo emitida, carimbada', async () => {
+    const b = await renderiza(
+      <ReceitaDocument
+        dados={{
+          ...RECEITA_BASE,
+          tipo: 'simples',
+          vias: 1,
+          canceladaEm: '2026-03-16T09:00:00.000Z',
+          motivoCancelamento: 'Dose corrigida em nova receita.',
+          itens: [{ medicamento: 'Sulfato ferroso 40 mg' }],
+        }}
+      />,
+    )
+    // Cancelar não apaga: o registro é append-only, e a paciente pode ter
+    // impresso a via anterior. O PDF precisa existir e dizer que não vale.
+    expect(ehPdf(b)).toBe(true)
+  })
+
+  it('receita com o mínimo — só o medicamento — não quebra', async () => {
+    const b = await renderiza(
+      <ReceitaDocument
+        dados={{
+          ...RECEITA_BASE,
+          pacienteNome: undefined,
+          tipo: 'simples',
+          vias: 1,
+          itens: [{ medicamento: 'Retomar o anti-hipertensivo de uso contínuo' }],
+        }}
+      />,
+    )
+    expect(ehPdf(b)).toBe(true)
+  })
+
+  it('receita longa pagina sem cortar um item ao meio', async () => {
+    const itens = Array.from({ length: 18 }, (_, i) => ({
+      medicamento: `Medicamento de exemplo número ${i + 1} com nome comprido 500 mg`,
+      dose: '1 comprimido',
+      posologia: 'de 12 em 12 horas',
+      duracao: 'por 30 dias',
+      observacao: 'Observação longa o bastante para empurrar a quebra de página para perto do item.',
+    }))
+    const b = await renderiza(
+      <ReceitaDocument dados={{ ...RECEITA_BASE, tipo: 'simples', vias: 1, itens }} />,
+    )
+    expect(paginas(b)).toBeGreaterThan(1)
+  })
+
 })

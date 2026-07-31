@@ -36,6 +36,19 @@ export interface PacotePDF {
   observacoes: Record<string, unknown>[]
   imunizacoes: { dose: string }[]
   documentos: { nome: string; categoria: string; dataExame: string }[]
+  /**
+   * O que a paciente está tomando. Vem antes dos exames no documento impresso
+   * de propósito: é a informação que o próximo médico precisa ler **antes** de
+   * prescrever qualquer coisa, e uma transferência que a esconde no fim é a que
+   * produz interação medicamentosa.
+   */
+  prescricoes?: {
+    emitidaEm: string
+    tipo: string
+    cancelada?: boolean
+    prescritor: string
+    itens: { medicamento: string; dose?: string; posologia?: string; duracao?: string }[]
+  }[]
   narrativa: {
     ordem: number
     tipo: string
@@ -145,6 +158,25 @@ export function TransferenciaDocument({ pacote }: { pacote: PacotePDF }) {
               <Text style={{ fontSize: TIPO.pequeno }}>A: {e.avaliacao}</Text>
             ) : null}
             {e.plano ? <Text style={{ fontSize: TIPO.pequeno }}>P: {e.plano}</Text> : null}
+          </View>
+        ))
+      )}
+
+      <Secao titulo="Prescrições" />
+      {(pacote.prescricoes ?? []).length === 0 ? (
+        <Vazio>Nenhuma receita registrada.</Vazio>
+      ) : (
+        (pacote.prescricoes ?? []).map((p, i) => (
+          <View key={i} style={{ marginBottom: ESPACO.sm }} wrap={false}>
+            <Text style={{ fontSize: TIPO.pequeno, fontFamily: 'Outfit', fontWeight: 600 }}>
+              {data(p.emitidaEm)} · {p.prescritor}
+              {p.cancelada ? ' · CANCELADA' : ''}
+            </Text>
+            {p.itens.map((item, n) => (
+              <Text key={n} style={{ fontSize: TIPO.pequeno, color: TOKENS.inkSoft }}>
+                • {[item.medicamento, item.dose, item.posologia, item.duracao].filter(Boolean).join(' · ')}
+              </Text>
+            ))}
           </View>
         ))
       )}

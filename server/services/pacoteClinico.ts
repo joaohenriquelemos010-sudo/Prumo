@@ -5,6 +5,7 @@ import { Consulta } from '../models/Consulta.js'
 import { Exame } from '../models/Exame.js'
 import { MedidaFetal } from '../models/MedidaFetal.js'
 import { Evolucao } from '../models/Evolucao.js'
+import { Prescricao } from '../models/Prescricao.js'
 import { verificarCadeia } from './evolucao.js'
 import type { EscopoTransferencia } from '../models/Transferencia.js'
 
@@ -16,7 +17,7 @@ import type { EscopoTransferencia } from '../models/Transferencia.js'
  * Os campos são batizados como **recursos FHIR**: `paciente` → Patient,
  * `encontros` → Encounter, `observacoes` → Observation, `imunizacoes` →
  * Immunization, `documentos` → DocumentReference, `condicoes` → Condition,
- * `narrativa` → Composition.
+ * `narrativa` → Composition, `prescricoes` → MedicationRequest.
  *
  * Não é preciosismo. A RNDS exige HL7 FHIR para interoperar nacionalmente, e
  * essa é a diferença entre, mais tarde, escrever um mapeamento e ter que
@@ -45,6 +46,14 @@ export interface PacoteClinico {
   observacoes: unknown[]
   imunizacoes: unknown[]
   documentos: unknown[]
+  /**
+   * → MedicationRequest.
+   *
+   * Entra no pacote porque o próximo médico precisa saber **o que a paciente
+   * está tomando** antes de prescrever qualquer coisa. Uma transferência que
+   * omite a medicação em curso é a que produz interação medicamentosa.
+   */
+  prescricoes: unknown[]
   narrativa: unknown[]
 }
 
@@ -59,14 +68,20 @@ export async function montarPacote(
 
   const quer = (e: EscopoTransferencia) => escopo.includes(e)
 
-  const [prontuario, consultas, exames, medidas, evolucoes, integridade] = await Promise.all([
-    quer('prontuario') ? Prontuario.findOne({ crianca: jornadaId }) : null,
-    quer('consultas') ? Consulta.find({ crianca: jornadaId, status: 'finalizada' }).sort({ data: 1 }) : [],
-    quer('exames') ? Exame.find({ crianca: jornadaId }).sort({ dataExame: 1 }) : [],
-    quer('medidas') ? MedidaFetal.find({ crianca: jornadaId }).sort({ semana: 1 }) : [],
-    quer('prontuario') ? Evolucao.find({ jornada: jornadaId }).sort({ ordem: 1 }) : [],
-    verificarCadeia(jornadaId),
-  ])
+  const [prontuario, consultas, exames, medidas, evolucoes, prescricoes, integridade] =
+    await Promise.all([
+      quer('prontuario') ? Prontuario.findOne({ crianca: jornadaId }) : null,
+      quer('consultas')
+        ? Consulta.find({ crianca: jornadaId, status: 'finalizada' }).sort({ data: 1 })
+        : [],
+      quer('exames') ? Exame.find({ crianca: jornadaId }).sort({ dataExame: 1 }) : [],
+      quer('medidas') ? MedidaFetal.find({ crianca: jornadaId }).sort({ semana: 1 }) : [],
+      quer('prontuario') ? Evolucao.find({ jornada: jornadaId }).sort({ ordem: 1 }) : [],
+      // Vai junto do prontuário: medicação em curso é história clínica, não um
+      // anexo administrativo.
+      quer('prontuario') ? Prescricao.find({ jornada: jornadaId }).sort({ emitidaEm: 1 }) : [],
+      verificarCadeia(jornadaId),
+    ])
 
   return {
     meta: {
@@ -161,6 +176,25 @@ export async function montarPacote(
     })),
 
     // → Composition
+    prescricoes: prescricoes.map((p) => ({
+      id: String(p._id),
+      emitidaEm: new Date(p.emitidaEm).toISOString(),
+      validaAte: new Date(p.validaAte).toISOString(),
+      tipo: p.tipo,
+      // Cancelada viaja junto, e marcada: o próximo médico precisa saber que
+      // aquilo foi prescrito e desfeito, não que nunca existiu.
+      cancelada: Boolean(p.canceladaEm),
+      prescritor: [p.medicoNome, p.medicoCrm && `CRM ${p.medicoCrm}/${p.medicoCrmUf}`]
+        .filter(Boolean)
+        .join(' · '),
+      itens: (p.itens ?? []).map((i) => ({
+        medicamento: i.medicamento,
+        dose: i.dose,
+        posologia: i.posologia,
+        duracao: i.duracao,
+      })),
+      orientacoes: p.orientacoes,
+    })),
     narrativa: evolucoes.map((e) => ({
       ordem: e.ordem,
       tipo: e.tipo,

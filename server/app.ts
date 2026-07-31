@@ -16,6 +16,7 @@ import { checklistsRouter } from './routes/checklists.js'
 import { lembretesRouter } from './routes/lembretes.js'
 import { pushRouter } from './routes/push.js'
 import { teleconsultaRouter } from './routes/teleconsulta.js'
+import { prescricoesRouter } from './routes/prescricoes.js'
 import { cronRouter } from './routes/cron.js'
 import { examesRouter } from './routes/exames.js'
 import { prestadoresRouter } from './routes/prestadores.js'
@@ -77,6 +78,7 @@ export function createApp() {
   app.use('/api/lembretes', lembretesRouter)
 app.use('/api/push', pushRouter)
 app.use('/api/teleconsulta', teleconsultaRouter)
+app.use('/api/prescricoes', prescricoesRouter)
   app.use('/api/cron', cronRouter)
   app.use('/api/exames', examesRouter)
   app.use('/api/prestadores', prestadoresRouter)

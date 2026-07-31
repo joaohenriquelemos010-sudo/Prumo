@@ -7,6 +7,7 @@ import { PainelSOAP } from '@/features/atendimento/PainelSOAP'
 import { RoteiroLateral } from '@/features/atendimento/RoteiroLateral'
 import { MedidasRapidas } from '@/features/atendimento/MedidasRapidas'
 import { PreviaFamilia } from '@/features/atendimento/PreviaFamilia'
+import { Receituario } from '@/features/atendimento/Receituario'
 import { BarraAtendimento } from '@/features/atendimento/BarraAtendimento'
 import type { CampoSOAP, Medidas } from '@/features/atendimento/tipos'
 import { roteiroParaSemana } from '@/features/clinico/diretrizes-prenatal'
@@ -259,6 +260,15 @@ export default function AppAtendimento() {
               tipo={cockpit.consulta.tipo}
               valores={medidasBrutas}
               onChange={mudarMedida}
+            />
+            {/* Prescrever acontece DURANTE a consulta, com a paciente na
+                frente. Numa tela própria, a médica teria que salvar, navegar,
+                procurar a paciente de novo e voltar — e continuaria escrevendo
+                no bloquinho. */}
+            <Receituario
+              jornadaQuery={`?crianca=${cockpit.paciente.id}`}
+              consultaId={cockpit.consulta.id}
+              pacienteNome={cockpit.paciente.nome}
             />
             <RoteiroLateral blocos={blocos} marcados={checklist} onToggle={alternarItem} />
           </div>

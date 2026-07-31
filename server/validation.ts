@@ -502,3 +502,35 @@ export const sinalSchema = z.object({
     .refine((v) => JSON.stringify(v ?? null).length <= 16_000, 'Sinal grande demais.')
     .optional(),
 })
+
+/**
+ * POST /api/prescricoes.
+ *
+ * Só `medicamento` é obrigatório num item, e isso é deliberado: existe receita
+ * de "Ácido fólico 5 mg, 1 comprimido ao dia" e existe "Retomar o anti-hipertensivo
+ * de uso contínuo". Exigir posologia em todas transformaria o campo numa
+ * formalidade preenchida com ponto.
+ */
+export const prescricaoCreateSchema = z.object({
+  consultaId: z.string().trim().optional(),
+  pacienteNome: z.string().trim().max(120).optional(),
+  tipo: z.enum(['simples', 'antimicrobiano', 'especial']).default('simples'),
+  itens: z
+    .array(
+      z.object({
+        medicamento: z.string().trim().min(2, 'Escreva o medicamento.').max(200),
+        dose: z.string().trim().max(120).optional(),
+        posologia: z.string().trim().max(200).optional(),
+        duracao: z.string().trim().max(120).optional(),
+        quantidade: z.string().trim().max(80).optional(),
+        observacao: z.string().trim().max(300).optional(),
+      }),
+    )
+    .min(1, 'Uma receita precisa de pelo menos um item.')
+    .max(20, 'Muitos itens numa receita só — emita outra.'),
+  orientacoes: z.string().trim().max(1000).optional(),
+})
+
+export const prescricaoCancelarSchema = z.object({
+  motivo: z.string().trim().max(300).optional(),
+})

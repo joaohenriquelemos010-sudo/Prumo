@@ -28,6 +28,8 @@ import { ResumoDaConsultaDocument } from './documentos/ResumoDaConsulta'
 import type { ResumoConsultaPDF } from './documentos/ResumoDaConsulta'
 import { TransferenciaDocument } from './documentos/Transferencia'
 import type { PacotePDF } from './documentos/Transferencia'
+import { ReceitaDocument } from './documentos/Receita'
+import type { ReceitaPDF } from './documentos/Receita'
 
 export { DownloadLink }
 export {
@@ -38,6 +40,7 @@ export {
   MeusDadosDocument,
   ResumoDaConsultaDocument,
   TransferenciaDocument,
+  ReceitaDocument,
 }
 export type {
   DuvidaPDF,
@@ -48,6 +51,7 @@ export type {
   MeusDadosExport,
   ResumoConsultaPDF,
   PacotePDF,
+  ReceitaPDF,
 }
 
 /* ---- Botões por documento: as páginas carregam estes e passam os dados ---- */
@@ -116,6 +120,23 @@ export function BaixarTransferencia({ pacote }: { pacote: PacotePDF }) {
       documento={<TransferenciaDocument pacote={pacote} />}
       fileName="prontuario-transferencia.pdf"
       label="Baixar prontuário (PDF)"
+    />
+  )
+}
+
+/**
+ * A receita.
+ *
+ * Nome de arquivo com a data: a paciente baixa várias ao longo da gestação, e
+ * `receita.pdf (3)` na pasta de downloads não diz qual é qual.
+ */
+export function BaixarReceita({ dados }: { dados: ReceitaPDF }) {
+  const dia = dados.emitidaEm.slice(0, 10)
+  return (
+    <DownloadLink
+      documento={<ReceitaDocument dados={dados} />}
+      fileName={`receita-${dia}.pdf`}
+      label="Baixar receita (PDF)"
     />
   )
 }

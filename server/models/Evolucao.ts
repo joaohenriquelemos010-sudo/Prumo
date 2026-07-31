@@ -35,6 +35,12 @@ export const TIPOS_EVOLUCAO = [
   'resultado',
   'transferencia',
   'intercorrencia',
+  /**
+   * Prescrever é um ato clínico, e por isso entra na cadeia como qualquer
+   * outro. Sem isso, uma receita emitida ficaria fora da história — visível na
+   * lista de prescrições e invisível no prontuário e na transferência.
+   */
+  'prescricao',
 ] as const
 export type TipoEvolucao = (typeof TIPOS_EVOLUCAO)[number]
 

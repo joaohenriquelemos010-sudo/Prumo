@@ -112,6 +112,38 @@ medida, nem diagnóstico. Uma notificação aparece na tela bloqueada, à vista 
 quem estiver por perto. Ela diz que há algo para ver e leva até lá; o conteúdo
 fica atrás do login.
 
+### Receituário — sem contrato, sem custo
+
+Prescrição é o maior lock-in "não consigo sair do concorrente". A integração com
+a Memed resolveria, mas exige **parceria comercial**. Sem ela, o Prumo emite a
+receita em PDF pronta para imprimir e assinar — e isso cobre o caso real, que é
+como a maioria dos consultórios já trabalha.
+
+**A decisão de projeto inverteu em relação ao plano.** Com a Memed, guardaríamos
+apenas a referência: o conteúdo é dela, que é a custodiante legal. Sem a Memed, o
+custodiante somos nós — então o conteúdo **precisa** ficar aqui, entrar na cadeia
+encadeada de `Evolucao` e viajar no pacote de transferência. Uma receita que a
+médica emitiu e o Prumo não guarda é um buraco no prontuário. O campo `memedId`
+já existe para o dia em que a parceria acontecer.
+
+O tipo decide a consequência, e ela aparece ao lado da escolha:
+
+| Tipo | Vias | Validade | Base |
+|---|---|---|---|
+| Simples | 1 | 30 dias | prática corrente |
+| Antimicrobiano | 2 | 10 dias | RDC ANVISA 20/2011 |
+| Controle especial | 2 | 30 dias | Portaria SVS/MS 344/1998 |
+
+Emitir uma via só faz a farmácia recusar — e quem descobre isso é a paciente, no
+balcão.
+
+**Sobre validade jurídica, sem rodeios.** O Prumo gera a receita; ele não a
+assina. A Lei 14.063/2020 e a Res. CFM 2.299/2021 exigem assinatura digital
+qualificada (ICP-Brasil) para dispensação sem presença física. O PDF traz o bloco
+de assinatura em **cada via** e declara, em letra visível, que a via vale depois
+de assinada — no papel, ou com o certificado da médica por fora. O assinador do
+gov.br é gratuito. É melhor a paciente descobrir isso aqui do que na farmácia.
+
 ### Teleconsulta — ponto a ponto, custo zero
 
 `Agendamento.modalidade` já tinha `teleconsulta` e isso **não significava nada** —
