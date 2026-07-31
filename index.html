@@ -24,6 +24,17 @@
     />
 
     <link rel="icon" type="image/svg+xml" href="/img/logo_sem_fundo_so_com_desenho.svg" />
+
+    <!--
+      PWA. O `apple-touch-icon` existe porque o iOS ignora o manifest para o
+      ícone da tela de início; sem ele, o iPhone usa uma captura da página, que
+      é como um app instalado passa a não ter cara de app.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icones/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Prumo" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

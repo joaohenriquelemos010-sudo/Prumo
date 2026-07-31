@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { Mail, Bell, Moon, Pause } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { AlertaErro } from '@/components/AlertaErro'
+import { NoCelular } from '@/features/lembretes/NoCelular'
 import { molas } from '@/lib/motion'
 import { cn } from '@/lib/cn'
 
@@ -162,6 +163,8 @@ export function Preferencias({
 
   return (
     <div className="flex flex-col gap-lg">
+      <NoCelular />
+
       <section className="rounded-2xl border border-line bg-paper p-5 shadow-soft">
         <h3 className="font-display text-lg font-semibold text-indigo">Por onde falamos com você</h3>
         <div className="mt-2 divide-y divide-line">

@@ -70,4 +70,19 @@ export const env = {
    * gravado. Ver `security/cripto.ts`.
    */
   CAMPO_CHAVE: process.env.CAMPO_CHAVE ?? '',
+
+  /**
+   * Web Push (VAPID). Ausentes, o canal `push` fica **encostado** — mesmo
+   * desenho do SMTP: a fila roda, o lembrete é marcado como enviado e nada sai.
+   *
+   * Gere o par: npx web-push generate-vapid-keys
+   *
+   * ⚠️ Trocar a chave pública invalida **todas** as inscrições existentes: cada
+   * navegador cifrou a assinatura dela contra a chave antiga. Trocar significa
+   * pedir a permissão de novo para todo mundo.
+   */
+  VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY ?? '',
+  VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY ?? '',
+  /** Como o serviço de push fala com a gente quando algo dá errado do lado dele. */
+  VAPID_CONTATO: process.env.VAPID_CONTATO ?? 'suporte@prumo.app',
 }

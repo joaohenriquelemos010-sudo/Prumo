@@ -1,0 +1,50 @@
+{
+  "name": "Prumo — a trilha do seu bebê",
+  "short_name": "Prumo",
+  "description": "A trilha contínua de saúde do seu bebê, da gestação à pediatria.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fdfcff",
+  "theme_color": "#b58bfd",
+  "categories": ["health", "medical", "lifestyle"],
+  "icons": [
+    { "src": "/icones/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icones/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/icones/icone-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icones/icone-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Minha trilha",
+      "short_name": "Trilha",
+      "url": "/app/trilha",
+      "icons": [{ "src": "/icones/icone-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Meu bebê",
+      "short_name": "Bebê",
+      "url": "/app/bebe",
+      "icons": [{ "src": "/icones/icone-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Minha agenda",
+      "short_name": "Agenda",
+      "url": "/app/agenda",
+      "icons": [{ "src": "/icones/icone-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

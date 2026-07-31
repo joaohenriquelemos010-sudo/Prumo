@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
 import { MotionConfig } from 'framer-motion'
 import { router } from './app/router'
+import { registrarServiceWorker } from './lib/pwa'
 import './styles/index.css'
 
 const rootEl = document.getElementById('root')
@@ -17,3 +18,10 @@ createRoot(rootEl).render(
     </MotionConfig>
   </StrictMode>,
 )
+
+/**
+ * Registrado fora do React: é um efeito global do documento, não do ciclo de
+ * vida de um componente. Só em produção — em desenvolvimento um worker
+ * interceptando `fetch` transforma o HMR do Vite num bug caro de diagnosticar.
+ */
+void registrarServiceWorker()

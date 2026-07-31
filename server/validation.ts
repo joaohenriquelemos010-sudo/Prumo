@@ -471,3 +471,18 @@ export const trocarSenhaSchema = z
     path: ['novaSenha'],
     message: 'A nova senha precisa ser diferente da atual.',
   })
+
+/**
+ * POST /api/push/assinar.
+ *
+ * A forma vem do `PushSubscription.toJSON()` do navegador — validada aqui
+ * porque é entrada de rede como qualquer outra, e um `endpoint` de 40 KB numa
+ * coleção sem limite é um jeito barato de encher o banco.
+ */
+export const assinaturaPushSchema = z.object({
+  endpoint: z.string().trim().url('Endpoint inválido.').max(1000),
+  keys: z.object({
+    p256dh: z.string().trim().min(1).max(300),
+    auth: z.string().trim().min(1).max(300),
+  }),
+})

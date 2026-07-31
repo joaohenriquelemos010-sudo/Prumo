@@ -6,6 +6,7 @@ import { User } from '../../models/User.js'
 import { podeEnviar, deveColapsar } from './politica.js'
 import type { Preferencias } from './politica.js'
 import { enviar, envioAtivo } from '../email/index.js'
+import { enviarPush, pushAtivo } from '../push/index.js'
 import { montarEmail } from '../../conteudo/emails/templates.js'
 import { env } from '../../env.js'
 
@@ -24,6 +25,8 @@ export interface ResultadoRodada {
   falhas: number
   /** `false` enquanto o SMTP não estiver configurado. */
   envioAtivo: boolean
+  /** `false` enquanto as chaves VAPID não existirem. */
+  pushAtivo: boolean
 }
 
 /**
@@ -50,6 +53,40 @@ async function reivindicar(agora: Date) {
     },
     { sort: { prioridade: 1, agendadoPara: 1 }, returnDocument: 'after' },
   )
+}
+
+/**
+ * Para onde a notificação leva. Nunca para uma tela que exija saber o que ela
+ * era: o push não carrega contexto, então o destino tem que se explicar sozinho.
+ */
+const URL_POR_TIPO: Record<string, string> = {
+  consulta: '/app/agenda',
+  checklist: '/app/trilha',
+  exame: '/app/trilha',
+  vacina: '/app/vacinas',
+  resumo: '/app/consultas',
+  sequencia: '/app/trilha',
+  digest: '/app/lembretes',
+}
+
+/**
+ * O título, em linguagem de gente e **sem conteúdo clínico**.
+ *
+ * "Resultado do teste de tolerância à glicose" numa tela bloqueada conta ao
+ * ônibus inteiro que aquela pessoa está grávida e fez rastreio de diabetes.
+ */
+const TITULO_POR_TIPO: Record<string, string> = {
+  consulta: 'Você tem consulta em breve',
+  checklist: 'Um passo da sua trilha chegou',
+  exame: 'Chegou a época de um exame',
+  vacina: 'Uma vacina está prevista',
+  resumo: 'Sua médica deixou um resumo',
+  sequencia: 'Sua trilha continua aqui',
+  digest: 'Algumas coisas da sua semana',
+}
+
+function tituloDoPush(lembrete: LembreteDoc): string {
+  return TITULO_POR_TIPO[lembrete.tipo] ?? 'Você tem uma novidade no Prumo'
 }
 
 /** As preferências da pessoa, ou os defaults do schema se ela nunca mexeu. */
@@ -178,6 +215,42 @@ async function despacharUm(lembrete: LembreteDoc, agora: Date, r: ResultadoRodad
       },
     )
     r.adiados++
+    return
+  }
+
+  /**
+   * Push: a notificação vai para todos os aparelhos da pessoa.
+   *
+   * O corpo **nunca traz conteúdo clínico** — nem nome de exame, nem medida,
+   * nem diagnóstico. Uma notificação aparece na tela bloqueada, à vista de quem
+   * estiver por perto, e o servidor não tem como saber quem é. Ela diz que há
+   * algo para ver e leva até lá; o conteúdo fica atrás do login.
+   *
+   * Sem aparelho inscrito ou com o transporte encostado, o lembrete é marcado
+   * como enviado do mesmo jeito: a fila e os limites continuam se exercitando,
+   * e a alternativa — deixá-lo eternamente devido — encheria a fila de itens
+   * que nunca sairiam.
+   */
+  if (lembrete.canal === 'push') {
+    const resultado = await enviarPush(lembrete.destinatarioId, {
+      titulo: tituloDoPush(lembrete),
+      corpo: 'Toque para ver no Prumo.',
+      url: URL_POR_TIPO[lembrete.tipo] ?? '/app',
+      tag: `${lembrete.tipo}:${lembrete.referencia?.id ?? ''}`,
+    })
+
+    await Lembrete.updateOne(
+      { _id: lembrete._id },
+      {
+        $set: {
+          estado: 'enviado',
+          enviadoEm: agora,
+          travadoAte: new Date(0),
+          erro: resultado.erro ?? '',
+        },
+      },
+    )
+    r.enviados++
     return
   }
 
@@ -337,6 +410,7 @@ export async function despacharLembretes(agora = new Date()): Promise<ResultadoR
     suprimidos: 0,
     falhas: 0,
     envioAtivo: envioAtivo(),
+    pushAtivo: pushAtivo(),
   }
 
   const limite = Date.now() + ORCAMENTO_MS

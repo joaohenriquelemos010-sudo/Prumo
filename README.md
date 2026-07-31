@@ -76,6 +76,42 @@ Copie `.env.example` para `.env`. As duas do backend:
 Lembre: só variáveis `VITE_*` chegam ao cliente e **elas são públicas**. Segredos
 (`MONGODB_URI`, `JWT_SECRET`) ficam só no servidor / painel da Vercel.
 
+### App da paciente (PWA) — instalável, push encostado
+
+O Prumo é instalável: `public/manifest.webmanifest` + um service worker escrito
+à mão em `public/sw.js`. Escrito à mão de propósito — o service worker é o único
+código do produto que **sobrevive ao deploy**, e um bug de cache aqui serve a
+versão velha do app para quem já instalou, indefinidamente. Numa plataforma de
+saúde isso quer dizer uma gestante lendo a orientação de duas versões atrás.
+
+Três regras, e elas cabem na cabeça:
+
+1. **Nada de dado de saúde em cache.** Requisição para `/api/` nunca passa pelo
+   worker. O cache do navegador é disco não cifrado.
+2. **HTML sempre da rede primeiro** — é o que garante que um deploy chegue. O
+   cache do HTML só serve como resposta de offline.
+3. **Assets com hash no nome são imutáveis** — esses sim, cache primeiro.
+
+Os ícones são gerados a partir do SVG da marca por `node scripts/gerar-icones.mjs`,
+que rasteriza com o Chromium do Playwright. Reproduzível: qualquer pessoa roda e
+obtém o mesmo arquivo. Um PNG exportado à mão de um editor não tem essa
+propriedade, e é assim que o ícone do app fica desatualizado sem ninguém
+perceber.
+
+**Web Push está encostado como o SMTP.** Sem `VAPID_PUBLIC_KEY` /
+`VAPID_PRIVATE_KEY` o canal `push` roda em `noop` e `GET /api/push/chave`
+responde `ativo: false` — o cliente esconde o botão em vez de pedir uma
+permissão que não leva a nada, e uma permissão negada por engano é quase
+irreversível (o navegador passa a bloquear o pedido em silêncio).
+
+Para ligar: `npx web-push generate-vapid-keys` e as duas variáveis no ambiente.
+⚠️ Trocar a chave **pública** depois invalida todas as inscrições existentes.
+
+O corpo da notificação **nunca traz conteúdo clínico** — nem nome de exame, nem
+medida, nem diagnóstico. Uma notificação aparece na tela bloqueada, à vista de
+quem estiver por perto. Ela diz que há algo para ver e leva até lá; o conteúdo
+fica atrás do login.
+
 ### Lembretes — hoje encostados
 
 A fila de lembretes está construída e rodando; **o envio de e-mail está

@@ -1,6 +1,7 @@
 import type { Types } from 'mongoose'
 import { Lembrete } from '../../models/Lembrete.js'
 import type { TipoLembrete } from '../../models/Lembrete.js'
+import { PreferenciasNotificacao } from '../../models/PreferenciasNotificacao.js'
 
 /**
  * Quem cria os lembretes.
@@ -23,6 +24,35 @@ interface Agendar {
   agendadoPara: Date
   chaveDedup: string
   carga?: Record<string, unknown>
+}
+
+/**
+ * Por onde falar com esta pessoa **agora**.
+ *
+ * O canal é escolhido na hora de programar, e não na de enviar, porque é o que
+ * fica gravado no lembrete e é o que a tela mostra ("por e-mail" / "aqui no
+ * Prumo"). Mudar de canal depois seria contar uma coisa e fazer outra.
+ *
+ * A ordem é push → e-mail → in-app, e ela não é arbitrária:
+ *
+ * - **Push ganha quando existe.** Conceder a permissão de notificação é o
+ *   consentimento mais explícito que a pessoa pode dar, e é o canal que de fato
+ *   chega a tempo de evitar uma consulta perdida.
+ * - **In-app é o último**, e nunca falha: não tem entrega, existe estando lá
+ *   quando ela abrir. É o piso que garante que nada se perca em silêncio.
+ *
+ * Uma consulta ao banco por hook. Roda quando alguém confirma um agendamento ou
+ * atribui um checklist — não é caminho quente.
+ */
+export async function canalPreferido(
+  userId: string,
+  padrao: 'email' | 'inapp' = 'inapp',
+): Promise<'email' | 'inapp' | 'push'> {
+  const prefs = await PreferenciasNotificacao.findOne({ userId }).select('canais')
+  if (!prefs) return padrao
+  if (prefs.canais?.push) return 'push'
+  if (prefs.canais?.email) return 'email'
+  return 'inapp'
 }
 
 /** Cria ou reagenda. Um lembrete já enviado não volta atrás. */
@@ -80,10 +110,12 @@ export async function aoConfirmarAgendamento(dados: {
     inicio: dados.inicio.toISOString(),
     profissionalNome: dados.profissionalNome,
   }
+  const canal = await canalPreferido(dados.pacienteId, 'email')
 
   await agendar({
     jornada: dados.jornada,
     destinatarioId: dados.pacienteId,
+    canal,
     tipo: 'consulta',
     prioridade: 1,
     referencia: { colecao: 'agendamentos', id: dados.agendamentoId },
@@ -95,6 +127,7 @@ export async function aoConfirmarAgendamento(dados: {
   await agendar({
     jornada: dados.jornada,
     destinatarioId: dados.pacienteId,
+    canal,
     tipo: 'consulta',
     prioridade: 1,
     referencia: { colecao: 'agendamentos', id: dados.agendamentoId },
@@ -118,6 +151,7 @@ export async function aoFinalizarConsulta(dados: {
   await agendar({
     jornada: dados.jornada,
     destinatarioId: dados.pacienteId,
+    canal: await canalPreferido(dados.pacienteId, 'email'),
     tipo: 'resumo',
     prioridade: 2,
     referencia: { colecao: 'consultas', id: dados.consultaId },

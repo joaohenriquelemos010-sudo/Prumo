@@ -2,6 +2,29 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "vite build",
   "outputDirectory": "dist",
+  "headers": [
+    {
+      "//": "O service worker nunca pode vir de cache. Ele é o único código que sobrevive ao deploy, e um worker velho serve o app velho para quem já instalou — indefinidamente.",
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "//": "O manifest muda junto com a marca, e raramente. Uma hora é curto o bastante para uma correção chegar e longo o bastante para não custar nada.",
+      "source": "/manifest.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    },
+    {
+      "//": "Os ícones têm nome estável, então o cache longo depende de trocar o nome ao trocar a arte. Um dia é o meio-termo honesto.",
+      "source": "/icones/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
+    }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
