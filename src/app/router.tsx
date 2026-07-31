@@ -35,6 +35,7 @@ const AppPacientes = lazy(() => import('@/pages/app/AppPacientes'))
 const AppAtendimento = lazy(() => import('@/pages/app/AppAtendimento'))
 const AppLembretes = lazy(() => import('@/pages/app/AppLembretes'))
 const AppTeleconsulta = lazy(() => import('@/pages/app/AppTeleconsulta'))
+const AppFinanceiro = lazy(() => import('@/pages/app/AppFinanceiro'))
 
 export const router = createBrowserRouter(
   [
@@ -92,6 +93,7 @@ export const router = createBrowserRouter(
         { path: 'compartilhar', element: <AppCompartilhar /> },
         { path: 'comunidade', element: <AppComunidade /> },
         { path: 'lembretes', element: <AppLembretes /> },
+        { path: 'financeiro', element: <AppFinanceiro /> },
         { path: 'admin', element: <AppAdmin /> },
         { path: 'perfil', element: <AppPerfil /> },
       ],

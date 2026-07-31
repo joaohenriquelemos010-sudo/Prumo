@@ -23,6 +23,7 @@ import {
   MoreHorizontal,
   Baby,
   BellRing,
+  Wallet,
 } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { BottomSheet } from '@/components/BottomSheet'
@@ -73,6 +74,7 @@ const NAV_MEDICO: NavItem[] = [
   { to: '/app/consultas', label: 'Consultas', icon: Stethoscope },
   { to: '/app/exames', label: 'Exames', icon: FlaskConical },
   { to: '/app/caderninho', label: 'Dúvidas', icon: NotebookPen },
+  { to: '/app/financeiro', label: 'Financeiro', icon: Wallet },
 ]
 
 const NAV_ADMIN: NavItem[] = [

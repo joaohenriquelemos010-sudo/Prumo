@@ -534,3 +534,37 @@ export const prescricaoCreateSchema = z.object({
 export const prescricaoCancelarSchema = z.object({
   motivo: z.string().trim().max(300).optional(),
 })
+
+/**
+ * POST /api/financeiro.
+ *
+ * `valorCentavos` é inteiro e chega já convertido do cliente — a conversão de
+ * "1.500" para centavos mora em `services/financeiro.ts` e é testada lá. Aceitar
+ * a string aqui significaria ter duas conversões, e elas divergiriam.
+ */
+export const recebimentoCreateSchema = z.object({
+  agendamentoId: z.string().trim().optional(),
+  pacienteNome: z.string().trim().max(120).optional(),
+  valorCentavos: z
+    .number()
+    .int('O valor precisa vir em centavos, sem casas decimais.')
+    .min(0)
+    .max(100_000_000, 'Valor alto demais — confere se não sobrou um zero.'),
+  forma: z.enum(['pix', 'dinheiro', 'cartao-credito', 'cartao-debito', 'transferencia', 'convenio', 'outro']),
+  convenio: z.string().trim().max(80).optional(),
+  estado: z.enum(['previsto', 'recebido', 'cancelado']).default('previsto'),
+  dataAtendimento: z.string().trim().optional(),
+  recebidoEm: z.string().trim().optional(),
+  observacao: z.string().trim().max(300).optional(),
+})
+
+export const recebimentoPatchSchema = z.object({
+  valorCentavos: z.number().int().min(0).max(100_000_000).optional(),
+  forma: z
+    .enum(['pix', 'dinheiro', 'cartao-credito', 'cartao-debito', 'transferencia', 'convenio', 'outro'])
+    .optional(),
+  convenio: z.string().trim().max(80).optional(),
+  estado: z.enum(['previsto', 'recebido', 'cancelado']).optional(),
+  dataAtendimento: z.string().trim().optional(),
+  observacao: z.string().trim().max(300).optional(),
+})

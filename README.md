@@ -112,6 +112,37 @@ medida, nem diagnóstico. Uma notificação aparece na tela bloqueada, à vista 
 quem estiver por perto. Ela diz que há algo para ver e leva até lá; o conteúdo
 fica atrás do login.
 
+### Financeiro — quanto entrou, e nada além
+
+Recebimentos por atendimento, particular vs. convênio, resumo mensal.
+**Não é TISS**, e isso é decisão: TISS 4.x é meses de trabalho com
+particularidades por operadora e só paga para quem fatura convênio direto.
+
+Duas regras sustentam o módulo:
+
+**O dado é do médico, não da jornada.** Todo o resto do Prumo é escopado por
+`Crianca` — a família é dona, o médico alcança por vínculo. Aqui é o contrário, e
+a consequência é dura: um recebimento **nunca** entra na exportação LGPD da
+paciente nem no pacote de transferência. Se entrar, é vazamento — na direção
+contrária da usual, mas vazamento. O smoke verifica isso explicitamente.
+
+**Dinheiro é inteiro.** `valorCentavos`, sempre. Ponto flutuante para dinheiro é
+o defeito que aparece depois de mil linhas somadas e some quando se procura, e um
+relatório que fecha com dois centavos de diferença destrói a confiança no sistema
+inteiro. A conversão de texto para centavos é feita em string — `Number('1234.56')
+* 100` dá `123455.99999999999`.
+
+A ambiguidade que mais custa caro está resolvida e testada: `1.500` são mil e
+quinhentos reais, não um e cinquenta. A regra é *um separador seguido de
+exatamente três dígitos é milhar*, porque moeda brasileira não tem três casas
+decimais. Errar isso cobraria mil vezes menos sem dar erro nenhum — por isso o
+formulário ecoa o valor entendido embaixo do campo.
+
+`GET /api/financeiro/pendentes` lista atendimentos realizados que ninguém lançou:
+a agenda já sabe quem foi atendido, e sem isso a médica transcreveria a própria
+agenda à mão. Um índice único em `agendamento` impede que clicar duas vezes dobre
+o faturamento do mês.
+
 ### Receituário — sem contrato, sem custo
 
 Prescrição é o maior lock-in "não consigo sair do concorrente". A integração com
