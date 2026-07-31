@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import type { Request, Response } from 'express'
 import { isValidObjectId } from 'mongoose'
 import type { HydratedDocument } from 'mongoose'
 import { randomBytes } from 'node:crypto'
@@ -11,6 +12,7 @@ import { ESCOPOS_TRANSFERENCIA } from '../models/Transferencia.js'
 import { Vinculo } from '../models/Vinculo.js'
 import { Jornada } from '../models/Jornada.js'
 import { montarPacote } from '../services/pacoteClinico.js'
+import { pacoteParaFhir } from '../services/fhir/index.js'
 import { registrar } from '../services/evolucao.js'
 import { transferenciaCreateSchema } from '../validation.js'
 import { normalizeField } from '../sanitize.js'
@@ -194,25 +196,28 @@ transferenciasRouter.post('/:id/revogar', requireAuth, async (req, res) => {
 })
 
 /**
- * GET /api/transferencias/:token/pacote — o médico receptor baixa.
+ * O corpo comum das duas rotas de download.
  *
- * Exige sessão de médico: o token diz *qual* pacote, não *quem* pode. Um link
- * vazado numa caixa de e-mail comprometida ainda esbarra na necessidade de
- * estar autenticado como profissional.
+ * `/pacote` e `/fhir` entregam exatamente o mesmo conteúdo em dois formatos, e
+ * por isso precisam da *mesma* porta: se um dia alguém apertar a regra de um
+ * lado e esquecer do outro, o formato mais novo vira a porta dos fundos. Uma
+ * função só, dois chamadores.
+ *
+ * Devolve `null` depois de já ter respondido o erro.
  */
-transferenciasRouter.get('/:token/pacote', requireAuth, requireRole('medico'), auditar('transferencia.baixar', 'transferencias'), async (req, res) => {
+async function pacoteAutorizado(req: Request, res: Response) {
   const transferencia = await Transferencia.findOne({ token: req.params.token })
   if (!transferencia || !transferencia.token) {
     res.status(404).json({ error: 'Esse link não é mais válido. Peça um novo.' })
-    return
+    return null
   }
   if (transferencia.estado !== 'consentida' && transferencia.estado !== 'baixada') {
     res.status(403).json({ error: 'Essa transferência não está autorizada.' })
-    return
+    return null
   }
   if (transferencia.expiraEm && transferencia.expiraEm.getTime() < Date.now()) {
     res.status(410).json({ error: 'Esse link expirou. Peça um novo.' })
-    return
+    return null
   }
 
   const pacote = await montarPacote(
@@ -221,7 +226,7 @@ transferenciasRouter.get('/:token/pacote', requireAuth, requireRole('medico'), a
   )
   if (!pacote) {
     res.status(404).json({ error: 'Não encontramos essa jornada.' })
-    return
+    return null
   }
 
   // Carimba quem baixou e quando — a transferência é rastreável dos dois lados.
@@ -230,5 +235,36 @@ transferenciasRouter.get('/:token/pacote', requireAuth, requireRole('medico'), a
   transferencia.paraMedicoId = req.user!.id
   await transferencia.save()
 
+  return pacote
+}
+
+/**
+ * GET /api/transferencias/:token/pacote — o médico receptor baixa.
+ *
+ * Exige sessão de médico: o token diz *qual* pacote, não *quem* pode. Um link
+ * vazado numa caixa de e-mail comprometida ainda esbarra na necessidade de
+ * estar autenticado como profissional.
+ */
+transferenciasRouter.get('/:token/pacote', requireAuth, requireRole('medico'), auditar('transferencia.baixar', 'transferencias'), async (req, res) => {
+  const pacote = await pacoteAutorizado(req, res)
+  if (!pacote) return
   res.json({ pacote })
+})
+
+/**
+ * GET /api/transferencias/:token/fhir — o mesmo pacote como Bundle FHIR R4.
+ *
+ * Mesmo token, mesma porta, mesma auditoria — só muda o formato do que sai.
+ * Quem recebe é software: um prontuário do outro lado que sabe ler FHIR importa
+ * isto sem ninguém redigitar nada.
+ *
+ * ATENÇÃO: é R4 base, não perfil da RNDS. Ver o cabeçalho de
+ * `server/services/fhir/index.ts` para o que ainda falta antes de mandar isto
+ * para o barramento nacional.
+ */
+transferenciasRouter.get('/:token/fhir', requireAuth, requireRole('medico'), auditar('transferencia.baixar-fhir', 'transferencias'), async (req, res) => {
+  const pacote = await pacoteAutorizado(req, res)
+  if (!pacote) return
+  // O content-type oficial do FHIR JSON. Um cliente conforme roteia por ele.
+  res.type('application/fhir+json').json(pacoteParaFhir(pacote))
 })

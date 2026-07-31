@@ -120,6 +120,9 @@ export function Transferencias() {
     }
   }
 
+  /** Mesma autorização, outro formato — só troca o sufixo da rota. */
+  const linkFhir = linkGerado?.replace(/\/pacote$/, '/fhir') ?? null
+
   return (
     <section className="rounded-2xl border border-line bg-paper p-lg shadow-soft">
       <h2 className="inline-flex items-center gap-2 text-lg">
@@ -230,6 +233,28 @@ export function Transferencias() {
           onClick={() => linkGerado && void navigator.clipboard?.writeText(linkGerado)}
         >
           Copiar link
+        </Button>
+
+        {/*
+          O mesmo caso, no formato que outro prontuário importa sozinho. Fica
+          abaixo e em tom menor de propósito: quem autoriza é a família, e o
+          link normal é o que ela precisa entender. Este é para quando o colega
+          pedir "manda em FHIR".
+        */}
+        <p className="mt-lg text-xs text-ink-mute">
+          Se o sistema do médico souber importar sozinho, ele pode usar esta versão em vez da de
+          cima — é o mesmo conteúdo, no formato padrão (FHIR R4) que os prontuários trocam entre si.
+        </p>
+        <code className="mt-2 block break-all rounded-xl bg-paper-2 p-3 text-xs text-ink-soft">
+          {linkFhir}
+        </code>
+        <Button
+          className="mt-2"
+          size="sm"
+          variant="ghost"
+          onClick={() => linkFhir && void navigator.clipboard?.writeText(linkFhir)}
+        >
+          Copiar link do formato padrão
         </Button>
       </Sheet>
 

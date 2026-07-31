@@ -398,6 +398,37 @@ depois e reescrever o exportador inteiro.
 Notas privadas e avaliações marcadas como "só para mim" **não vão** no pacote:
 são o raciocínio em aberto de um profissional específico, não o registro do caso.
 
+### FHIR R4
+
+`GET /api/transferencias/:token/fhir` entrega o mesmo caso como **Bundle FHIR R4
+do tipo `document`** — mesmo token, mesma checagem de consentimento, mesma linha
+de auditoria da rota `/pacote`. Muda só o formato: `/pacote` é para gente ler,
+`/fhir` é para outro prontuário importar sem ninguém redigitar nada.
+
+O mapeamento vive em `server/services/fhir/`, é **puro** (pacote entra, Bundle
+sai — sem banco, sem relógio) e é testado campo a campo. Num formato de
+interoperabilidade, um campo errado não estoura aqui: ele aparece do outro lado,
+semanas depois, como dado errado no prontuário de outra pessoa.
+
+O que sai codificado de verdade:
+
+| Medida | Código |
+|---|---|
+| Peso, altura, comprimento, perímetro cefálico, PA sistólica/diastólica, altura uterina | **LOINC** + unidade **UCUM** |
+| BCF (batimentos cardíacos fetais) | LOINC `55283-6` |
+| Idade gestacional | LOINC `11884-4`, unidade `wk` |
+| PFE, DBP, CC, CA, CF, ILA (biometria fetal) | código **local** (`SISTEMA_PRUMO`) |
+
+Os seis últimos ficam em código local de propósito: inventar um LOINC aproximado
+seria pior que não ter nenhum — o receptor confiaria no código errado.
+
+**Isto é R4 base, não perfil da RNDS.** Falta, e está documentado no cabeçalho do
+mapeador: os `meta.profile` da RNDS, o CNS como `identifier` do Patient (o Prumo
+não coleta CNS hoje), as vacinas em BRVacina (hoje saem com o id local do PNI),
+o certificado ICP-Brasil e o credenciamento no DATASUS. Emitir um Bundle
+carimbado com `meta.profile` da RNDS sem cumprir o perfil seria duplamente ruim:
+o barramento rejeitaria, e quem lesse o código acharia que está pronto.
+
 ### O que a família lê
 
 O prontuário não mostra tudo. `notasPrivadas` fica só com a equipe, e a médica decide se a

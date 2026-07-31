@@ -35,6 +35,9 @@ export const ACOES = [
   'transferencia.solicitar',
   'transferencia.consentir',
   'transferencia.baixar',
+  // Mesmo conteúdo do `baixar`, outro formato — ação separada porque "quem
+  // puxou como FHIR" é a pergunta que a auditoria de interoperabilidade faz.
+  'transferencia.baixar-fhir',
   'dados.exportar',
   'conta.excluir',
   'login.sucesso',

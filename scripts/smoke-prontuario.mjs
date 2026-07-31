@@ -151,6 +151,36 @@ export async function registrarTestesDeProntuario({
     'o pacote NÃO leva notas privadas',
   )
 
+  /* ---- o mesmo conteúdo em FHIR R4 ---- */
+  const fhir = await ctxColega.request.get(`${BASE}${path.replace(/\/pacote$/, '/fhir')}`)
+  afirmar(fhir.ok(), 'o colega baixa o mesmo caso como Bundle FHIR', `status ${fhir.status()}`)
+  afirmar(
+    (fhir.headers()['content-type'] ?? '').includes('application/fhir+json'),
+    'o Bundle sai com o content-type do FHIR',
+    fhir.headers()['content-type'],
+  )
+  const bundle = await fhir.json()
+  afirmar(bundle.resourceType === 'Bundle' && bundle.type === 'document', 'é um Bundle document')
+  afirmar(
+    bundle.entry?.[0]?.resource?.resourceType === 'Composition',
+    'a Composition vem primeiro — a regra do tipo `document`',
+  )
+  // Referência quebrada num Bundle é o defeito que só aparece do outro lado.
+  const urls = new Set(bundle.entry.map((e) => e.fullUrl))
+  const refs = JSON.stringify(bundle).match(/"reference":"([^"]+)"/g) ?? []
+  const orfas = refs
+    .map((r) => r.slice('"reference":"'.length, -1))
+    .filter((r) => !urls.has(`urn:uuid:${r}`) && !urls.has(r))
+  afirmar(orfas.length === 0, 'nenhuma referência aponta para fora do Bundle', orfas.join(', '))
+
+  /* ---- a família não puxa FHIR: é rota de profissional ---- */
+  const maeTentaFhir = await ctxMae.request.get(`${BASE}${path.replace(/\/pacote$/, '/fhir')}`)
+  afirmar(
+    maeTentaFhir.status() === 403,
+    'a rota FHIR exige sessão de médico',
+    `status ${maeTentaFhir.status()}`,
+  )
+
   /* ---- revogar mata o link na hora ---- */
   await ctxMae.request.post(`${BASE}/api/transferencias/${transferencia.id}/revogar`, { data: {} })
   const depoisRevogar = await ctxColega.request.get(`${BASE}${path}`)
