@@ -1,4 +1,5 @@
 import { motion, useReducedMotion } from 'framer-motion'
+import { molas } from '@/lib/motion'
 import { HeartPulse } from 'lucide-react'
 import { BPM_NORMAL } from '@/features/bebe/tipos'
 import type { PontoBatimento } from '@/features/bebe/tipos'
@@ -84,7 +85,7 @@ export function CartaoBatimentos({ batimentos }: { batimentos: PontoBatimento[] 
             )}
             initial={false}
             animate={{ left: `${posicao}%` }}
-            transition={reduzido ? { duration: 0 } : { type: 'spring', stiffness: 210, damping: 26 }}
+            transition={reduzido ? { duration: 0 } : molas.suave}
           />
         </div>
         <div className="mt-1.5 flex justify-between text-xs text-ink-mute">

@@ -1,7 +1,7 @@
-import type { ElementType, ReactNode } from 'react'
+import type { ComponentPropsWithoutRef, ElementType, ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
-interface MaterialProps {
+interface MaterialProps extends Omit<ComponentPropsWithoutRef<'div'>, 'children'> {
   children: ReactNode
   className?: string
   /**
@@ -38,9 +38,16 @@ const PESOS = {
  * a substituição `<alpha-value>` do Tailwind não se aplica — `bg-paper/72`
  * renderiza **opaco**, em silêncio. Daí a forma explícita abaixo.
  */
-export function Material({ children, className, peso = 'medio', as: Tag = 'div' }: MaterialProps) {
+export function Material({
+  children,
+  className,
+  peso = 'medio',
+  as: Tag = 'div',
+  ...resto
+}: MaterialProps) {
   return (
     <Tag
+      {...resto}
       className={cn(
         'bg-[color-mix(in_oklab,var(--color-paper)_var(--material-opacidade,72%),transparent)]',
         PESOS[peso],

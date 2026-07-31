@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
+import { motion } from 'framer-motion'
 import { CalendarX2 } from 'lucide-react'
+import { useMovimento } from '@/lib/motion'
 import { Calendario } from './Calendario'
 import { horaCurta, rotuloDoDia } from './agenda'
 import type { DiaComSlots } from './agenda'
@@ -30,6 +32,7 @@ export function SeletorHorario({
 }: SeletorHorarioProps) {
   const disponiveis = useMemo(() => new Set(dias.map((d) => d.dia)), [dias])
   const doDia = dias.find((d) => d.dia === diaSelecionado)
+  const { ativo: movimento, mola } = useMovimento()
 
   if (!carregando && dias.length === 0) {
     return (
@@ -62,15 +65,27 @@ export function SeletorHorario({
           </p>
           {doDia && doDia.slots.length > 0 ? (
             <div role="radiogroup" aria-label="Horários disponíveis" className="flex flex-wrap gap-2">
-              {doDia.slots.map((s) => {
+              {doDia.slots.map((s, i) => {
                 const ativo = s.inicio === slotSelecionado
                 return (
-                  <button
+                  <motion.button
                     key={s.inicio}
                     type="button"
                     role="radio"
                     aria-checked={ativo}
                     onClick={() => onSelecionarSlot(s.inicio)}
+                    /**
+                     * Escalonada, e com teto no atraso.
+                     *
+                     * A entrada em cascata diz "esta é uma lista, e ela acabou
+                     * de chegar" — mas um dia com trinta horários faria o
+                     * trigésimo esperar meio segundo por nada. O teto em 10
+                     * mantém a leitura da cascata e o resto entra junto.
+                     */
+                    initial={movimento ? { opacity: 0, y: 6, scale: 0.96 } : false}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ ...mola('firme'), delay: movimento ? Math.min(i, 10) * 0.022 : 0 }}
+                    whileTap={movimento ? { scale: 0.95 } : undefined}
                     className={cn(
                       'min-h-11 rounded-pill border px-4 text-sm font-semibold transition-colors duration-[var(--dur-fast)]',
                       ativo
@@ -79,7 +94,7 @@ export function SeletorHorario({
                     )}
                   >
                     {horaCurta(s.inicio)}
-                  </button>
+                  </motion.button>
                 )
               })}
             </div>

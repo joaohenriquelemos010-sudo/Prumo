@@ -37,6 +37,16 @@ export function Balanca({
   // The baby grows from a third of its final size to full across the pregnancy.
   const escalaBebe = 0.34 + progresso * 0.66
 
+  /**
+   * A balança é a única superfície do produto que **deve** oscilar.
+   *
+   * `molas.suave` é o padrão de tudo o mais — criticamente amortecida, sem
+   * overshoot, porque um menu que balança parece errado. Aqui é o contrário: um
+   * prato que recebe peso e para seco parece um gráfico; um que passa do ponto e
+   * volta parece uma balança. É a única exceção do produto, e por isso vive
+   * escrita à mão em vez de sair de `molas` — pôr um quinto preset lá
+   * significaria convidar a exceção para outros lugares.
+   */
   const transicao = reduzir
     ? { duration: 0 }
     : { type: 'spring' as const, stiffness: 60, damping: 14, mass: 1.1 }

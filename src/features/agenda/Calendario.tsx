@@ -1,6 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion, useMotionValue } from 'framer-motion'
+import type { PanInfo } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { MESES, paraChaveDia, deChaveDia } from './agenda'
+import { useMovimento, elastico, projetarMomento } from '@/lib/motion'
 import { cn } from '@/lib/cn'
 
 interface CalendarioProps {
@@ -40,8 +43,59 @@ export function Calendario({
     return new Date(base.getFullYear(), base.getMonth(), 1)
   })
   const gradeRef = useRef<HTMLDivElement>(null)
+  const { ativo: movimento, mola } = useMovimento()
+
+  /** −1 voltou no tempo, +1 avançou. Decide de que lado o mês novo entra. */
+  const [sentido, setSentido] = useState(0)
+  const x = useMotionValue(0)
+  const larguraRef = useRef(1)
 
   const semanas = useMemo(() => montarSemanas(mesVisivel), [mesVisivel])
+
+  function irParaMes(passo: number) {
+    setSentido(passo)
+    setMesVisivel((m) => new Date(m.getFullYear(), m.getMonth() + passo, 1))
+  }
+
+  /**
+   * O mês visível já é o primeiro navegável? Então não há para onde voltar, e a
+   * borda precisa resistir em vez de deixar passar.
+   *
+   * Comparação de string funciona porque as chaves são 'YYYY-MM-DD': o dia 1º do
+   * mês visível ser menor ou igual ao piso quer dizer que o piso está neste mês
+   * ou depois dele.
+   */
+  const noPiso = paraChaveDia(mesVisivel) <= piso
+
+  /**
+   * Arrastar segue o dedo 1:1 — menos além da borda, onde a resistência cresce.
+   *
+   * `dragElastic={0}` desliga a borracha do framer-motion para pôr a nossa:
+   * a do iOS, progressiva, calculada em `elastico()`. Sem isso, ou o gesto para
+   * seco na borda (parece travado) ou desliza livre (parece que a borda não
+   * existe) — e a borda é justamente a informação.
+   */
+  function aoArrastar(_: unknown, info: PanInfo) {
+    const largura = larguraRef.current
+    const passouDoPiso = noPiso && info.offset.x > 0
+    x.set(passouDoPiso ? elastico(info.offset.x / largura, largura) : info.offset.x)
+  }
+
+  /**
+   * Decide pela **velocidade projetada**, não pela distância percorrida.
+   *
+   * Um flick curto e rápido quer virar o mês; um arraste longo e lento que parou
+   * no meio quer voltar. Distância sozinha confunde os dois.
+   */
+  function aoSoltar(_: unknown, info: PanInfo) {
+    const projetado = info.offset.x + projetarMomento(info.velocity.x)
+    const limiar = larguraRef.current * 0.3
+
+    if (projetado < -limiar) irParaMes(1)
+    else if (projetado > limiar && !noPiso) irParaMes(-1)
+
+    x.set(0)
+  }
 
   function selecionavel(dia: string): boolean {
     if (dia < piso) return false
@@ -88,7 +142,7 @@ export function Calendario({
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
-          onClick={() => setMesVisivel((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+          onClick={() => irParaMes(-1)}
           aria-label="Mês anterior"
           className="grid size-11 place-items-center rounded-pill text-ink-soft hover:bg-paper-2 hover:text-indigo"
         >
@@ -99,7 +153,7 @@ export function Calendario({
         </p>
         <button
           type="button"
-          onClick={() => setMesVisivel((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+          onClick={() => irParaMes(1)}
           aria-label="Próximo mês"
           className="grid size-11 place-items-center rounded-pill text-ink-soft hover:bg-paper-2 hover:text-indigo"
         >
@@ -107,7 +161,36 @@ export function Calendario({
         </button>
       </div>
 
-      <div role="grid" aria-label={`Dias de ${rotuloMes}`} ref={gradeRef} className="mt-sm">
+      <div
+        ref={(el) => {
+          if (el) larguraRef.current = el.offsetWidth || 1
+        }}
+        className="mt-sm overflow-hidden"
+      >
+        <AnimatePresence mode="popLayout" initial={false} custom={sentido}>
+          <motion.div
+            key={rotuloMes}
+            role="grid"
+            aria-label={`Dias de ${rotuloMes}`}
+            ref={gradeRef}
+            drag={movimento ? 'x' : false}
+            dragElastic={0}
+            dragMomentum={false}
+            style={{ x }}
+            onDrag={aoArrastar}
+            onDragEnd={aoSoltar}
+            custom={sentido}
+            /**
+             * O mês entra do lado de onde veio: avançar traz o próximo pela
+             * direita, voltar traz o anterior pela esquerda. Consistência
+             * espacial — o que sai por um lado volta pelo mesmo.
+             */
+            initial={movimento ? { x: sentido * 40, opacity: 0 } : false}
+            animate={{ x: 0, opacity: 1 }}
+            exit={movimento ? { x: sentido * -40, opacity: 0 } : { opacity: 0 }}
+            transition={mola('suave')}
+            className="touch-pan-y"
+          >
         <div role="row" className="grid grid-cols-7">
           {CABECALHO.map((d, i) => (
             <span
@@ -130,10 +213,14 @@ export function Calendario({
               const marcado = diasMarcados?.has(dia)
               return (
                 <span role="gridcell" key={j} className="grid place-items-center py-0.5">
-                  <button
+                  <motion.button
                     type="button"
                     data-dia={dia}
                     disabled={!pode}
+                    /* Retorno no pointer-down. Um dia que só reage ao soltar
+                       parece um pedido atendido depois, e não um toque. */
+                    whileTap={movimento && pode ? { scale: 0.9 } : undefined}
+                    transition={mola('rapida')}
                     tabIndex={dia === focavel ? 0 : -1}
                     aria-selected={ativo}
                     aria-current={dia === hoje ? 'date' : undefined}
@@ -157,12 +244,14 @@ export function Calendario({
                         )}
                       />
                     )}
-                  </button>
+                  </motion.button>
                 </span>
               )
             })}
           </div>
         ))}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {legenda && <p className="mt-sm text-xs text-ink-mute">{legenda}</p>}

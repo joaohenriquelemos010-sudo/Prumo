@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Mail, Bell, Moon, Pause } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { AlertaErro } from '@/components/AlertaErro'
@@ -68,6 +68,8 @@ function Interruptor({
   onChange: (v: boolean) => void
   rotulo: string
 }) {
+  const reduzido = useReducedMotion()
+
   return (
     <motion.button
       type="button"
@@ -75,8 +77,8 @@ function Interruptor({
       aria-checked={ligado}
       aria-label={rotulo}
       onClick={() => onChange(!ligado)}
-      whileTap={{ scale: 0.94 }}
-      transition={molas.rapida}
+      whileTap={reduzido ? undefined : { scale: 0.94 }}
+      transition={reduzido ? { duration: 0 } : molas.rapida}
       className={cn(
         'relative h-7 w-12 shrink-0 rounded-pill border transition-colors duration-[var(--dur-fast)]',
         'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus)]',
@@ -85,7 +87,7 @@ function Interruptor({
     >
       <motion.span
         layout
-        transition={molas.firme}
+        transition={reduzido ? { duration: 0 } : molas.firme}
         className={cn(
           'absolute top-1/2 block h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow-soft',
           ligado ? 'right-1' : 'left-1',
@@ -137,6 +139,7 @@ export function Preferencias({
 }) {
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
+  const reduzido = useReducedMotion()
 
   async function salvar(mudanca: Record<string, unknown>, otimista: PreferenciasLembretes) {
     // Escrita otimista: a interface anda na hora e o servidor confirma depois.
@@ -217,8 +220,8 @@ export function Preferencias({
               <motion.button
                 key={n}
                 type="button"
-                whileTap={{ scale: 0.94 }}
-                transition={molas.rapida}
+                whileTap={reduzido ? undefined : { scale: 0.94 }}
+                transition={reduzido ? { duration: 0 } : molas.rapida}
                 onClick={() =>
                   salvar(
                     { limites: { porDia: n } },
@@ -263,8 +266,8 @@ export function Preferencias({
           {pausado ? (
             <motion.button
               type="button"
-              whileTap={{ scale: 0.97 }}
-              transition={molas.rapida}
+              whileTap={reduzido ? undefined : { scale: 0.97 }}
+              transition={reduzido ? { duration: 0 } : molas.rapida}
               onClick={() => salvar({ pausarDias: 0 }, { ...valor, pausadoAte: null })}
               className="rounded-pill border border-line bg-paper px-4 py-2 font-display text-sm font-semibold text-indigo hover:bg-paper-2"
             >
@@ -275,8 +278,8 @@ export function Preferencias({
               <motion.button
                 key={p.dias}
                 type="button"
-                whileTap={{ scale: 0.97 }}
-                transition={molas.rapida}
+                whileTap={reduzido ? undefined : { scale: 0.97 }}
+                transition={reduzido ? { duration: 0 } : molas.rapida}
                 onClick={() =>
                   salvar(
                     { pausarDias: p.dias },

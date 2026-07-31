@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { CalendarPlus, Check, X, Clock, MapPin as MapPinIcon, Play, Repeat, UserCheck, UserX } from 'lucide-react'
 import {
@@ -13,6 +14,7 @@ import {
 } from './agenda'
 import type { Agendamento } from './agenda'
 import { baixarIcs } from './ics'
+import { useMovimento } from '@/lib/motion'
 import { cn } from '@/lib/cn'
 
 interface CardAgendamentoProps {
@@ -42,6 +44,7 @@ export function CardAgendamento({
 }: CardAgendamentoProps) {
   const [recusando, setRecusando] = useState(false)
   const [motivo, setMotivo] = useState('')
+  const { ativo: movimento, mola } = useMovimento()
 
   const ObjetivoIcon = OBJETIVO_ICON[a.objetivo]
   const ModalidadeIcon = MODALIDADE_ICON[a.modalidade]
@@ -63,8 +66,25 @@ export function CardAgendamento({
 
   const titulo = mostrarPaciente ? a.pacienteNome : a.profissionalNome
 
+  /**
+   * `layout` é o que importa aqui, e não um gesto.
+   *
+   * A tentação era swipe-to-reveal — mas este cartão já mostra todas as ações
+   * como botões visíveis, e esconder o que está visível atrás de um gesto que
+   * ninguém descobre seria trocar clareza por sofisticação. Quem usa isto é uma
+   * obstetra entre duas consultas e uma gestante que não sabe o que clicar.
+   *
+   * O que de fato faltava: confirmar ou cancelar tira o cartão de um grupo e
+   * põe em outro, e a lista **saltava**. Com `layout`, os vizinhos deslizam para
+   * a posição nova e o olho acompanha para onde o cartão foi — que é a única
+   * pergunta que a pessoa tem naquele instante.
+   */
   return (
-    <li className="rounded-2xl border border-line bg-paper p-md shadow-soft">
+    <motion.li
+      layout={movimento ? 'position' : false}
+      transition={mola('suave')}
+      className="rounded-2xl border border-line bg-paper p-md shadow-soft"
+    >
       <div className="flex items-start gap-3">
         <span className="grid size-11 shrink-0 place-items-center rounded-xl [background-image:var(--grad-brand-soft)] text-indigo">
           <ObjetivoIcon className="size-5" aria-hidden />
@@ -248,6 +268,6 @@ export function CardAgendamento({
           )}
         </div>
       </div>
-    </li>
+    </motion.li>
   )
 }

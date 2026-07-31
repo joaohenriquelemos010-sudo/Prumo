@@ -1,6 +1,9 @@
 import { Suspense, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
+import { Material } from '@/components/Material'
+import { useMovimento } from '@/lib/motion'
+import { useBordaDeRolagem } from '@/lib/hooks/useBordaDeRolagem'
 import {
   Home,
   Route,
@@ -99,6 +102,9 @@ export function InternalLayout() {
   const location = useLocation()
   const [maisAberto, setMaisAberto] = useState(false)
 
+  const { ativo, duracao } = useMovimento()
+  const { sentinela, rolado } = useBordaDeRolagem()
+
   const items = navFor(user?.papel)
   const primarias = items.slice(0, TABS_PRIMARIAS)
   const secundarias = items.slice(TABS_PRIMARIAS)
@@ -156,13 +162,22 @@ export function InternalLayout() {
       {/* Content. The bottom padding tracks the real bar height + the home
           indicator, instead of guessing with a magic number. */}
       <div className="[padding-bottom:calc(var(--nav-h)+env(safe-area-inset-bottom))] md:pb-0">
+        {/* O fio da barra inferior só aparece quando há conteúdo passando por
+            baixo dela. Uma borda permanente divide a tela mesmo quando não há
+            nada para separar. */}
+        <span ref={sentinela} aria-hidden className="block h-px" />
         <AnimatePresence mode="wait">
           <motion.main
             key={location.pathname}
-            initial={{ opacity: 0, y: 8 }}
+            /**
+             * Entra por baixo e sai por cima — a mesma direção da leitura. Com
+             * movimento reduzido vira cross-fade puro: `y: 0` nos dois extremos
+             * tira o deslocamento vestibular e mantém a transição legível.
+             */
+            initial={{ opacity: 0, y: ativo ? 8 : 0 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, y: ativo ? -8 : 0 }}
+            transition={duracao(0.24)}
             className="mx-auto max-w-4xl px-md py-lg sm:px-lg sm:py-xl"
           >
             <Suspense fallback={<PageFallback />}>
@@ -173,9 +188,16 @@ export function InternalLayout() {
       </div>
 
       {/* Mobile bottom bar */}
-      <nav
+      <Material
+        as="nav"
+        peso="denso"
         aria-label="Área da plataforma"
-        className="fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around border-t border-line bg-[color-mix(in_oklab,var(--color-paper)_88%,transparent)] px-1 backdrop-blur-md [padding-bottom:env(safe-area-inset-bottom)] md:hidden"
+        className={cn(
+          'fixed inset-x-0 bottom-0 z-40 flex items-stretch justify-around px-1',
+          '[padding-bottom:env(safe-area-inset-bottom)] md:hidden',
+          'transition-[border-color] duration-[var(--dur-fast)]',
+          rolado ? 'border-t-line' : 'border-t-transparent',
+        )}
       >
         {primarias.map((item) => (
           <BottomLink key={item.to} item={item} />
@@ -197,7 +219,7 @@ export function InternalLayout() {
         ) : (
           <BottomLink item={{ to: '/app/perfil', label: 'Perfil', icon: Home }} perfil />
         )}
-      </nav>
+      </Material>
 
       <BottomSheet aberto={maisAberto} onFechar={() => setMaisAberto(false)} titulo="Tudo na Prumo">
         <nav aria-label="Mais destinos" className="flex flex-col gap-1">
@@ -288,22 +310,52 @@ function SheetLink({ item, onNavegar }: { item: NavItem; onNavegar: () => void }
   )
 }
 
+/**
+ * Uma aba da barra inferior.
+ *
+ * O realce da aba ativa é **um** elemento que se move entre as posições, via
+ * `layoutId`, e não cinco fundos aparecendo e sumindo. O olho segue o objeto,
+ * entende que é o mesmo, e a troca de aba deixa de ser um corte para virar um
+ * movimento. Mola firme: houve um toque, não um gesto com momento.
+ */
 function BottomLink({ item, perfil }: { item: NavItem; perfil?: boolean }) {
   const user = useAuth((s) => s.user)
+  const { mola } = useMovimento()
   const Icon = item.icon
+
   return (
     <NavLink
       to={item.to}
       end={item.to === '/app'}
       className={({ isActive }) =>
         cn(
-          'flex min-h-[var(--nav-h)] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[0.7rem] font-semibold text-ink-soft',
+          'relative flex min-h-[var(--nav-h)] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[0.7rem] font-semibold text-ink-soft',
           isActive && 'text-indigo',
         )
       }
     >
-      {perfil ? <Avatar nome={user?.nome} className="size-6 text-[0.65rem]" /> : <Icon className="size-5" aria-hidden />}
-      <span className="truncate">{item.label}</span>
+      {({ isActive }) => (
+        <>
+          {isActive && (
+            <motion.span
+              layoutId="nav-pilula"
+              transition={mola('firme')}
+              aria-hidden
+              className="absolute inset-x-1.5 inset-y-1.5 rounded-xl [background-image:var(--grad-brand-soft)]"
+            />
+          )}
+          {/* Acima da pílula. Z negativo não serviria: dentro de um NavLink
+              `relative`, o elemento iria parar atrás do próprio material. */}
+          <span className="relative">
+            {perfil ? (
+              <Avatar nome={user?.nome} className="size-6 text-[0.65rem]" />
+            ) : (
+              <Icon className="size-5" aria-hidden />
+            )}
+          </span>
+          <span className="relative truncate">{item.label}</span>
+        </>
+      )}
     </NavLink>
   )
 }

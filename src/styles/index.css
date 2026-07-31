@@ -220,17 +220,6 @@
   }
 }
 
-@keyframes confetti-fall {
-  0% {
-    transform: translateY(-10%) rotate(0deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(120vh) rotate(540deg);
-    opacity: 0;
-  }
-}
-
 .u-node-pulse {
   animation: node-pulse 2.2s var(--ease-in-out) infinite;
 }
