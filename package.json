@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Prumo — a trilha clínica contínua da gestação à pediatria.",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "vite",
     "dev:api": "tsx watch server/index.ts",

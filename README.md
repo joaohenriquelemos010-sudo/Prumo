@@ -250,6 +250,31 @@ colateral, para o agendador ter um alvo antes de a fila existir.
 - **Deploy**: `vercel.json` já configura o rewrite de `/api/*` para a função e o
   fallback SPA. Configure `MONGODB_URI` e `JWT_SECRET` no painel da Vercel.
 
+### O que está no `vercel.json`, e por quê
+
+JSON não tem comentário, e a Vercel **valida o arquivo contra um schema fechado**:
+uma chave a mais — inclusive uma chave `"//"` usada como comentário — reprova o
+deploy antes de qualquer build. Por isso o raciocínio mora aqui.
+
+- **`installCommand: MONGOMS_DISABLE_POSTINSTALL=1 npm ci`** — o
+  `mongodb-memory-server` é dependência de desenvolvimento, mas tem script de
+  pós-instalação que **baixa o binário do mongod** (~100 MB) de um domínio da
+  MongoDB. Na Vercel isso é download inútil no melhor caso e build reprovado no
+  pior, porque produção nunca sobe banco em memória (veja o `isProd` em
+  `server/db.ts`). A variável desliga só o download; o pacote continua instalado
+  e o `npm ci` local de quem desenvolve não muda.
+- **`/sw.js` sem cache** — o service worker é o único código que **sobrevive ao
+  deploy**. Um worker velho em cache serve o app velho para quem já instalou,
+  indefinidamente, e não há como corrigir do servidor.
+- **`/manifest.webmanifest` por 1 hora** — muda junto com a marca, e raramente.
+  Curto o bastante para uma correção chegar, longo o bastante para não custar.
+- **`/icones/*` por 1 dia** — nome estável, então cache longo depende de trocar o
+  nome ao trocar a arte. Um dia é o meio-termo honesto.
+
+Os headers de segurança (CSP, `X-Frame-Options`, HSTS) **ainda não** saem daqui —
+hoje são o `<meta>` de `index.html` mais o dev server. Servi-los como header HTTP
+de verdade continua na lista de `SECURITY.md`.
+
 ## Estrutura
 
 ```

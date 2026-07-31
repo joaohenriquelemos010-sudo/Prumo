@@ -30,8 +30,16 @@ async function resolveUri(): Promise<string> {
   if (env.isProd) {
     throw new Error('MONGODB_URI ausente em produção. Configure a connection string do Atlas.')
   }
-  // Dev only: lazy-load the in-memory server so it is never bundled into prod.
-  const { MongoMemoryServer } = await import('mongodb-memory-server')
+  // Dev only. The specifier is assembled at runtime on purpose: with a literal,
+  // the bundler that builds the Vercel function follows it and pulls a
+  // devDependency into the production bundle — and, worse, fails the build
+  // outright the day dependencies are installed without dev ones. A variable
+  // makes the import invisible to static analysis and resolvable only here,
+  // where we already know we are not in production.
+  const somenteDev = 'mongodb-memory-server'
+  const { MongoMemoryServer } = (await import(/* @vite-ignore */ somenteDev)) as {
+    MongoMemoryServer: { create(): Promise<{ getUri(db: string): string }> }
+  }
   const mem = await MongoMemoryServer.create()
   console.info('[db] MONGODB_URI ausente — usando MongoDB em memória (somente dev).')
   return mem.getUri('prumo')
