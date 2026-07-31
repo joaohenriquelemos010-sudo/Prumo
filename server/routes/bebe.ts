@@ -9,7 +9,13 @@ import { medidaFetalSchema, checkinSchema } from '../validation.js'
 import { normalizeField } from '../sanitize.js'
 import { avaliarMedidaFetal } from '../services/alertas.js'
 import { curvaPfe, ROTULO_MEDIDA, UNIDADE_MEDIDA } from '../clinico/curvas-fetais.js'
-import { curvasInfantis, faseDaJornada, idadeEmMeses, serieInfantil } from '../services/crescimento.js'
+import {
+  curvasInfantis,
+  faseDaJornada,
+  idadeEmMeses,
+  serieInfantil,
+  serieBatimentos,
+} from '../services/crescimento.js'
 
 export const bebeRouter = Router()
 
@@ -63,7 +69,7 @@ bebeRouter.get('/', requireAuth, async (req, res) => {
   const papel = req.user!.papel
   const fase = faseDaJornada(crianca)
 
-  const [medidas, alertas, infantis] = await Promise.all([
+  const [medidas, alertas, infantis, batimentos] = await Promise.all([
     MedidaFetal.find({ crianca: crianca._id }).sort({ semana: 1 }),
     Alerta.find({
       crianca: crianca._id,
@@ -71,6 +77,7 @@ bebeRouter.get('/', requireAuth, async (req, res) => {
       ...(ehEquipe(papel) ? {} : { paraFamilia: true }),
     }).sort({ createdAt: -1 }),
     fase === 'pos-natal' ? serieInfantil(crianca) : Promise.resolve([]),
+    fase === 'gestacao' ? serieBatimentos(crianca) : Promise.resolve([]),
   ])
 
   res.json({
@@ -94,6 +101,13 @@ bebeRouter.get('/', requireAuth, async (req, res) => {
       ...(ehEquipe(papel) ? { percentis: p.percentis } : {}),
     })),
     curvasInfantis: fase === 'pos-natal' ? curvasInfantis() : null,
+    /**
+     * Não é leitura clínica reservada: um batimento por consulta é exatamente o
+     * que a gestante quer rever, e a faixa de normalidade (110–160) viaja junto
+     * no cliente para que o número chegue com o contexto que o torna tranquilo
+     * em vez de assustador.
+     */
+    batimentos,
     checkins: (crianca.checkins ?? []).map((c) => ({
       // `semana` is the legacy key from when this page only covered pregnancy.
       periodo: c.periodo ?? c.semana,

@@ -137,3 +137,48 @@ export function idadeEmMeses(crianca: HydratedDocument<CriancaDoc>, agora = new 
   if (!crianca.dataNascimento) return 0
   return mesesEntre(new Date(crianca.dataNascimento), agora)
 }
+
+/**
+ * Os batimentos do bebê, consulta a consulta.
+ *
+ * `bcfBpm` já é coletado no atendimento e hoje termina numa célula de tabela.
+ * É o número que a gestante mais quer ouvir de novo depois da consulta — merece
+ * sair daqui como uma série, e não como um dado solto.
+ *
+ * A semana gestacional vem da DPP, e não da data da consulta relativa ao início
+ * da gravidez: é assim que o resto do produto conta, e duas contagens diferentes
+ * na mesma tela é como um número passa a não bater com o outro.
+ */
+export interface PontoBatimento {
+  /** Semana gestacional na data da consulta. */
+  semana: number
+  data: string
+  bpm: number
+  autorNome: string
+}
+
+export async function serieBatimentos(
+  crianca: HydratedDocument<CriancaDoc>,
+): Promise<PontoBatimento[]> {
+  if (!crianca.dpp) return []
+  const dpp = new Date(crianca.dpp)
+
+  const consultas = await Consulta.find({
+    crianca: crianca._id,
+    'medidas.bcfBpm': { $ne: null, $gt: 0 },
+  }).sort({ data: 1 })
+
+  return consultas
+    .map((c) => {
+      const quando = new Date(c.data)
+      // 40 semanas na DPP; cada 7 dias antes dela é uma semana a menos.
+      const diasAteDpp = Math.round((dpp.getTime() - quando.getTime()) / 86_400_000)
+      return {
+        semana: Math.max(0, Math.min(42, 40 - Math.floor(diasAteDpp / 7))),
+        data: quando.toISOString(),
+        bpm: c.medidas!.bcfBpm as number,
+        autorNome: c.autorNome,
+      }
+    })
+    .sort((a, b) => a.semana - b.semana)
+}

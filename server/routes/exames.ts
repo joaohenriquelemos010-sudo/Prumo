@@ -47,11 +47,28 @@ export function serializeExame(e: HydratedDocument<ExameDoc>) {
   }
 }
 
-// GET /api/exames — the current patient's saved exams.
+/**
+ * GET /api/exames — the current patient's saved exams.
+ *
+ * `?de=&ate=` narrows by `dataExame`. Added for the growth screen, which shows
+ * the exams that fall inside the period being read — a filter the server can do
+ * in the index and the client would otherwise do by downloading everything.
+ * Both bounds are optional and an unparseable date is ignored rather than
+ * rejected: a bad query string should show the whole list, not an error page.
+ */
 examesRouter.get('/', requireAuth, async (req, res) => {
   const crianca = await resolveCriancaOr403(req, res)
   if (!crianca) return
-  const exames = await Exame.find({ crianca: crianca._id }).sort({ dataExame: -1 })
+
+  const filtro: Record<string, unknown> = { crianca: crianca._id }
+  const de = String(req.query.de ?? '')
+  const ate = String(req.query.ate ?? '')
+  const janela: Record<string, Date> = {}
+  if (de && !Number.isNaN(Date.parse(de))) janela.$gte = new Date(de)
+  if (ate && !Number.isNaN(Date.parse(ate))) janela.$lte = new Date(ate)
+  if (Object.keys(janela).length > 0) filtro.dataExame = janela
+
+  const exames = await Exame.find(filtro).sort({ dataExame: -1 })
   res.json({ exames: exames.map(serializeExame) })
 })
 

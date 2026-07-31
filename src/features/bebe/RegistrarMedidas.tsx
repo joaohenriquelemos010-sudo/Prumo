@@ -4,7 +4,7 @@ import { api } from '@/lib/api/client'
 import { useMedicoContext, criancaQuery } from '@/lib/stores/medico-context'
 import { Button } from '@/components/Button'
 import { AlertaErro } from '@/components/AlertaErro'
-import type { MedidaFetal } from '@/pages/app/AppBebe'
+import type { MedidaFetal } from '@/features/bebe/tipos'
 
 const CAMPOS = [
   { chave: 'dbpMm', label: 'DBP (mm)', placeholder: '84' },

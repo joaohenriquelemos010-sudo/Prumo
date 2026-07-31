@@ -218,6 +218,9 @@ try {
 
   const { registrarTestesDeLembretes } = await import('./smoke-lembretes.mjs')
   await registrarTestesDeLembretes(contexto)
+
+  const { registrarTestesDeBebe } = await import('./smoke-bebe.mjs')
+  await registrarTestesDeBebe(contexto)
 } catch (e) {
   falhou('execução do smoke', e instanceof Error ? e.message : String(e))
 } finally {
