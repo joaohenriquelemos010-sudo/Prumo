@@ -1,29 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, CalendarDays, Check, Clock, Stethoscope } from 'lucide-react'
+import { ArrowRight, CalendarDays, Check, Stethoscope } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { Button } from '@/components/Button'
 import { Skeleton } from '@/components/Skeleton'
 import { AlertaErro } from '@/components/AlertaErro'
-import { SemanaInterativa } from '@/features/agenda/SemanaInterativa'
-import type { RegraDia } from '@/features/agenda/SemanaInterativa'
+import { GradeSemanal } from '@/features/agenda/GradeSemanal'
+import { daDisponibilidade, faixasInvalidas, paraCorpoApi } from '@/features/agenda/semana'
+import type { DisponibilidadeSemana, SemanaConfig } from '@/features/agenda/semana'
 import { TiposAtendimento } from '@/features/agenda/TiposAtendimento'
 import { useAuth } from '@/lib/stores/auth'
 import { useConfiguracao } from '@/lib/stores/configuracao'
 import { cn } from '@/lib/cn'
-
-interface Disponibilidade {
-  ativo: boolean
-  almoco: { inicio: string; fim: string }
-  duracaoPadraoMin: number
-  antecedenciaMinHoras: number
-  janelaMaxDias: number
-  regras: RegraDia[]
-  bloqueios: { de: string; ate: string; motivo: string }[]
-  conveniosAtendidos: string[]
-  atendeParticular: boolean
-  atendeSus: boolean
-}
 
 type Passo = 'semana' | 'tipos' | 'pronto'
 
@@ -45,31 +33,38 @@ const PASSOS: { id: Passo; rotulo: string; icone: typeof CalendarDays }[] = [
  * Dois passos, e só dois, porque são os dois de que tudo o mais depende: **os
  * dias e horários** geram os horários que a paciente enxerga, e os **tipos de
  * consulta** decidem a duração de cada horário e qual formulário de prontuário
- * abre no atendimento. O resto (almoço, antecedência, convênios) tem valor
- * padrão razoável e mora em *Configurar*, para quem quiser mexer.
+ * abre no atendimento. O resto (antecedência, convênios, bloqueios de férias)
+ * tem valor padrão razoável e mora em *Configurar*, para quem quiser mexer.
+ *
+ * A semana é editada aqui pela **mesma grade** de `/app/agenda/configuracao`, e
+ * não por um widget mais simples: quem aprende a preencher a agenda no primeiro
+ * dia não deveria ter de reaprender no segundo, quando volta para ajustá-la.
  */
 export default function AppConfigurarAgenda() {
   const navigate = useNavigate()
   const nome = useAuth((s) => s.user?.nome ?? '')
   const marcarConfigurada = useConfiguracao((s) => s.marcarConfigurada)
   const [passo, setPasso] = useState<Passo>('semana')
-  const [disp, setDisp] = useState<Disponibilidade | null>(null)
+  const [semana, setSemana] = useState<SemanaConfig | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
     api
-      .get<{ disponibilidade: Disponibilidade }>('/disponibilidade/me')
-      .then((d) => setDisp(d.disponibilidade))
+      .get<{ disponibilidade: DisponibilidadeSemana }>('/disponibilidade/me')
+      .then((d) => setSemana(daDisponibilidade(d.disponibilidade)))
       .catch((e) => setErro(e instanceof Error ? e.message : 'Não consegui carregar.'))
       .finally(() => setCarregando(false))
   }, [])
 
-  const valido = useMemo(() => (disp?.regras ?? []).length > 0, [disp])
+  const valido = useMemo(
+    () => !!semana && semana.periodos.length > 0 && faixasInvalidas(semana) === 0,
+    [semana],
+  )
 
   async function salvarSemana() {
-    if (!disp) return
+    if (!semana) return
     setSalvando(true)
     setErro(null)
     try {
@@ -77,21 +72,7 @@ export default function AppConfigurarAgenda() {
         // Publicar junto: configurar a agenda e não ligá-la seria configurar
         // para ninguém. Quem quiser fechar depois tem o interruptor em Configurar.
         ativo: true,
-        duracaoPadraoMin: disp.duracaoPadraoMin,
-        almoco: disp.almoco,
-        antecedenciaMinHoras: disp.antecedenciaMinHoras,
-        janelaMaxDias: disp.janelaMaxDias,
-        regras: disp.regras.map((r) => ({
-          diaSemana: r.diaSemana,
-          inicio: r.inicio,
-          fim: r.fim,
-          modalidades: ['presencial'],
-          local: '',
-        })),
-        bloqueios: disp.bloqueios,
-        conveniosAtendidos: disp.conveniosAtendidos,
-        atendeParticular: disp.atendeParticular,
-        atendeSus: disp.atendeSus,
+        ...paraCorpoApi(semana),
       })
       /*
        * O portão de rota lê este store. Sem marcar aqui, o próximo clique em
@@ -117,7 +98,7 @@ export default function AppConfigurarAgenda() {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-lg">
+    <div className="flex flex-col gap-lg">
       <header className="flex flex-col gap-1">
         <p className="u-eyebrow">Configure sua agenda</p>
         <h1 className="text-3xl sm:text-4xl">
@@ -157,60 +138,36 @@ export default function AppConfigurarAgenda() {
 
       {erro && <AlertaErro>{erro}</AlertaErro>}
 
-      {passo === 'semana' && disp && (
-        <section className="rounded-2xl border border-line bg-paper p-lg shadow-soft">
-          <h2 className="text-lg">Em que dias você atende?</h2>
-          <p className="mt-1 text-sm text-ink-soft">
-            É o que gera os horários que suas pacientes veem para marcar.
-          </p>
-
-          <div className="mt-md">
-            <SemanaInterativa
-              regras={disp.regras}
-              onChange={(regras) => setDisp({ ...disp, regras })}
-            />
-          </div>
-
-          <div className="mt-lg flex flex-wrap items-end gap-3 border-t border-line pt-md">
-            <label className="text-sm">
-              <span className="inline-flex items-center gap-1.5 text-ink">
-                <Clock className="size-4 text-indigo" aria-hidden />
-                Almoço — de
-              </span>
-              <input
-                type="time"
-                value={disp.almoco?.inicio ?? ''}
-                onChange={(e) =>
-                  setDisp({ ...disp, almoco: { ...disp.almoco, inicio: e.target.value } })
-                }
-                className="input mt-1"
-              />
-            </label>
-            <label className="text-sm">
-              até
-              <input
-                type="time"
-                value={disp.almoco?.fim ?? ''}
-                onChange={(e) => setDisp({ ...disp, almoco: { ...disp.almoco, fim: e.target.value } })}
-                className="input mt-1"
-              />
-            </label>
-            <p className="w-full text-xs text-ink-mute">
-              Vale para todos os dias. Em branco significa que você atende direto.
+      {passo === 'semana' && semana && (
+        <section className="flex flex-col gap-md">
+          <div>
+            <h2 className="text-lg">Em que dias e horários você atende?</h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              É o que gera os horários que suas pacientes veem para marcar. Ligue os dias, ajuste o
+              período e marque suas pausas — dá para mudar tudo depois, quando quiser.
             </p>
           </div>
 
-          <Button
-            className="mt-lg"
-            disabled={!valido || salvando}
-            iconRight={<ArrowRight className="size-4" aria-hidden />}
-            onClick={() => void salvarSemana()}
-          >
-            {salvando ? 'Salvando…' : 'Continuar'}
-          </Button>
-          {!valido && (
-            <p className="mt-2 text-xs text-ink-mute">Escolha pelo menos um dia para continuar.</p>
-          )}
+          <GradeSemanal valor={semana} onChange={setSemana} />
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              disabled={!valido || salvando}
+              iconRight={<ArrowRight className="size-4" aria-hidden />}
+              onClick={() => void salvarSemana()}
+            >
+              {salvando ? 'Salvando…' : 'Continuar'}
+            </Button>
+            {semana.periodos.length === 0 ? (
+              <p className="text-xs text-ink-mute">Ative pelo menos um dia para continuar.</p>
+            ) : (
+              !valido && (
+                <p className="text-xs font-semibold text-warn-ink">
+                  Tem faixa terminando antes de começar — confira os horários em vermelho.
+                </p>
+              )
+            )}
+          </div>
         </section>
       )}
 
@@ -255,6 +212,10 @@ export default function AppConfigurarAgenda() {
             <Button onClick={() => navigate('/app/agenda')}>Ver minha agenda</Button>
             <Button variant="secondary" onClick={() => navigate('/app/pacientes')}>
               Cadastrar uma paciente
+            </Button>
+            {/* Onde se muda tudo depois — inclusive o que este passo não perguntou. */}
+            <Button variant="ghost" onClick={() => navigate('/app/agenda/configuracao')}>
+              Ajustar a agenda
             </Button>
           </div>
         </section>

@@ -160,6 +160,26 @@
     border-color: var(--color-lilas);
   }
 
+  /*
+     Campo de hora em grade densa (a configuração da agenda tem 7 colunas com até
+     dois horários cada). O ícone de relógio que o Chrome desenha custa ~24px por
+     campo — o bastante para dois horários não caberem lado a lado e o conteúdo
+     invadir a coluna do dia seguinte. O campo continua sendo `input[type=time]`:
+     teclado, setas e o seletor nativo (F4 / clique com o campo focado) seguem
+     funcionando. */
+  .input-hora {
+    min-width: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .input-hora::-webkit-calendar-picker-indicator {
+    display: none;
+  }
+
+  .input-hora::-webkit-inner-spin-button {
+    display: none;
+  }
+
   /* Caderninho de Dúvidas — a real little-notebook feel: warm cream paper, soft
      ruled lines, a margin line. Handwritten face on headings/dates; body stays
      legible (Nunito). Works on mobile and PC. */

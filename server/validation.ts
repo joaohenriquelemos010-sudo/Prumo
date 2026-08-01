@@ -203,6 +203,25 @@ export const agendamentoUpdateSchema = z
     message: 'Nada para atualizar.',
   })
 
+/**
+ * Uma faixa 'HH:MM' que se repete toda semana. Mesma forma para intervalos,
+ * bloqueios semanais e reposições — o que muda entre elas é o significado, e
+ * significado não se valida.
+ */
+const faixasSemanais = z
+  .array(
+    z
+      .object({
+        diaSemana: z.number().int().min(0).max(6),
+        inicio: horaHHMM,
+        fim: horaHHMM,
+        motivo: z.string().trim().max(160).optional(),
+      })
+      .refine((f) => f.fim > f.inicio, { message: 'O fim precisa vir depois do início.' }),
+  )
+  .max(60)
+  .optional()
+
 export const disponibilidadeUpdateSchema = z.object({
   ativo: z.boolean().optional(),
   duracaoPadraoMin: z.number().int().min(10).max(240).optional(),
@@ -243,6 +262,9 @@ export const disponibilidadeUpdateSchema = z.object({
     )
     .max(60)
     .optional(),
+  intervalos: faixasSemanais,
+  bloqueiosSemanais: faixasSemanais,
+  reposicoes: faixasSemanais,
   conveniosAtendidos: z.array(z.string().trim().max(80)).max(40).optional(),
   atendeParticular: z.boolean().optional(),
   atendeSus: z.boolean().optional(),

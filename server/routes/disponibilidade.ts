@@ -13,6 +13,18 @@ import type { HydratedDocument } from 'mongoose'
 
 export const disponibilidadeRouter = Router()
 
+type FaixaSemanalDoc = { _id?: unknown; diaSemana: number; inicio: string; fim: string; motivo?: string }
+
+function serializarFaixas(faixas: FaixaSemanalDoc[] | undefined) {
+  return (faixas ?? []).map((f) => ({
+    id: String(f._id ?? ''),
+    diaSemana: f.diaSemana,
+    inicio: f.inicio,
+    fim: f.fim,
+    motivo: f.motivo ?? '',
+  }))
+}
+
 function serialize(d: HydratedDocument<DisponibilidadeDoc>) {
   return {
     ativo: d.ativo,
@@ -35,10 +47,22 @@ function serialize(d: HydratedDocument<DisponibilidadeDoc>) {
       ate: new Date(b.ate).toISOString(),
       motivo: b.motivo,
     })),
+    intervalos: serializarFaixas(d.intervalos),
+    bloqueiosSemanais: serializarFaixas(d.bloqueiosSemanais),
+    reposicoes: serializarFaixas(d.reposicoes),
     conveniosAtendidos: d.conveniosAtendidos,
     atendeParticular: d.atendeParticular,
     atendeSus: d.atendeSus,
   }
+}
+
+function paraFaixasDoc(faixas: { diaSemana: number; inicio: string; fim: string; motivo?: string }[]) {
+  return faixas.map((f) => ({
+    diaSemana: f.diaSemana,
+    inicio: f.inicio,
+    fim: f.fim,
+    motivo: normalizeField(f.motivo ?? '', 160),
+  }))
 }
 
 /** The doctor's config, created empty on first read so the editor has something. */
@@ -67,7 +91,14 @@ export function paraConfig(d: DisponibilidadeDoc): ConfigDisponibilidade {
       local: r.local,
     })),
     bloqueios: d.bloqueios.map((b) => ({ de: new Date(b.de), ate: new Date(b.ate) })),
+    intervalos: paraFaixas(d.intervalos),
+    bloqueiosSemanais: paraFaixas(d.bloqueiosSemanais),
+    reposicoes: paraFaixas(d.reposicoes),
   }
+}
+
+function paraFaixas(faixas: FaixaSemanalDoc[] | undefined) {
+  return (faixas ?? []).map((f) => ({ diaSemana: f.diaSemana, inicio: f.inicio, fim: f.fim }))
 }
 
 /** Appointments that currently hold time on this doctor's calendar. */
@@ -117,6 +148,16 @@ disponibilidadeRouter.put('/me', requireAuth, requireRole('medico'), async (req,
       motivo: normalizeField(b.motivo ?? '', 160),
     })) as typeof disp.bloqueios
   }
+  /*
+   * As três listas semanais são substituídas em bloco, e não mescladas: a grade
+   * manda o estado inteiro da semana a cada salvamento, então mesclar faria um
+   * intervalo apagado voltar sozinho no próximo save.
+   */
+  if (d.intervalos) disp.intervalos = paraFaixasDoc(d.intervalos) as typeof disp.intervalos
+  if (d.bloqueiosSemanais) {
+    disp.bloqueiosSemanais = paraFaixasDoc(d.bloqueiosSemanais) as typeof disp.bloqueiosSemanais
+  }
+  if (d.reposicoes) disp.reposicoes = paraFaixasDoc(d.reposicoes) as typeof disp.reposicoes
   if (d.conveniosAtendidos) {
     disp.conveniosAtendidos = d.conveniosAtendidos.map((c) => normalizeField(c, 80)).filter(Boolean)
   }

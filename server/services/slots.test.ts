@@ -312,3 +312,173 @@ describe('intervalo de almoço', () => {
     expect(dias).toEqual([])
   })
 })
+
+/**
+ * A semana como a médica a desenha: cada dia com seus períodos, suas pausas, seus
+ * compromissos fixos e seus encaixes de reposição.
+ *
+ * O que estas asserções protegem é a diferença entre um campo global e um por
+ * dia. Enquanto o almoço era um só, quem atende de manhã na terça e à tarde na
+ * quinta tinha que escolher qual dos dois dias ficaria errado.
+ */
+describe('grade semanal por dia', () => {
+  const horaLocal = (iso: string) =>
+    new Date(iso).toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  /** A terça seguinte à SEGUNDA de referência. */
+  const TERCA = '2026-03-10'
+
+  it('dois períodos no mesmo dia geram as duas janelas, e só elas', () => {
+    const dias = expandirSlots(
+      config({
+        regras: [
+          { diaSemana: 1, inicio: '08:00', fim: '09:00', modalidades: ['presencial'], local: '' },
+          { diaSemana: 1, inicio: '14:00', fim: '15:00', modalidades: ['presencial'], local: '' },
+        ],
+      }),
+      SEGUNDA,
+      SEGUNDA,
+      [],
+      ANTES,
+    )
+    expect(dias[0].slots.map((s) => horaLocal(s.inicio))).toEqual([
+      '08:00',
+      '08:30',
+      '14:00',
+      '14:30',
+    ])
+  })
+
+  it('períodos que se sobrepõem não oferecem o mesmo horário duas vezes', () => {
+    // Erro comum de digitação — 08–10 e 09–11 no mesmo dia. Duas ofertas do mesmo
+    // 09:00 viram duas pacientes marcadas para o mesmo instante.
+    const dias = expandirSlots(
+      config({
+        regras: [
+          { diaSemana: 1, inicio: '08:00', fim: '10:00', modalidades: ['presencial'], local: '' },
+          { diaSemana: 1, inicio: '09:00', fim: '11:00', modalidades: ['presencial'], local: '' },
+        ],
+      }),
+      SEGUNDA,
+      SEGUNDA,
+      [],
+      ANTES,
+    )
+    const horas = dias[0].slots.map((s) => horaLocal(s.inicio))
+    expect(horas).toEqual([...new Set(horas)])
+    expect(horas).toEqual(['08:00', '08:30', '09:00', '09:30', '10:00', '10:30'])
+  })
+
+  it('o intervalo de um dia não fecha o mesmo horário no outro', () => {
+    const cfg = config({
+      regras: [
+        { diaSemana: 1, inicio: '11:00', fim: '13:00', modalidades: ['presencial'], local: '' },
+        { diaSemana: 2, inicio: '11:00', fim: '13:00', modalidades: ['presencial'], local: '' },
+      ],
+      intervalos: [{ diaSemana: 1, inicio: '12:00', fim: '13:00' }],
+    })
+    const dias = expandirSlots(cfg, SEGUNDA, TERCA, [], ANTES)
+    expect(dias[0].slots.map((s) => horaLocal(s.inicio))).toEqual(['11:00', '11:30'])
+    expect(dias[1].slots.map((s) => horaLocal(s.inicio))).toEqual([
+      '11:00',
+      '11:30',
+      '12:00',
+      '12:30',
+    ])
+  })
+
+  it('bloqueio semanal fecha a faixa toda semana, sem virar data', () => {
+    const dias = expandirSlots(
+      config({
+        regras: [
+          { diaSemana: 1, inicio: '15:00', fim: '17:00', modalidades: ['presencial'], local: '' },
+        ],
+        bloqueiosSemanais: [{ diaSemana: 1, inicio: '16:00', fim: '16:20', motivo: 'Reunião' }],
+      }),
+      SEGUNDA,
+      SEGUNDA,
+      [],
+      ANTES,
+    )
+    // 16:00 encosta no bloqueio de 20 min; 16:30 já está livre.
+    expect(dias[0].slots.map((s) => horaLocal(s.inicio))).toEqual(['15:00', '15:30', '16:30'])
+  })
+
+  it('reposição abre horário fora do período e vem marcada', () => {
+    const dias = expandirSlots(
+      config({
+        regras: [
+          { diaSemana: 1, inicio: '09:00', fim: '10:00', modalidades: ['presencial'], local: '' },
+        ],
+        reposicoes: [{ diaSemana: 1, inicio: '19:00', fim: '19:30' }],
+      }),
+      SEGUNDA,
+      SEGUNDA,
+      [],
+      ANTES,
+    )
+    const slots = dias[0].slots
+    expect(slots.map((s) => horaLocal(s.inicio))).toEqual(['09:00', '09:30', '19:00'])
+    expect(slots.filter((s) => s.reposicao).map((s) => horaLocal(s.inicio))).toEqual(['19:00'])
+  })
+
+  it('reposição também respeita intervalo e bloqueio', () => {
+    // Uma janela de reposição não é passe livre: se ela cai em cima de um
+    // compromisso fixo, o compromisso ganha.
+    const dias = expandirSlots(
+      config({
+        regras: [],
+        reposicoes: [{ diaSemana: 1, inicio: '19:00', fim: '20:00' }],
+        bloqueiosSemanais: [{ diaSemana: 1, inicio: '19:00', fim: '19:30' }],
+      }),
+      SEGUNDA,
+      SEGUNDA,
+      [],
+      ANTES,
+    )
+    expect(dias[0].slots.map((s) => horaLocal(s.inicio))).toEqual(['19:30'])
+  })
+
+  it('faixa invertida é digitação, não madrugada — é ignorada', () => {
+    const dias = expandirSlots(
+      config({
+        regras: [
+          { diaSemana: 1, inicio: '09:00', fim: '11:00', modalidades: ['presencial'], local: '' },
+        ],
+        intervalos: [{ diaSemana: 1, inicio: '13:00', fim: '12:00' }],
+      }),
+      SEGUNDA,
+      SEGUNDA,
+      [],
+      ANTES,
+    )
+    expect(dias[0].slots).toHaveLength(4)
+  })
+
+  it('almoço legado e intervalos por dia convivem', () => {
+    // Quem configurou a agenda antes da grade continua com o almoço fechado.
+    const dias = expandirSlots(
+      config({
+        regras: [
+          { diaSemana: 1, inicio: '11:00', fim: '15:00', modalidades: ['presencial'], local: '' },
+        ],
+        almoco: { inicio: '12:00', fim: '13:00' },
+        intervalos: [{ diaSemana: 1, inicio: '14:00', fim: '14:30' }],
+      }),
+      SEGUNDA,
+      SEGUNDA,
+      [],
+      ANTES,
+    )
+    expect(dias[0].slots.map((s) => horaLocal(s.inicio))).toEqual([
+      '11:00',
+      '11:30',
+      '13:00',
+      '13:30',
+      '14:30',
+    ])
+  })
+})

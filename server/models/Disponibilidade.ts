@@ -37,6 +37,23 @@ const bloqueioSchema = new Schema(
   { _id: true },
 )
 
+/**
+ * Uma faixa que se repete toda semana, em 'HH:MM' no relógio do consultório.
+ *
+ * Serve a três listas que têm a mesma forma e significados diferentes —
+ * `intervalos`, `bloqueiosSemanais` e `reposicoes`. Repetir o schema três vezes
+ * só criaria três lugares para o mesmo defeito.
+ */
+const faixaSemanalSchema = new Schema(
+  {
+    diaSemana: { type: Number, min: 0, max: 6, required: true },
+    inicio: { type: String, required: true },
+    fim: { type: String, required: true },
+    motivo: { type: String, default: '', maxlength: 160 },
+  },
+  { _id: true },
+)
+
 const disponibilidadeSchema = new Schema(
   {
     medicoId: { type: String, required: true, unique: true, index: true },
@@ -52,6 +69,26 @@ const disponibilidadeSchema = new Schema(
       inicio: { type: String, default: '' },
       fim: { type: String, default: '' },
     },
+    /**
+     * Pausas por dia — o almoço de terça pode não ser o de quinta.
+     *
+     * Substitui `almoco` para quem edita pela grade da semana; o campo antigo
+     * continua sendo lido pelo expansor porque ainda existe médica cuja agenda
+     * foi configurada antes desta grade, e apagá-lo abriria o almoço dela.
+     */
+    intervalos: { type: [faixaSemanalSchema], default: [] },
+    /**
+     * Compromisso fixo que se repete toda semana — a manhã de cirurgia, a visita
+     * ao hospital. Diferente de `bloqueios`, que são datas concretas (férias,
+     * congresso) e não voltam na semana seguinte.
+     */
+    bloqueiosSemanais: { type: [faixaSemanalSchema], default: [] },
+    /**
+     * Janelas extras fora do período normal, guardadas para remarcar quem perdeu
+     * a consulta. Geram horário como qualquer outro; o slot sai marcado
+     * `reposicao` para a agenda saber distingui-lo.
+     */
+    reposicoes: { type: [faixaSemanalSchema], default: [] },
     /** How soon before a slot someone may still book it. */
     antecedenciaMinHoras: { type: Number, default: 12, min: 0, max: 720 },
     /** How far ahead the agenda is open. */

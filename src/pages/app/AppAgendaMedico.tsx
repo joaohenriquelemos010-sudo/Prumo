@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarClock, CalendarOff, Check, Inbox, Plus, Settings2, Trash2, Users } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { CalendarClock, CalendarOff, CalendarRange, Check, Inbox, Plus, Settings2, Trash2, Users } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { Button } from '@/components/Button'
 import { Skeleton } from '@/components/Skeleton'
@@ -8,7 +9,7 @@ import { ListaEspera } from '@/features/agenda/ListaEspera'
 import { TiposAtendimento } from '@/features/agenda/TiposAtendimento'
 import { CardAgendamento } from '@/features/agenda/CardAgendamento'
 import { AgendaCalendario } from '@/features/agenda/AgendaCalendario'
-import { paraChaveDia, horaCurta, MODALIDADE_LABEL } from '@/features/agenda/agenda'
+import { paraChaveDia, horaCurta } from '@/features/agenda/agenda'
 import type { Agendamento, ModalidadeAgendamento } from '@/features/agenda/agenda'
 import { OPERADORAS } from '@/features/clinico/convenios'
 import { cn } from '@/lib/cn'
@@ -43,9 +44,7 @@ interface Disponibilidade {
   atendeSus: boolean
 }
 
-const DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 const DIAS_CURTOS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
-const MODALIDADES: ModalidadeAgendamento[] = ['presencial', 'teleconsulta', 'domiciliar']
 
 type Aba = 'dia' | 'pedidos' | 'espera' | 'disponibilidade'
 
@@ -256,6 +255,7 @@ function TabBtn({
 /* -------------------------- availability editor -------------------------- */
 
 function EditorDisponibilidade() {
+  const navigate = useNavigate()
   const [disp, setDisp] = useState<Disponibilidade | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
@@ -285,16 +285,13 @@ function EditorDisponibilidade() {
         {
           ativo: disp.ativo,
           duracaoPadraoMin: disp.duracaoPadraoMin,
-          almoco: disp.almoco ?? { inicio: '', fim: '' },
           antecedenciaMinHoras: disp.antecedenciaMinHoras,
           janelaMaxDias: disp.janelaMaxDias,
-          regras: disp.regras.map(({ diaSemana, inicio, fim, modalidades, local }) => ({
-            diaSemana,
-            inicio,
-            fim,
-            modalidades,
-            local,
-          })),
+          /*
+           * Nem `regras` nem `almoco` vão no corpo: a grade da semana é a dona
+           * dos dois, e o PUT só aplica o que recebe. Mandá-los daqui reescreveria
+           * com uma cópia velha o que a outra tela acabou de salvar.
+           */
           bloqueios: disp.bloqueios.map(({ de, ate, motivo }) => ({ de, ate, motivo })),
           conveniosAtendidos: disp.conveniosAtendidos,
           atendeParticular: disp.atendeParticular,
@@ -367,181 +364,32 @@ function EditorDisponibilidade() {
             ajuda="Horizonte visível da agenda."
           />
         </div>
-
-        {/*
-          O almoço vale para todos os dias que têm regra.
-          Dava para expressá-lo com duas regras no mesmo dia (09–12 e 14–18) — e
-          era como funcionava. Só que ninguém descobre sozinho, e o resultado
-          prático era agenda aberta na hora do almoço.
-        */}
-        <div className="mt-md flex flex-wrap items-end gap-3">
-          <label className="text-sm">
-            Almoço — de
-            <input
-              type="time"
-              value={disp.almoco?.inicio ?? ''}
-              onChange={(e) => mudar({ almoco: { ...disp.almoco, inicio: e.target.value } })}
-              className="input mt-1"
-            />
-          </label>
-          <label className="text-sm">
-            até
-            <input
-              type="time"
-              value={disp.almoco?.fim ?? ''}
-              onChange={(e) => mudar({ almoco: { ...disp.almoco, fim: e.target.value } })}
-              className="input mt-1"
-            />
-          </label>
-          {(disp.almoco?.inicio || disp.almoco?.fim) && (
-            <button
-              type="button"
-              className="pb-2 text-sm text-ink-soft underline"
-              onClick={() => mudar({ almoco: { inicio: '', fim: '' } })}
-            >
-              Sem intervalo
-            </button>
-          )}
-          <p className="w-full text-xs text-ink-mute">
-            Vale para todos os dias. Em branco significa que você atende direto.
-          </p>
-        </div>
       </section>
 
+      {/*
+        Os dias, os intervalos e os bloqueios semanais moram na grade da semana —
+        sete colunas não cabem nesta largura, e editá-los aqui em lista era
+        justamente o que fazia a médica remontar a própria semana de cabeça.
+        Aqui fica só o resumo e o caminho para lá.
+      */}
       <section className="rounded-2xl border border-line bg-paper p-lg shadow-soft">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg">Seus horários na semana</h2>
+        <div className="flex flex-wrap items-start justify-between gap-md">
+          <div>
+            <h2 className="text-lg">Seus horários na semana</h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              {disp.regras.length === 0
+                ? 'Nenhum dia configurado ainda — é o que gera os horários que suas pacientes veem.'
+                : resumoSemana(disp.regras)}
+            </p>
+          </div>
           <Button
-            size="md"
             variant="secondary"
-            iconLeft={<Plus className="size-4" aria-hidden />}
-            onClick={() =>
-              mudar({
-                regras: [
-                  ...disp.regras,
-                  { diaSemana: 1, inicio: '09:00', fim: '12:00', modalidades: ['presencial'], local: '' },
-                ],
-              })
-            }
+            iconLeft={<CalendarRange className="size-4" aria-hidden />}
+            onClick={() => navigate('/app/agenda/configuracao')}
           >
-            Adicionar faixa
+            {disp.regras.length === 0 ? 'Configurar agenda' : 'Editar semana'}
           </Button>
         </div>
-
-        {disp.regras.length === 0 ? (
-          <p className="mt-md text-sm text-ink-mute">
-            Nenhuma faixa ainda. Adicione, por exemplo, “terça, das 09:00 às 12:00”.
-          </p>
-        ) : (
-          <ul className="mt-md flex flex-col gap-3">
-            {disp.regras.map((r, i) => (
-              <li key={i} className="rounded-xl bg-paper-2 p-3">
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
-                  <label className="sr-only" htmlFor={`dia-${i}`}>
-                    Dia da semana
-                  </label>
-                  <select
-                    id={`dia-${i}`}
-                    value={r.diaSemana}
-                    onChange={(e) => {
-                      const regras = [...disp.regras]
-                      regras[i] = { ...r, diaSemana: Number(e.target.value) }
-                      mudar({ regras })
-                    }}
-                    className="input h-11 py-0"
-                  >
-                    {DIAS.map((d, idx) => (
-                      <option key={d} value={idx}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="time"
-                    aria-label="Início"
-                    value={r.inicio}
-                    onChange={(e) => {
-                      const regras = [...disp.regras]
-                      regras[i] = { ...r, inicio: e.target.value }
-                      mudar({ regras })
-                    }}
-                    className="input h-11 py-0"
-                  />
-                  <input
-                    type="time"
-                    aria-label="Fim"
-                    value={r.fim}
-                    onChange={(e) => {
-                      const regras = [...disp.regras]
-                      regras[i] = { ...r, fim: e.target.value }
-                      mudar({ regras })
-                    }}
-                    className="input h-11 py-0"
-                  />
-                  <button
-                    type="button"
-                    aria-label={`Remover faixa de ${DIAS[r.diaSemana]}`}
-                    onClick={() => mudar({ regras: disp.regras.filter((_, idx) => idx !== i) })}
-                    className="grid size-11 place-items-center rounded-lg text-ink-mute hover:bg-paper hover:text-warn-ink"
-                  >
-                    <Trash2 className="size-4" aria-hidden />
-                  </button>
-                </div>
-
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {MODALIDADES.map((m) => {
-                    const ativa = r.modalidades.includes(m)
-                    return (
-                      <button
-                        key={m}
-                        type="button"
-                        aria-pressed={ativa}
-                        onClick={() => {
-                          const modalidades = ativa
-                            ? r.modalidades.filter((x) => x !== m)
-                            : [...r.modalidades, m]
-                          if (modalidades.length === 0) return // at least one
-                          const regras = [...disp.regras]
-                          regras[i] = { ...r, modalidades }
-                          mudar({ regras })
-                        }}
-                        className={cn(
-                          'min-h-9 rounded-pill border px-3 text-xs font-semibold',
-                          ativa
-                            ? 'border-transparent [background-image:var(--grad-brand)] text-white'
-                            : 'border-line bg-paper text-ink-soft',
-                        )}
-                      >
-                        {MODALIDADE_LABEL[m]}
-                      </button>
-                    )
-                  })}
-                  <input
-                    aria-label="Local"
-                    value={r.local}
-                    onChange={(e) => {
-                      const regras = [...disp.regras]
-                      regras[i] = { ...r, local: e.target.value }
-                      mudar({ regras })
-                    }}
-                    placeholder="Local (opcional)"
-                    maxLength={160}
-                    className="input h-9 flex-1 py-0 text-xs"
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {disp.regras.length > 0 && (
-          <p className="mt-md text-xs text-ink-mute">
-            Resumo:{' '}
-            {disp.regras
-              .map((r) => `${DIAS_CURTOS[r.diaSemana]} ${r.inicio}–${r.fim}`)
-              .join(' · ')}
-          </p>
-        )}
       </section>
 
       <section className="rounded-2xl border border-line bg-paper p-lg shadow-soft">
@@ -732,6 +580,20 @@ function CampoNumero({
       <p className="mt-1 text-xs text-ink-mute">{ajuda}</p>
     </div>
   )
+}
+
+/**
+ * A semana em uma linha: "seg 08:00–18:00 · ter 08:00–12:00".
+ *
+ * Dias com mais de um período aparecem uma vez por período, na ordem da semana
+ * começando na segunda — é como se lê uma agenda em voz alta.
+ */
+function resumoSemana(regras: Regra[]): string {
+  const ordem = (d: number) => (d === 0 ? 7 : d)
+  return [...regras]
+    .sort((a, b) => ordem(a.diaSemana) - ordem(b.diaSemana) || a.inicio.localeCompare(b.inicio))
+    .map((r) => `${DIAS_CURTOS[r.diaSemana]} ${r.inicio}–${r.fim}`)
+    .join(' · ')
 }
 
 /** `datetime-local` wants 'YYYY-MM-DDTHH:MM' with no zone or seconds. */

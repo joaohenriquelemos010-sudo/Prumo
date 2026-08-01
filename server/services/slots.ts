@@ -30,6 +30,14 @@ export interface BloqueioDisponibilidade {
   ate: Date
 }
 
+/** Uma faixa 'HH:MM' que se repete toda semana no relógio do consultório. */
+export interface FaixaSemanal {
+  diaSemana: number
+  inicio: string
+  fim: string
+  motivo?: string
+}
+
 export interface ConfigDisponibilidade {
   ativo: boolean
   /**
@@ -47,6 +55,12 @@ export interface ConfigDisponibilidade {
   fuso: string
   regras: RegraDisponibilidade[]
   bloqueios: BloqueioDisponibilidade[]
+  /** Pausas por dia. O almoço de terça pode não ser o de quinta. */
+  intervalos?: FaixaSemanal[]
+  /** Compromisso fixo que volta toda semana — a manhã de cirurgia. */
+  bloqueiosSemanais?: FaixaSemanal[]
+  /** Janelas extras fora do período, para remarcar quem perdeu a consulta. */
+  reposicoes?: FaixaSemanal[]
 }
 
 export interface IntervaloOcupado {
@@ -60,6 +74,8 @@ export interface Slot {
   duracaoMin: number
   modalidades: string[]
   local: string
+  /** Veio de uma janela de reposição, e não do período normal de atendimento. */
+  reposicao: boolean
 }
 
 export interface DiaComSlots {
@@ -72,6 +88,30 @@ const MINUTO = 60_000
 
 function seSobrepoe(aInicio: number, aFim: number, bInicio: number, bFim: number): boolean {
   return aInicio < bFim && bInicio < aFim
+}
+
+interface FaixaMinutos {
+  inicio: number
+  fim: number
+}
+
+/**
+ * As faixas de um dia da semana, já em minutos e já descartando o que não fecha.
+ *
+ * Uma faixa invertida ('18:00' às '08:00') é erro de digitação, não intenção. No
+ * lugar de um período que atravessa a meia-noite ela vira nada — o mesmo que o
+ * expansor já fazia com uma regra invertida.
+ */
+function faixasDoDia(faixas: FaixaSemanal[] | undefined, diaSemana: number): FaixaMinutos[] {
+  const saida: FaixaMinutos[] = []
+  for (const f of faixas ?? []) {
+    if (f.diaSemana !== diaSemana) continue
+    const inicio = minutosDoDia(f.inicio)
+    const fim = minutosDoDia(f.fim)
+    if (inicio === null || fim === null || fim <= inicio) continue
+    saida.push({ inicio, fim })
+  }
+  return saida
 }
 
 /**
@@ -89,7 +129,10 @@ export function expandirSlots(
   ocupados: IntervaloOcupado[],
   agora: Date = new Date(),
 ): DiaComSlots[] {
-  if (!config.ativo || config.regras.length === 0) return []
+  // Uma agenda só de reposição é estranha, mas é uma agenda: quem só abre
+  // encaixes de fim de tarde não deve ficar sem horário nenhum.
+  if (!config.ativo) return []
+  if (config.regras.length === 0 && (config.reposicoes ?? []).length === 0) return []
   if (!partesDaData(de) || !partesDaData(ate)) return []
 
   const zona = config.fuso || ZONA_PADRAO
@@ -120,31 +163,73 @@ export function expandirSlots(
     const diaSemana = diaSemanaDaChave(chave)
     const slots: Slot[] = []
 
-    for (const regra of config.regras) {
-      if (regra.diaSemana !== diaSemana) continue
+    /*
+     * Os vácuos do dia. Intervalos e bloqueios semanais são a mesma coisa para o
+     * motor — minutos em que não se atende —, e só se separam na tela, porque
+     * "almoço" e "manhã de cirurgia" não se preenchem com a mesma cabeça.
+     *
+     * O almoço legado entra aqui como mais uma faixa: quem configurou a agenda
+     * antes da grade semanal continua com o almoço fechado sem precisar reabrir
+     * a configuração.
+     */
+    const vazios: FaixaMinutos[] = [
+      ...(almocoInicio !== null && almocoFim !== null && almocoFim > almocoInicio
+        ? [{ inicio: almocoInicio, fim: almocoFim }]
+        : []),
+      ...faixasDoDia(config.intervalos, diaSemana),
+      ...faixasDoDia(config.bloqueiosSemanais, diaSemana),
+    ]
+
+    /*
+     * Período de atendimento primeiro, reposição depois — a ordem é o critério de
+     * desempate. Duas janelas que se sobrepõem geram o mesmo instante duas vezes,
+     * e oferecer o mesmo horário duas vezes é oferecer uma consulta fantasma.
+     */
+    const janelas: { regra: RegraDisponibilidade; reposicao: boolean }[] = [
+      ...config.regras.filter((r) => r.diaSemana === diaSemana).map((regra) => ({ regra, reposicao: false })),
+      ...(config.reposicoes ?? [])
+        .filter((r) => r.diaSemana === diaSemana)
+        .map((r) => ({
+          regra: {
+            diaSemana: r.diaSemana,
+            inicio: r.inicio,
+            fim: r.fim,
+            modalidades: ['presencial'],
+            local: '',
+          } as RegraDisponibilidade,
+          reposicao: true,
+        })),
+    ]
+
+    const jaOferecidos = new Set<string>()
+
+    for (const { regra, reposicao } of janelas) {
       const inicioMin = minutosDoDia(regra.inicio)
       const fimMin = minutosDoDia(regra.fim)
       if (inicioMin === null || fimMin === null || fimMin <= inicioMin) continue
 
       for (let m = inicioMin; m + duracao <= fimMin; m += duracao) {
-        // O almoço é o mesmo em todos os dias que têm regra — vale por minuto do
-        // dia, então é comparado antes de virar instante e não custa fuso.
-        if (almocoInicio !== null && almocoFim !== null && m < almocoFim && m + duracao > almocoInicio) {
-          continue
-        }
+        // Vácuos valem por minuto do dia, então são comparados antes de virar
+        // instante — a conta não custa fuso e não erra no horário de verão.
+        if (vazios.some((v) => seSobrepoe(m, m + duracao, v.inicio, v.fim))) continue
+
         const inicio = zonaParaUtc(partes.ano, partes.mes, partes.dia, Math.floor(m / 60), m % 60, zona)
         const t = inicio.getTime()
         const fim = t + duracao * MINUTO
+        const iso = inicio.toISOString()
 
+        if (jaOferecidos.has(iso)) continue
         if (t < naoAntesDe || t > naoDepoisDe) continue
         if (bloqueios.some((b) => seSobrepoe(t, fim, b.inicio, b.fim))) continue
         if (janelasOcupadas.some((o) => seSobrepoe(t, fim, o.inicio, o.fim))) continue
 
+        jaOferecidos.add(iso)
         slots.push({
-          inicio: inicio.toISOString(),
+          inicio: iso,
           duracaoMin: duracao,
           modalidades: regra.modalidades.length > 0 ? regra.modalidades : ['presencial'],
           local: regra.local ?? '',
+          reposicao,
         })
       }
     }

@@ -88,13 +88,18 @@ async function registrar(request, dados, { configurar = true } = {}) {
         duracaoPadraoMin: 30,
         antecedenciaMinHoras: 0,
         janelaMaxDias: 60,
-        almoco: { inicio: '12:00', fim: '13:00' },
         regras: [1, 2, 3, 4, 5].map((diaSemana) => ({
           diaSemana,
           inicio: '08:00',
           fim: '18:00',
           modalidades: ['presencial'],
           local: 'Consultório',
+        })),
+        // Pausas por dia, como a grade da semana salva.
+        intervalos: [1, 2, 3, 4, 5].map((diaSemana) => ({
+          diaSemana,
+          inicio: '12:00',
+          fim: '13:00',
         })),
         bloqueios: [],
         conveniosAtendidos: [],
