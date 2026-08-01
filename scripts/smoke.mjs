@@ -59,8 +59,18 @@ const conta = (papel) => {
   }
 }
 
-/** Registers straight through the API — the UI flow is covered separately. */
-async function registrar(request, dados) {
+/**
+ * Registers straight through the API — the UI flow is covered separately.
+ *
+ * Um médico recém-registrado **não passa** pelo app: o portão de rota o manda
+ * para `/app/configurar-agenda` até ele definir os dias em que atende. Como
+ * quase todo teste daqui assume um consultório em funcionamento, o padrão é
+ * deixar a agenda já publicada.
+ *
+ * Passe `{ configurar: false }` para exercitar o portão em si — é o que
+ * `smoke-fluxo-medico.mjs` faz.
+ */
+async function registrar(request, dados, { configurar = true } = {}) {
   const corpo = { ...dados }
   if (dados.papel === 'medico') {
     corpo.cpf = '11144477735' // valid check digits
@@ -70,6 +80,29 @@ async function registrar(request, dados) {
   }
   const res = await request.post(`${BASE}/api/auth/register`, { data: corpo })
   if (!res.ok()) throw new Error(`registro falhou (${res.status()}): ${await res.text()}`)
+
+  if (dados.papel === 'medico' && configurar) {
+    await request.put(`${BASE}/api/disponibilidade/me`, {
+      data: {
+        ativo: true,
+        duracaoPadraoMin: 30,
+        antecedenciaMinHoras: 0,
+        janelaMaxDias: 60,
+        almoco: { inicio: '12:00', fim: '13:00' },
+        regras: [1, 2, 3, 4, 5].map((diaSemana) => ({
+          diaSemana,
+          inicio: '08:00',
+          fim: '18:00',
+          modalidades: ['presencial'],
+          local: 'Consultório',
+        })),
+        bloqueios: [],
+        conveniosAtendidos: [],
+        atendeParticular: true,
+        atendeSus: false,
+      },
+    })
+  }
   return res
 }
 

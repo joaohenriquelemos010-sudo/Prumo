@@ -101,13 +101,25 @@ export default function AppAgendaMedico() {
 
 
   return (
-    <div className="flex flex-col gap-lg">
+    <div className="flex flex-col gap-md">
+      {/*
+        Cabeçalho compacto na aba do calendário.
+        A grade é a informação; título grande e subtítulo explicativo empurravam
+        um dia inteiro de trabalho para baixo da dobra. Nas outras abas o título
+        continua inteiro, porque lá ele orienta.
+      */}
       <header className="flex flex-col gap-1">
-        <p className="u-eyebrow">Agenda</p>
-        <h1 className="text-3xl sm:text-4xl">Sua agenda</h1>
-        <p className="text-ink-soft">
-          O que está marcado, o que espera resposta e quando você pode ser agendada.
-        </p>
+        {aba === 'dia' ? (
+          <h1 className="text-2xl">Sua agenda</h1>
+        ) : (
+          <>
+            <p className="u-eyebrow">Agenda</p>
+            <h1 className="text-3xl sm:text-4xl">Sua agenda</h1>
+            <p className="text-ink-soft">
+              O que está marcado, o que espera resposta e quando você pode ser agendada.
+            </p>
+          </>
+        )}
       </header>
 
       {erro && <AlertaErro>{erro}</AlertaErro>}

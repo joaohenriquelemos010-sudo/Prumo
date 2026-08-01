@@ -37,6 +37,7 @@ const AppAtendimento = lazy(() => import('@/pages/app/AppAtendimento'))
 const AppLembretes = lazy(() => import('@/pages/app/AppLembretes'))
 const AppTeleconsulta = lazy(() => import('@/pages/app/AppTeleconsulta'))
 const AppFinanceiro = lazy(() => import('@/pages/app/AppFinanceiro'))
+const AppConfigurarAgenda = lazy(() => import('@/pages/app/AppConfigurarAgenda'))
 
 export const router = createBrowserRouter(
   [
@@ -82,7 +83,10 @@ export const router = createBrowserRouter(
       children: [
         { index: true, element: <AppHome /> },
         { path: 'trilha', element: <AppTrilha /> },
-        { path: 'agenda', element: <AppAgenda /> },
+        // O calendário precisa de sete colunas sem scroll horizontal.
+        { path: 'agenda', element: <AppAgenda />, handle: { largura: 'ampla' } },
+        /* O passo entre criar a conta e usar o produto. Ver `AppConfigurarAgenda`. */
+        { path: 'configurar-agenda', element: <AppConfigurarAgenda /> },
         { path: 'bebe', element: <AppBebe /> },
         { path: 'vacinas', element: <AppVacinas /> },
         { path: 'prontuario', element: <AppProntuario /> },

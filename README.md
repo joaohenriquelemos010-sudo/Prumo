@@ -407,6 +407,29 @@ ginecologia e "o que data esta gestação" no pré-natal — com o mesmo id, o r
 de pré-natal herdaria a DUM de uma consulta ginecológica de dois anos atrás e a
 exibiria como o marco da gravidez.
 
+### O primeiro dia do médico
+
+**Cria conta → configura a agenda → usa o produto.** Nessa ordem, e o passo do
+meio é obrigatório: `/app/configurar-agenda` pergunta em que dias você atende (a
+semana inteira à vista, cada dia um botão que liga e desliga) e confirma os tipos
+de consulta, que já vêm semeados pela especialidade.
+
+Sem esse passo, quem acabava de se cadastrar caía num app que **parecia
+quebrado**: calendário vazio, nenhum horário para oferecer, nenhum tipo de
+consulta, e nenhuma pista de que faltava configurar alguma coisa. O produto
+funcionava; o médico é que não tinha como saber por onde começar.
+
+São só dois passos porque são os dois de que todo o resto depende: os dias e
+horários geram os horários que a paciente enxerga, e os tipos de consulta decidem
+a duração de cada horário e qual formulário de prontuário abre no atendimento. O
+resto — almoço, antecedência, convênios — tem padrão razoável e mora em
+*Configurar*.
+
+O portão vive em `ProtectedRoute` e tem duas saídas de emergência: `/app/perfil`
+(ninguém pode ficar preso sem conseguir sair da conta) e o estado "ainda não sei"
+do store, que **não** redireciona — tratar falha de rede como "não configurado"
+jogaria para o onboarding quem já terminou, a cada recarga.
+
 ### A agenda é um calendário
 
 `/app/agenda` mostra a semana em grade — dias em colunas, horas em linhas — e não
@@ -440,6 +463,20 @@ exige ler tudo e subtrair de cabeça; numa grade, **o espaço vazio é a respost
 - **Gerar PDF** da semana. Papel na mesa continua sendo como muito consultório
   funciona; um sistema que não imprime não substitui o caderno, passa a conviver
   com ele — e aí os dois ficam errados.
+
+Três defeitos deste calendário só apareceram numa captura de tela, e nenhum deles
+quebrava nada:
+
+- **A faixa de horas encolhia.** A primeira versão tirava mínimo e máximo só do
+  que existia; um médico sem expediente configurado com um único atendimento às
+  23:30 via a grade inteira virar uma faixa de uma hora, com o dia de trabalho
+  fora da tela. Agora a faixa parte do padrão e **só cresce**.
+- **O número da semana vinha do domingo.** A grade começa no domingo, a norma ISO
+  começa na segunda — então `dias[0]` mostrava a semana anterior o ano inteiro.
+  Quem decide é a quinta-feira da faixa exibida.
+- **Nome de paciente cortado.** Bloco de 25 minutos rende 23 px, e duas linhas de
+  texto não cabem: o `overflow-hidden` cortava justamente o nome, nas consultas
+  mais comuns. Bloco baixo agora vira uma linha só, com hora e nome lado a lado.
 
 > ⚠️ Duas armadilhas do Tailwind mordem exatamente aqui, e as duas foram
 > encontradas olhando a tela renderizada, não o código. **Classe de cor montada em

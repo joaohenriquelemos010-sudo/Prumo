@@ -76,10 +76,20 @@ export function minutoParaHora(minuto: number): string {
 /**
  * De que hora a que hora a grade é desenhada.
  *
- * Parte do horário de trabalho e **cresce para caber tudo o que existe**. Um
- * atendimento de balcão às 20h fora da janela de trabalho não pode simplesmente
- * não aparecer: a agenda deixaria de ser o registro do dia e viraria o registro
- * do que estava planejado.
+ * A faixa **só cresce, nunca encolhe**. Parte do padrão de um dia de
+ * consultório, é ampliada pelo horário de trabalho configurado, e é ampliada de
+ * novo por qualquer atendimento fora dele — o encaixe das 20h precisa aparecer,
+ * senão a agenda deixa de ser o registro do dia e vira o registro do que estava
+ * planejado.
+ *
+ * ## O bug que esta regra conserta
+ *
+ * A primeira versão calculava mínimo e máximo **só** do que existia. Um médico
+ * recém-cadastrado (sem expediente configurado) com um único atendimento às
+ * 23:30 via a grade inteira virar uma faixa de uma hora: 23:00–24:00, o dia de
+ * trabalho inteiro fora da tela. Nada quebrava — a agenda só ficava inútil, e
+ * parecia quebrada. Começar do padrão e apenas expandir torna esse estado
+ * impossível de alcançar.
  *
  * Arredonda para a hora cheia nas duas pontas, porque uma grade que começa em
  * 07:23 não tem linha de referência que ajude o olho.
@@ -89,8 +99,9 @@ export function faixaDeHoras(
   horariosDeTrabalho: { inicio: string; fim: string }[],
   padrao: Faixa = { de: 7 * 60, ate: 19 * 60 },
 ): Faixa {
-  let de = Infinity
-  let ate = -Infinity
+  // O piso é o padrão. Tudo o que vem depois só pode alargar.
+  let de = padrao.de
+  let ate = padrao.ate
 
   for (const h of horariosDeTrabalho) {
     const i = horaParaMinuto(h.inicio)
@@ -101,11 +112,10 @@ export function faixaDeHoras(
 
   for (const e of eventos) {
     const i = minutoDoDia(e.inicio)
+    if (!Number.isFinite(i)) continue
     de = Math.min(de, i)
     ate = Math.max(ate, i + e.duracaoMin)
   }
-
-  if (!Number.isFinite(de) || !Number.isFinite(ate) || ate <= de) return padrao
 
   return {
     de: Math.max(0, Math.floor(de / 60) * 60),
@@ -224,6 +234,22 @@ export function diasDaSemana(inicio: Date): Date[] {
     d.setDate(d.getDate() + i)
     return d
   })
+}
+
+/**
+ * O número da semana **da faixa exibida**, e não o do primeiro dia dela.
+ *
+ * A grade começa no domingo, mas a norma ISO começa a semana na segunda — então
+ * o domingo de 26/07/2026 pertence à semana 30, enquanto os outros seis dias na
+ * tela são a semana 31. Passar `dias[0]` direto para `semanaDoAno` mostrava o
+ * número da semana **anterior** o tempo todo, o ano inteiro.
+ *
+ * A quinta-feira decide, porque é o dia que a ISO usa para desempatar a que ano
+ * (e portanto a que semana) um intervalo pertence.
+ */
+export function semanaExibida(dias: Date[]): number {
+  const quinta = dias.find((d) => d.getDay() === 4) ?? dias[Math.floor(dias.length / 2)] ?? dias[0]
+  return semanaDoAno(quinta)
 }
 
 /**

@@ -18,7 +18,54 @@ export async function registrarTestesDoFluxoMedico({
   secao('Fluxo do consultório: tipos de consulta e prontuário por tipo')
 
   const ctx = await navegador.newContext({ viewport: DESKTOP })
-  await registrar(ctx.request, conta('medico'))
+  // Sem configurar de propósito: é o portão que este arquivo testa primeiro.
+  await registrar(ctx.request, conta('medico'), { configurar: false })
+
+  /* ---- o portão: quem acabou de criar conta vai configurar a agenda ---- *
+   * É o passo que o fluxo do consultório coloca entre criar a conta e usar o
+   * produto. Sem ele, o médico caía num app que parecia quebrado — calendário
+   * vazio, nenhum horário para oferecer, e nenhuma pista do que faltava. */
+  {
+    const page = await ctx.newPage()
+    await page.goto(`${BASE}/app`)
+    await page.waitForURL('**/app/configurar-agenda', { timeout: 8000 }).catch(() => {})
+    afirmar(
+      page.url().includes('/app/configurar-agenda'),
+      'médico sem agenda configurada é levado para a configuração',
+      `caiu em ${page.url()}`,
+    )
+    afirmar(
+      await page.locator('text=Em que dias você atende?').isVisible(),
+      'e a primeira pergunta é em que dias ele atende',
+    )
+
+    // O calendário interativo: cada dia é um botão que liga e desliga.
+    await page.click('button[aria-pressed="false"]:has-text("SEG")')
+    await page.click('button[aria-pressed="false"]:has-text("QUA")')
+    await page.waitForTimeout(200)
+    afirmar(
+      (await page.locator('text=Segunda').count()) === 1,
+      'ligar um dia abre a linha de horários dele',
+    )
+
+    await page.click('button:has-text("Continuar")')
+    await page.waitForSelector('text=Tipos de consulta', { timeout: 8000 })
+    afirmar(true, 'salvar a semana leva ao passo dos tipos de consulta')
+
+    await page.click('button:has-text("Está bom assim")')
+    await page.waitForSelector('text=Sua agenda está no ar', { timeout: 8000 })
+    afirmar(true, 'e o fluxo termina dizendo que a agenda está no ar')
+
+    // Agora o portão tem que deixar passar.
+    await page.goto(`${BASE}/app/pacientes`)
+    await page.waitForTimeout(600)
+    afirmar(
+      !page.url().includes('configurar-agenda'),
+      'depois de configurar, o médico circula livre pelo app',
+      `caiu em ${page.url()}`,
+    )
+    await page.close()
+  }
 
   /* ---- o catálogo nasce semeado pela especialidade ---- */
   const cat = await ctx.request.get(`${BASE}/api/tipos-atendimento`)
@@ -218,6 +265,15 @@ export async function registrarTestesDoFluxoMedico({
   await page.waitForSelector('[role="tablist"] button:has-text("Semana")')
   const colunas = await page.$$eval('[title*="–"]', (bs) => bs.length)
   afirmar(colunas >= 1, `os horários aparecem como blocos na grade (${colunas})`)
+
+  // A regressão que apareceu na tela: um atendimento fora do expediente fazia a
+  // grade inteira desabar para uma faixa de uma hora.
+  const horas = await page.$$eval('.tabular-nums', (ns) => ns.map((n) => n.textContent))
+  afirmar(
+    horas.length >= 8,
+    `a grade mostra o dia de trabalho inteiro (${horas.length} horas na régua)`,
+    horas.join(' '),
+  )
   afirmar(
     await page.locator('button:has-text("Novo agendamento")').isVisible(),
     'a barra tem o botão de marcar',

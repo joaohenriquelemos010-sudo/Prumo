@@ -1,5 +1,5 @@
 import { Suspense, useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useMatches, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Material } from '@/components/Material'
 import { useMovimento } from '@/lib/motion'
@@ -108,6 +108,10 @@ export function InternalLayout() {
   const [maisAberto, setMaisAberto] = useState(false)
 
   const { ativo, duracao } = useMovimento()
+  /** `handle: { largura: 'ampla' }` na rota. Ver `router.tsx`. */
+  const ampla = useMatches().some(
+    (m) => (m.handle as { largura?: string } | undefined)?.largura === 'ampla',
+  )
   const { sentinela, rolado } = useBordaDeRolagem()
 
   const items = navFor(user?.papel)
@@ -183,7 +187,16 @@ export function InternalLayout() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: ativo ? -8 : 0 }}
             transition={duracao(0.24)}
-            className="mx-auto max-w-4xl px-md py-lg sm:px-lg sm:py-xl"
+            className={cn(
+              'mx-auto px-md py-lg sm:px-lg sm:py-xl',
+              /*
+               * Largura por rota. O texto do produto quer medida de leitura, mas
+               * um calendário de sete colunas dentro de 896px vira scroll
+               * horizontal — foi assim que a semana apareceu com cinco dias e
+               * uma barra de rolagem embaixo. A rota diz de quanto precisa.
+               */
+              ampla ? 'max-w-[1400px]' : 'max-w-4xl',
+            )}
           >
             <Suspense fallback={<PageFallback />}>
               <Outlet />

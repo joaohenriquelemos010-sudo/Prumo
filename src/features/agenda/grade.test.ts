@@ -11,6 +11,7 @@ import {
   posicao,
   posicionar,
   semanaDoAno,
+  semanaExibida,
 } from './grade'
 
 /**
@@ -57,8 +58,14 @@ describe('conversões de hora', () => {
 })
 
 describe('faixaDeHoras', () => {
-  it('parte do horário de trabalho', () => {
-    expect(faixaDeHoras([], [{ inicio: '08:00', fim: '18:00' }])).toEqual({ de: 480, ate: 1080 })
+  it('o horário de trabalho ALARGA o padrão, nunca o estreita', () => {
+    // 08:00–18:00 cabe dentro do padrão 07:00–19:00, então a faixa não muda: o
+    // médico que atende das 8 às 18 ainda quer ver as 7 e as 18 na tela.
+    expect(faixaDeHoras([], [{ inicio: '08:00', fim: '18:00' }])).toEqual({ de: 420, ate: 1140 })
+  })
+
+  it('expediente mais largo que o padrão manda', () => {
+    expect(faixaDeHoras([], [{ inicio: '06:00', fim: '22:00' }])).toEqual({ de: 360, ate: 1320 })
   })
 
   it('cresce para caber um atendimento fora do expediente', () => {
@@ -73,18 +80,50 @@ describe('faixaDeHoras', () => {
     expect(f.de).toBe(6 * 60)
   })
 
+  /*
+   * A regressão que apareceu na tela: um médico recém-cadastrado, sem expediente
+   * configurado, com um único atendimento tarde da noite. A faixa desabava para
+   * uma hora e o dia de trabalho inteiro saía da tela. Nada quebrava — a agenda
+   * só ficava inútil, e parecia quebrada.
+   */
+  it('um atendimento às 23:30 NÃO encolhe a grade para uma faixa de uma hora', () => {
+    const f = faixaDeHoras([evento('a', 23, 30)], [])
+    expect(f.de).toBe(420)
+    expect(f.ate).toBe(24 * 60)
+  })
+
+  it('um atendimento de madrugada mantém o dia de trabalho visível', () => {
+    const f = faixaDeHoras([evento('a', 5, 0)], [])
+    expect(f).toEqual({ de: 300, ate: 1140 })
+  })
+
+  it('a faixa nunca fica menor que o padrão, aconteça o que acontecer', () => {
+    for (const h of [0, 3, 9, 14, 21, 23]) {
+      const f = faixaDeHoras([evento('x', h)], [])
+      expect(f.de, `evento às ${h}h`).toBeLessThanOrEqual(420)
+      expect(f.ate, `evento às ${h}h`).toBeGreaterThanOrEqual(1140)
+    }
+  })
+
   it('arredonda para a hora cheia — grade começando 07:23 não ajuda o olho', () => {
     const f = faixaDeHoras([evento('a', 7, 23)], [])
     expect(f.de % 60).toBe(0)
     expect(f.ate % 60).toBe(0)
   })
 
-  it('sem nada configurado e sem eventos, cai no padrão', () => {
+  it('sem nada configurado e sem eventos, é o padrão', () => {
     expect(faixaDeHoras([], [])).toEqual({ de: 420, ate: 1140 })
   })
 
   it('ignora horários malformados em vez de estourar a faixa', () => {
     expect(faixaDeHoras([], [{ inicio: 'xx', fim: 'yy' }])).toEqual({ de: 420, ate: 1140 })
+  })
+
+  it('ignora data inválida em vez de propagar NaN pela geometria', () => {
+    expect(faixaDeHoras([{ id: 'x', inicio: 'não é data', duracaoMin: 30 }], [])).toEqual({
+      de: 420,
+      ate: 1140,
+    })
   })
 
   it('nunca passa da meia-noite', () => {
@@ -230,6 +269,21 @@ describe('semana', () => {
   it('atravessa a virada do mês sem repetir dia', () => {
     const dias = diasDaSemana(inicioDaSemana(new Date(2026, 6, 31)))
     expect(dias.map((d) => d.getMonth())).toEqual([6, 6, 6, 6, 6, 6, 7])
+  })
+
+  it('o rótulo usa a semana da FAIXA, não a do domingo que abre a grade', () => {
+    // A grade começa no domingo, a ISO começa na segunda. O domingo 26/07/2026
+    // é da semana 30; os outros seis dias na tela são a 31 — e 31 é o número
+    // certo para essa tela. Usar `dias[0]` mostrava a semana anterior o ano
+    // inteiro.
+    const dias = diasDaSemana(inicioDaSemana(new Date(2026, 6, 29)))
+    expect(dias[0].getDate()).toBe(26)
+    expect(semanaDoAno(dias[0])).toBe(30)
+    expect(semanaExibida(dias)).toBe(31)
+  })
+
+  it('na visão de um dia só, a semana é a daquele dia', () => {
+    expect(semanaExibida([new Date(2026, 6, 27)])).toBe(31)
   })
 
   it('numera a semana pela regra ISO', () => {

@@ -1,6 +1,7 @@
 import { Suspense, useEffect } from 'react'
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '@/lib/stores/auth'
+import { useConfiguracao } from '@/lib/stores/configuracao'
 import { InternalLayout } from './InternalLayout'
 import { PageFallback } from './PageFallback'
 import { TrocarSenha } from '@/features/conta/TrocarSenha'
@@ -44,10 +45,38 @@ function usePortao(): 'carregando' | 'visitante' | 'ok' {
 export function ProtectedRoute() {
   const portao = usePortao()
   const precisaTrocar = useAuth((s) => s.user?.trocaSenhaObrigatoria)
+  const ehMedico = useAuth((s) => s.user?.papel === 'medico')
+  const configurada = useConfiguracao((s) => s.configurada)
+  const verificar = useConfiguracao((s) => s.verificar)
+  const local = useLocation()
+
+  useEffect(() => {
+    if (ehMedico && configurada === null) void verificar()
+  }, [ehMedico, configurada, verificar])
 
   if (portao === 'carregando') return <PageFallback />
   if (portao === 'visitante') return <Navigate to="/entrar" replace />
   if (precisaTrocar) return <PortaoSenha />
+
+  /*
+   * Médico sem agenda configurada vai para a configuração — é o passo que o
+   * fluxo do consultório coloca entre criar a conta e usar o produto.
+   *
+   * Sem isso, quem acabava de se cadastrar caía num app que parecia quebrado:
+   * calendário vazio, nenhum horário para oferecer, nenhum tipo de consulta, e
+   * nenhuma pista de que faltava configurar alguma coisa. O produto funcionava;
+   * ele é que não tinha como saber por onde começar.
+   *
+   * `configurada === null` é "ainda não sei" e não redireciona: mandar alguém
+   * para o onboarding enquanto a resposta não chegou tiraria da tela um médico
+   * já configurado a cada recarga. E `/app/perfil` fica de fora do portão —
+   * ninguém pode ficar preso sem conseguir sair da conta.
+   */
+  const escapes = ['/app/configurar-agenda', '/app/perfil']
+  if (ehMedico && configurada === false && !escapes.includes(local.pathname)) {
+    return <Navigate to="/app/configurar-agenda" replace />
+  }
+
   return <InternalLayout />
 }
 

@@ -88,26 +88,50 @@ function cores(cor: string) {
 /** Altura de uma hora. É o único número em pixels da grade — o resto é %. */
 const PX_POR_HORA = 56
 
+/**
+ * Quantas linhas de texto cabem numa altura, em pixels.
+ *
+ * O bloco tem altura proporcional à duração, e o texto não: uma consulta de 25
+ * minutos rende 23 px, onde não cabem duas linhas de 13. A primeira versão
+ * empilhava horário + nome sempre, e o `overflow-hidden` cortava o nome no meio
+ * — o dado mais importante do bloco, justamente nas consultas mais comuns.
+ *
+ * A saída é mudar a forma, não encolher a fonte: bloco baixo vira **uma linha
+ * só**, com hora e nome lado a lado. Ilegível e ausente dão no mesmo numa
+ * agenda.
+ */
+function linhasQueCabem(alturaPx: number): 1 | 2 | 3 {
+  if (alturaPx < 34) return 1
+  if (alturaPx < 52) return 2
+  return 3
+}
+
 function Bloco({
   evento,
   posicao,
   coluna,
   colunas,
   onAbrir,
-  compacto,
+  alturaGradePx,
 }: {
   evento: EventoAgenda
   posicao: { topo: number; altura: number }
   coluna: number
   colunas: number
   onAbrir: (e: EventoAgenda) => void
-  compacto: boolean
+  /** Altura total da coluna, para saber quantos pixels a % do bloco vale. */
+  alturaGradePx: number
 }) {
   const c = cores(evento.cor)
   const largura = 100 / colunas
   const inicio = new Date(evento.inicio)
   const fim = new Date(inicio.getTime() + evento.duracaoMin * 60_000)
-  const faixaHoraria = `${minutoParaHora(minutoDoDia(evento.inicio))} – ${minutoParaHora(minutoDoDia(fim))}`
+  const de = minutoParaHora(minutoDoDia(evento.inicio))
+  const ate = minutoParaHora(minutoDoDia(fim))
+  const faixaHoraria = `${de} – ${ate}`
+  const nome = evento.pacienteNome || 'Paciente'
+
+  const linhas = linhasQueCabem((posicao.altura / 100) * alturaGradePx)
 
   return (
     <button
@@ -126,19 +150,31 @@ function Bloco({
         // Um agendamento ainda pendente é uma promessa, não um compromisso.
         evento.status === 'pendente' && 'border-dashed opacity-80',
       )}
-      title={`${faixaHoraria} · ${evento.pacienteNome}${evento.tipoNome ? ` · ${evento.tipoNome}` : ''}`}
+      title={`${faixaHoraria} · ${nome}${evento.tipoNome ? ` · ${evento.tipoNome}` : ''}`}
     >
       <span className={cn('absolute inset-y-0 left-0 w-1 rounded-l-[6px]', c.barra)} aria-hidden />
-      <span className="block truncate pt-0.5 text-[10px] leading-tight text-ink-mute">
-        {faixaHoraria}
-      </span>
-      <span className="block truncate text-xs font-semibold leading-tight text-ink">
-        {evento.pacienteNome || 'Paciente'}
-      </span>
-      {!compacto && evento.tipoNome && (
-        <span className={cn('block truncate text-[10px] leading-tight', c.texto)}>
-          {evento.tipoNome}
+
+      {linhas === 1 ? (
+        // Hora e nome na mesma linha. A hora encolhe primeiro porque o nome é o
+        // que se procura ao varrer a coluna.
+        <span className="flex items-baseline gap-1 truncate text-[11px] leading-[1.15] text-ink">
+          <span className="shrink-0 text-ink-mute">{de}</span>
+          <span className="truncate font-semibold">{nome}</span>
         </span>
+      ) : (
+        <>
+          <span className="block truncate pt-0.5 text-[10px] leading-tight text-ink-mute">
+            {faixaHoraria}
+          </span>
+          <span className="block truncate text-xs font-semibold leading-tight text-ink">
+            {nome}
+          </span>
+          {linhas === 3 && evento.tipoNome && (
+            <span className={cn('block truncate text-[10px] leading-tight', c.texto)}>
+              {evento.tipoNome}
+            </span>
+          )}
+        </>
       )}
     </button>
   )
@@ -330,7 +366,7 @@ export function GradeAgenda({
                    * classe que não gera CSS — o fundo simplesmente não aparece.
                    * Toda transparência é `color-mix`.
                    */
-                  'relative cursor-copy border-l border-line',
+                  'relative cursor-copy overflow-hidden border-l border-line',
                   // Linhas de hora como fundo, e não como elementos: um dia com
                   // 14 divs de linha vezes 7 colunas é ruído no DOM sem motivo.
                   'bg-[repeating-linear-gradient(to_bottom,var(--color-line)_0,var(--color-line)_1px,transparent_1px,transparent_var(--altura-hora))]',
@@ -361,7 +397,7 @@ export function GradeAgenda({
                     coluna={p.coluna}
                     colunas={p.colunas}
                     onAbrir={onAbrir}
-                    compacto={!umDia && p.posicao.altura < 6}
+                    alturaGradePx={altura}
                   />
                 ))}
               </div>

@@ -11,7 +11,7 @@ import type { EventoAgenda, Expediente } from './GradeAgenda'
 import { NovoAgendamento } from './NovoAgendamento'
 import { PainelLateralAgenda } from './PainelLateral'
 import type { TipoOpcao } from './NovoAgendamento'
-import { diasDaSemana, inicioDaSemana, semanaDoAno } from './grade'
+import { diasDaSemana, inicioDaSemana, semanaExibida } from './grade'
 import { MESES, horaCurta } from './agenda'
 import { cn } from '@/lib/cn'
 import { useAuth } from '@/lib/stores/auth'
@@ -192,7 +192,7 @@ export function AgendaCalendario() {
           <div className="min-w-[190px] text-center">
             <p className="font-display text-sm font-semibold text-ink">{rotuloIntervalo(dias)}</p>
             {visao === 'semana' && (
-              <p className="text-xs text-ink-mute">Semana {semanaDoAno(dias[0])}</p>
+              <p className="text-xs text-ink-mute">Semana {semanaExibida(dias)}</p>
             )}
           </div>
           <button
