@@ -672,3 +672,20 @@ export const listaEsperaPatchSchema = z.object({
   observacao: z.string().trim().max(300).optional(),
   estado: z.enum(['aguardando', 'chamado', 'agendado', 'desistiu']).optional(),
 })
+
+/**
+ * O médico marcando um horário. Diferente do pedido da família em tudo o que
+ * importa: quem marca é a autoridade sobre a própria agenda.
+ */
+export const agendaMarcarSchema = z.object({
+  jornadaId: z.string().trim().min(1, 'Escolha a paciente.'),
+  inicio: z.string().trim().min(1, 'Escolha o horário.'),
+  tipoAtendimentoId: z.string().trim().optional(),
+  duracaoMin: z.number().int().min(5).max(480).optional(),
+  modalidade: z.enum(['teleconsulta', 'presencial', 'domiciliar']).optional(),
+  objetivo: z.enum(OBJETIVOS_AGENDAMENTO).optional(),
+  cobertura: z.enum(['particular', 'convenio', 'sus']).optional(),
+  observacao: z.string().trim().max(500).optional(),
+  /** Marcar por cima de outro atendimento, quando o médico diz que quer. */
+  permitirConflito: z.boolean().optional(),
+})

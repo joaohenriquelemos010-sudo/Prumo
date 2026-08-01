@@ -407,6 +407,48 @@ ginecologia e "o que data esta gestação" no pré-natal — com o mesmo id, o r
 de pré-natal herdaria a DUM de uma consulta ginecológica de dois anos atrás e a
 exibiria como o marco da gravidez.
 
+### A agenda é um calendário
+
+`/app/agenda` mostra a semana em grade — dias em colunas, horas em linhas — e não
+uma lista de cartões agrupada por dia. A troca resolve a pergunta que se faz o dia
+inteiro no consultório: *onde tem meia hora livre na quinta?*. Numa lista, isso
+exige ler tudo e subtrair de cabeça; numa grade, **o espaço vazio é a resposta**.
+
+- **A geometria vive em `src/features/agenda/grade.ts`**, pura e testada. Num
+  calendário o defeito não parece defeito: um evento desenhado meia hora acima do
+  lugar continua sendo um retângulo bonito, e ninguém percebe até alguém perder a
+  consulta.
+- **Sobreposição divide a largura.** Dois horários no mesmo minuto viram duas
+  colunas. Sem isso o segundo se desenha atrás do primeiro e some — o pior
+  defeito possível numa agenda, porque o esquecido fica invisível. Encostar
+  exatamente no fim (09:00–09:30 e 09:30–10:00) **não** conta como sobreposição.
+- **A faixa de horas cresce para caber o que existe.** O encaixe das 20h aparece
+  mesmo fora do expediente; senão a agenda deixa de ser o registro do dia e vira
+  o registro do que estava planejado.
+- **Uma requisição só** (`GET /api/agenda`) traz compromissos e o fundo da grade
+  — expediente, almoço, bloqueios. Em quatro chamadas a grade se montaria em
+  pedaços na frente de quem abriu.
+- Clicar num espaço vago marca ali. `POST /api/agenda/marcar` é o caminho do
+  consultório e é o oposto do pedido da família: nasce **confirmado** (não há a
+  quem pedir confirmação) e **fora do expediente é permitido** — o encaixe existe,
+  e um sistema que o recusa é um sistema que se contorna com papel. O que não se
+  permite sem confirmação explícita é conflito.
+- Ao lado: compartilhar o link dos horários livres, e a lista de espera resumida
+  — que precisa estar ali, porque o momento em que a fila vale alguma coisa é
+  exatamente o momento em que alguém cancela, e nesse momento os olhos estão no
+  calendário.
+- **Gerar PDF** da semana. Papel na mesa continua sendo como muito consultório
+  funciona; um sistema que não imprime não substitui o caderno, passa a conviver
+  com ele — e aí os dois ficam errados.
+
+> ⚠️ Duas armadilhas do Tailwind mordem exatamente aqui, e as duas foram
+> encontradas olhando a tela renderizada, não o código. **Classe de cor montada em
+> tempo de execução não existe**: o Tailwind gera CSS varrendo o fonte atrás de
+> strings literais, então `` bg-[...var(${cor})...] `` produz um bloco sem fundo
+> nenhum. E **`bg-cor/30` não funciona nesta paleta** — as cores são funções OKLCH
+> completas, a substituição de alfa não se aplica, e a classe simplesmente não
+> gera CSS. Toda transparência aqui é `color-mix`.
+
 ### Agenda do consultório
 
 - **Intervalo de almoço** com campo próprio, válido para todos os dias. Dava para

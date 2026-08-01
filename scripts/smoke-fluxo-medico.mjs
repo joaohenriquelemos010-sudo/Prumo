@@ -147,6 +147,65 @@ export async function registrarTestesDoFluxoMedico({
   ).json()
   afirmar(naoAchou.pacientes.length === 0, 'e não acha o que não existe')
 
+  /* ---- o calendário ---- *
+   * A agenda deixou de ser lista e virou grade. As asserções aqui são de
+   * estrutura, não de pixel: que a semana tenha sete colunas, que um horário
+   * marcado apareça como bloco, e que trocar de período de fato mude o que se vê. */
+  const marcar = await ctx.request.post(`${BASE}/api/agenda/marcar`, {
+    data: {
+      jornadaId: paciente.id,
+      inicio: (() => {
+        // Amanhã às 10h no relógio do servidor de teste.
+        const d = new Date()
+        d.setDate(d.getDate() + 1)
+        d.setHours(10, 0, 0, 0)
+        return d.toISOString()
+      })(),
+      tipoAtendimentoId: tipos[0].id,
+    },
+  })
+  afirmar(marcar.ok(), 'o médico marca um horário direto', `status ${marcar.status()}`)
+
+  // O mesmo horário de novo tem que bater no conflito, e não criar dois.
+  const dobrado = await ctx.request.post(`${BASE}/api/agenda/marcar`, {
+    data: {
+      jornadaId: paciente.id,
+      inicio: (() => {
+        const d = new Date()
+        d.setDate(d.getDate() + 1)
+        d.setHours(10, 15, 0, 0)
+        return d.toISOString()
+      })(),
+      tipoAtendimentoId: tipos[0].id,
+    },
+  })
+  afirmar(
+    dobrado.status() === 409,
+    'marcar por cima de outro atendimento é recusado por padrão',
+    `status ${dobrado.status()}`,
+  )
+
+  const semana = await (
+    await ctx.request.get(
+      `${BASE}/api/agenda?de=${new Date(Date.now() - 86400000).toISOString()}&ate=${new Date(Date.now() + 7 * 86400000).toISOString()}`,
+    )
+  ).json()
+  afirmar(semana.agendamentos.length >= 1, 'a agenda devolve os horários da janela')
+  afirmar(Boolean(semana.expediente), 'e o fundo da grade — expediente, almoço, bloqueios')
+  afirmar(
+    semana.agendamentos.every((a) => typeof a.cor === 'string'),
+    'cada horário traz a cor do tipo, para a legenda funcionar',
+  )
+
+  const janelaEnorme = await ctx.request.get(
+    `${BASE}/api/agenda?de=2000-01-01T00:00:00Z&ate=2030-01-01T00:00:00Z`,
+  )
+  afirmar(
+    janelaEnorme.status() === 400,
+    'uma janela absurda é recusada em vez de varrer a coleção',
+    `status ${janelaEnorme.status()}`,
+  )
+
   /* ---- a tela ---- */
   const page = await ctx.newPage()
   await page.goto(`${BASE}/app/agenda`)
@@ -155,6 +214,30 @@ export async function registrarTestesDoFluxoMedico({
     await page.locator('button:has-text("Espera")').isVisible(),
     'a agenda ganhou a aba de lista de espera',
   )
+  // A grade da semana: sete colunas de dia mais a régua de horas.
+  await page.waitForSelector('[role="tablist"] button:has-text("Semana")')
+  const colunas = await page.$$eval('[title*="–"]', (bs) => bs.length)
+  afirmar(colunas >= 1, `os horários aparecem como blocos na grade (${colunas})`)
+  afirmar(
+    await page.locator('button:has-text("Novo agendamento")').isVisible(),
+    'a barra tem o botão de marcar',
+  )
+
+  const antes = await page.textContent('[role="tablist"] ~ * , body')
+  await page.click('button[aria-label="Próximo período"]')
+  await page.waitForTimeout(500)
+  afirmar(
+    (await page.textContent('body')) !== antes,
+    'avançar o período muda o que a grade mostra',
+  )
+
+  await page.click('button:has-text("Dia")')
+  await page.waitForTimeout(400)
+  afirmar(
+    await page.locator('button[aria-selected="true"]:has-text("Dia")').isVisible(),
+    'a visão de dia existe e é selecionável',
+  )
+
   await page.click('button:has-text("Configurar")')
   await page.waitForSelector('text=Tipos de consulta')
   afirmar(

@@ -28,6 +28,7 @@ import { vinculosRouter } from './routes/vinculos.js'
 import { pacientesRouter } from './routes/pacientes.js'
 import { tiposAtendimentoRouter } from './routes/tiposAtendimento.js'
 import { listaEsperaRouter } from './routes/listaEspera.js'
+import { agendaRouter } from './routes/agenda.js'
 import { familiaRouter } from './routes/familia.js'
 import { compartilhamentosRouter } from './routes/compartilhamentos.js'
 import { adminRouter } from './routes/admin.js'
@@ -80,6 +81,7 @@ export function createApp() {
   app.use('/api/pacientes', pacientesRouter)
   app.use('/api/tipos-atendimento', tiposAtendimentoRouter)
   app.use('/api/lista-espera', listaEsperaRouter)
+  app.use('/api/agenda', agendaRouter)
   app.use('/api/transferencias', transferenciasRouter)
   app.use('/api/checklists', checklistsRouter)
   app.use('/api/lembretes', lembretesRouter)

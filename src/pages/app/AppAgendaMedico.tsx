@@ -7,7 +7,8 @@ import { AlertaErro } from '@/components/AlertaErro'
 import { ListaEspera } from '@/features/agenda/ListaEspera'
 import { TiposAtendimento } from '@/features/agenda/TiposAtendimento'
 import { CardAgendamento } from '@/features/agenda/CardAgendamento'
-import { paraChaveDia, rotuloDoDia, horaCurta, MODALIDADE_LABEL } from '@/features/agenda/agenda'
+import { AgendaCalendario } from '@/features/agenda/AgendaCalendario'
+import { paraChaveDia, horaCurta, MODALIDADE_LABEL } from '@/features/agenda/agenda'
 import type { Agendamento, ModalidadeAgendamento } from '@/features/agenda/agenda'
 import { OPERADORAS } from '@/features/clinico/convenios'
 import { cn } from '@/lib/cn'
@@ -93,26 +94,11 @@ export default function AppAgendaMedico() {
   }
 
   const pendentes = useMemo(() => agendamentos.filter((a) => a.status === 'pendente'), [agendamentos])
-  const confirmados = useMemo(
-    () =>
-      agendamentos.filter(
-        (a) => a.status === 'confirmado' && new Date(a.inicio).getTime() > Date.now() - 12 * 3600_000,
-      ),
-    [agendamentos],
-  )
   const aFechar = useMemo(
     () => agendamentos.filter((a) => a.status === 'confirmado' && new Date(a.inicio).getTime() < Date.now()),
     [agendamentos],
   )
 
-  const porDia = useMemo(() => {
-    const mapa = new Map<string, Agendamento[]>()
-    for (const a of [...confirmados].sort((x, y) => x.inicio.localeCompare(y.inicio))) {
-      const chave = paraChaveDia(new Date(a.inicio))
-      mapa.set(chave, [...(mapa.get(chave) ?? []), a])
-    }
-    return [...mapa.entries()]
-  }, [confirmados])
 
   return (
     <div className="flex flex-col gap-lg">
@@ -128,7 +114,7 @@ export default function AppAgendaMedico() {
 
       <div className="flex flex-wrap gap-1 rounded-pill bg-paper-2 p-1" role="tablist">
         <TabBtn ativo={aba === 'dia'} onClick={() => setAba('dia')} icon={CalendarClock}>
-          Próximos
+          Calendário
         </TabBtn>
         <TabBtn ativo={aba === 'pedidos'} onClick={() => setAba('pedidos')} icon={Inbox} contador={pendentes.length}>
           Pedidos
@@ -141,68 +127,41 @@ export default function AppAgendaMedico() {
         </TabBtn>
       </div>
 
-      {aba === 'dia' &&
-        (carregando ? (
-          <Skeleton className="h-40" />
-        ) : (
-          <>
-            {aFechar.length > 0 && (
-              <section className="flex flex-col gap-2">
-                <h2 className="font-display text-sm font-semibold text-indigo">Fechar atendimento</h2>
-                <p className="text-sm text-ink-soft">
-                  Já passou do horário. Registre o desfecho para o histórico da paciente ficar completo.
-                </p>
-                <ul className="flex flex-col gap-3">
-                  {aFechar.map((a) => (
-                    <CardAgendamento
-                      key={a.id}
-                      agendamento={a}
-                      papel="profissional"
-                      mostrarPaciente
-                      ocupado={ocupadoId === a.id}
-                      onRealizado={(id, compareceu) =>
-                        atualizar(id, { status: compareceu ? 'realizado' : 'faltou' })
-                      }
-                    />
-                  ))}
-                </ul>
-              </section>
-            )}
+      {aba === 'dia' && (
+        <>
+          {/*
+            A grade responde a pergunta que se faz o dia inteiro no consultório —
+            *onde tem meia hora livre na quinta?* — sem ler nada: o espaço vazio
+            é a resposta. A lista de cartões que estava aqui exigia ler tudo e
+            subtrair de cabeça.
+          */}
+          <AgendaCalendario />
 
-            {porDia.length === 0 ? (
-              <div className="rounded-2xl border border-line bg-paper p-lg text-center shadow-soft">
-                <span className="mx-auto grid size-12 place-items-center rounded-xl [background-image:var(--grad-brand-soft)] text-indigo">
-                  <CalendarClock className="size-6" aria-hidden />
-                </span>
-                <p className="mt-3 font-display font-semibold text-ink">Nenhuma consulta confirmada</p>
-                <p className="mt-1 text-sm text-ink-soft">
-                  Publique sua disponibilidade na aba ao lado — as famílias passam a ver seus horários
-                  livres e podem marcar direto.
-                </p>
-              </div>
-            ) : (
-              porDia.map(([dia, lista]) => (
-                <section key={dia} className="flex flex-col gap-2">
-                  <h2 className="font-display text-sm font-semibold first-letter:uppercase text-indigo">
-                    {rotuloDoDia(dia)}
-                  </h2>
-                  <ul className="flex flex-col gap-3">
-                    {lista.map((a) => (
-                      <CardAgendamento
-                        key={a.id}
-                        agendamento={a}
-                        papel="profissional"
-                        mostrarPaciente
-                        ocupado={ocupadoId === a.id}
-                        onCancelar={(id) => atualizar(id, { status: 'cancelado' })}
-                      />
-                    ))}
-                  </ul>
-                </section>
-              ))
-            )}
-          </>
-        ))}
+          {aFechar.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h2 className="font-display text-sm font-semibold text-indigo">Fechar atendimento</h2>
+              <p className="text-sm text-ink-soft">
+                Já passou do horário. Registre o desfecho para o histórico da paciente ficar
+                completo.
+              </p>
+              <ul className="flex flex-col gap-3">
+                {aFechar.map((a) => (
+                  <CardAgendamento
+                    key={a.id}
+                    agendamento={a}
+                    papel="profissional"
+                    mostrarPaciente
+                    ocupado={ocupadoId === a.id}
+                    onRealizado={(id, compareceu) =>
+                      atualizar(id, { status: compareceu ? 'realizado' : 'faltou' })
+                    }
+                  />
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
+      )}
 
       {aba === 'pedidos' &&
         (carregando ? (

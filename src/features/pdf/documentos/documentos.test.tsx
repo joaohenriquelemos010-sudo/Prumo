@@ -30,6 +30,7 @@ const { ResumoDaConsultaDocument } = await import('./ResumoDaConsulta')
 const { TransferenciaDocument } = await import('./Transferencia')
 const { ReceitaDocument } = await import('./Receita')
 const { HistoricoConsultasDocument } = await import('./HistoricoConsultas')
+const { AgendaDoDiaDocument } = await import('./AgendaDoDia')
 
 const ISO = '2026-03-15T10:30:00.000Z'
 
@@ -621,6 +622,52 @@ describe('histórico de consultas', () => {
             consulta({ medidas: { pesoKg: 6.9 }, igSemanas: null, igDias: null }),
           ],
         }}
+      />,
+    )
+    expect(ehPdf(b)).toBe(true)
+  })
+})
+
+describe('agenda impressa', () => {
+  const item = (hora: number, nome: string) => ({
+    inicio: new Date(2026, 6, 27, hora, 0).toISOString(),
+    duracaoMin: 30,
+    pacienteNome: nome,
+    tipoNome: 'Pré-natal — retorno',
+    modalidade: 'presencial',
+    status: 'confirmado',
+  })
+
+  it('renderiza a agenda da semana', async () => {
+    const b = await renderiza(
+      <AgendaDoDiaDocument
+        dados={{
+          medicoNome: 'Dra. Ana',
+          periodo: '26 Jul – 1 Ago 2026',
+          geradoEm: ISO,
+          itens: [item(9, 'Fernanda Lima'), item(10, 'Juliana Alves'), item(14, 'Camila Rocha')],
+        }}
+      />,
+    )
+    expect(ehPdf(b)).toBe(true)
+  })
+
+  it('renderiza um período sem nada marcado', async () => {
+    const b = await renderiza(
+      <AgendaDoDiaDocument
+        dados={{ medicoNome: 'Dra. Ana', periodo: 'Semana 31', geradoEm: ISO, itens: [] }}
+      />,
+    )
+    expect(ehPdf(b)).toBe(true)
+  })
+
+  it('aguenta uma semana cheia, atravessando páginas', async () => {
+    const itens = Array.from({ length: 60 }, (_, i) =>
+      item(8 + (i % 10), `Paciente ${i}`),
+    )
+    const b = await renderiza(
+      <AgendaDoDiaDocument
+        dados={{ medicoNome: 'Dra. Ana', periodo: 'Semana 31', geradoEm: ISO, itens }}
       />,
     )
     expect(ehPdf(b)).toBe(true)

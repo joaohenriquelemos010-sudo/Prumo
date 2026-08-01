@@ -26,6 +26,8 @@ import { MeusDadosDocument } from './documentos/MeusDados'
 import type { MeusDadosExport } from './documentos/MeusDados'
 import { ResumoDaConsultaDocument } from './documentos/ResumoDaConsulta'
 import type { ResumoConsultaPDF } from './documentos/ResumoDaConsulta'
+import { AgendaDoDiaDocument } from './documentos/AgendaDoDia'
+import type { AgendaPDF } from './documentos/AgendaDoDia'
 import { HistoricoConsultasDocument } from './documentos/HistoricoConsultas'
 import type { HistoricoConsultasPDF } from './documentos/HistoricoConsultas'
 import { TransferenciaDocument } from './documentos/Transferencia'
@@ -42,6 +44,7 @@ export {
   MeusDadosDocument,
   ResumoDaConsultaDocument,
   HistoricoConsultasDocument,
+  AgendaDoDiaDocument,
   TransferenciaDocument,
   ReceitaDocument,
 }
@@ -113,6 +116,16 @@ export function BaixarResumoDaConsulta({ dados }: { dados: ResumoConsultaPDF }) 
       documento={<ResumoDaConsultaDocument dados={dados} />}
       fileName="resumo-da-consulta.pdf"
       label="Baixar resumo (PDF)"
+    />
+  )
+}
+
+export function BaixarAgenda({ dados }: { dados: AgendaPDF }) {
+  return (
+    <DownloadLink
+      documento={<AgendaDoDiaDocument dados={dados} />}
+      fileName="agenda.pdf"
+      label="Gerar PDF"
     />
   )
 }
