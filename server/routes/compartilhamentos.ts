@@ -25,10 +25,17 @@ compartilhamentosRouter.param('id', (_req, res, next, id) => {
   next()
 })
 
+/**
+ * `responsavel` é opcional porque uma jornada aberta no consultório ainda não
+ * tem dono. Nesse caso ninguém é responsável, e é isso que a função responde:
+ * `String(undefined)` não é id de ninguém, então nem o médico que a criou passa
+ * por aqui — para aprovar compartilhamento é preciso ser a família.
+ */
 function ehResponsavel(
-  crianca: { responsavel: unknown; coResponsaveis?: string[] },
+  crianca: { responsavel?: unknown; coResponsaveis?: string[] },
   userId: string,
 ): boolean {
+  if (!crianca.responsavel) return false
   return String(crianca.responsavel) === userId || (crianca.coResponsaveis ?? []).includes(userId)
 }
 

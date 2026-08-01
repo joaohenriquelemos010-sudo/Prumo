@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/Skeleton'
 import { AlertaErro } from '@/components/AlertaErro'
 import { idadeGestacional } from '@/features/clinico/schedule'
 import { cn } from '@/lib/cn'
+import { NovoPaciente } from '@/features/pacientes/NovoPaciente'
 
 interface Paciente {
   vinculoId: string
@@ -20,6 +21,8 @@ interface Paciente {
   proximo: { id: string; inicio: string; status: string; modalidade: string } | null
   alertas: number
   duvidas: number
+  /** Falso enquanto a paciente foi cadastrada no consultório e não criou conta. */
+  temConta: boolean
 }
 
 const JANELA_INICIAR_MS = 4 * 60 * 60 * 1000
@@ -52,6 +55,7 @@ export default function AppPacientes() {
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  const [cadastrando, setCadastrando] = useState(false)
   const setPaciente = useMedicoContext((s) => s.setPaciente)
   const navigate = useNavigate()
 
@@ -63,9 +67,16 @@ export default function AppPacientes() {
       .finally(() => setCarregando(false))
   }, [])
 
+  /**
+   * A paciente passa a viver na URL. Antes isto gravava a escolha num store e
+   * mandava para `/app/prontuario` — uma tela global agindo sobre um contexto
+   * invisível, que é o que fazia o médico não saber de quem era o que estava
+   * lendo. O store continua sendo escrito porque as telas embutidas o leem, mas
+   * agora ele é consequência do endereço, e não a fonte.
+   */
   function abrir(p: Paciente) {
     setPaciente(p.crianca, p.nome)
-    navigate('/app/prontuario')
+    navigate(`/app/pacientes/${p.crianca}`)
   }
 
   const ordenados = [...pacientes].sort((a, b) => {
@@ -78,11 +89,20 @@ export default function AppPacientes() {
 
   return (
     <div>
-      <header className="mb-lg">
-        <h1 className="text-3xl">Meus pacientes</h1>
-        <p className="mt-1 text-ink-soft">
-          Quem está conectado a você, e o que cada uma precisa.
-        </p>
+      <header className="mb-lg flex flex-wrap items-start justify-between gap-md">
+        <div>
+          <h1 className="text-3xl">Pacientes</h1>
+          <p className="mt-1 text-ink-soft">
+            Quem precisa de você, e o que cada uma precisa.
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          iconLeft={<UserPlus className="size-4" aria-hidden />}
+          onClick={() => setCadastrando(true)}
+        >
+          Cadastrar paciente
+        </Button>
       </header>
 
       {erro && <AlertaErro>{erro}</AlertaErro>}
@@ -95,14 +115,15 @@ export default function AppPacientes() {
       ) : ordenados.length === 0 ? (
         <EmptyState
           icon={<Users className="size-8" aria-hidden />}
-          titulo="Nenhuma paciente conectada ainda"
-          descricao="Gere um convite e mande o link — ela entra e a jornada dela passa a aparecer aqui."
+          titulo="Nenhuma paciente ainda"
+          descricao="Cadastre quem você atende — não é preciso que ela tenha conta. Se quiser acompanhar pelo celular depois, você gera um código e o histórico vai junto."
           action={
-            <Link to="/app/compartilhar">
-              <Button iconLeft={<UserPlus className="size-4" aria-hidden />}>
-                Convidar uma paciente
-              </Button>
-            </Link>
+            <Button
+              iconLeft={<UserPlus className="size-4" aria-hidden />}
+              onClick={() => setCadastrando(true)}
+            >
+              Cadastrar paciente
+            </Button>
           }
         />
       ) : (
@@ -128,7 +149,14 @@ export default function AppPacientes() {
                     >
                       {p.nome}
                     </button>
-                    <p className="text-sm text-ink-soft">{descricao(p)}</p>
+                    <p className="text-sm text-ink-soft">
+                      {descricao(p)}
+                      {!p.temConta && (
+                        <span className="ml-2 rounded-pill bg-paper-3 px-2 py-0.5 text-xs font-semibold text-ink-mute">
+                          sem conta
+                        </span>
+                      )}
+                    </p>
                   </div>
 
                   {podeIniciar && p.proximo && (
@@ -172,7 +200,7 @@ export default function AppPacientes() {
                     onClick={() => abrir(p)}
                     className={cn('ml-auto text-sm font-semibold text-indigo hover:underline')}
                   >
-                    Ver prontuário
+                    Abrir
                   </button>
                 </div>
               </li>
@@ -180,6 +208,16 @@ export default function AppPacientes() {
           })}
         </ul>
       )}
+
+      <NovoPaciente
+        aberto={cadastrando}
+        onFechar={() => setCadastrando(false)}
+        onCriado={(novo) => {
+          setCadastrando(false)
+          setPaciente(novo.id, novo.nome)
+          navigate(`/app/pacientes/${novo.id}`)
+        }}
+      />
     </div>
   )
 }

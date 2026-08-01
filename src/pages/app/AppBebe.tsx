@@ -23,7 +23,15 @@ import type { Checkin, Fase, PerfilJornada, RespostaBebe, ExameResumo } from '@/
  * pós-natal, o planejamento, o check-in e duas tabelas no mesmo arquivo — o
  * maior do repositório, e o mais difícil de mudar sem quebrar a outra metade.
  */
-export default function AppBebe() {
+/**
+ * `embutido` = renderizada como aba dentro do hub da paciente (`AppPaciente`).
+ *
+ * Quando é aba, quem diz de quem é o prontuário e o que a tela é já está no
+ * cabeçalho do hub, e o seletor de paciente viraria uma segunda maneira de
+ * trocar de pessoa — dois controles para a mesma coisa é a origem do "confuso".
+ * Então os dois somem, e só o conteúdo fica.
+ */
+export default function AppBebe({ embutido = false }: { embutido?: boolean } = {}) {
   const papel = useAuth((s) => s.user?.papel)
   const ehMedico = papel === 'medico'
   const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
@@ -112,7 +120,7 @@ export default function AppBebe() {
   if (carregando) {
     return (
       <div className="flex flex-col gap-lg">
-        <Cabecalho fase="gestacao" />
+        {!embutido && <Cabecalho fase="gestacao" />}
         <Skeleton className="h-72" />
       </div>
     )
@@ -121,24 +129,26 @@ export default function AppBebe() {
   return (
     <div className="flex flex-col gap-lg">
       <Confetti trigger={celebrar} />
-      <Cabecalho
-        fase={fase}
-        ehMedico={ehMedico}
-        paciente={perfilPaciente?.nome}
-        descricao={
-          fase === 'gestacao'
-            ? ig
-              ? ehMedico
-                ? `${ig.porExtenso} de gestação.`
-                : `Você está com ${ig.porExtenso} de gestação.`
-              : undefined
-            : fase === 'pos-natal'
-              ? descreverIdade(dados?.idadeMeses ?? 0)
-              : undefined
-        }
-      />
+      {!embutido && (
+        <Cabecalho
+          fase={fase}
+          ehMedico={ehMedico}
+          paciente={perfilPaciente?.nome}
+          descricao={
+            fase === 'gestacao'
+              ? ig
+                ? ehMedico
+                  ? `${ig.porExtenso} de gestação.`
+                  : `Você está com ${ig.porExtenso} de gestação.`
+                : undefined
+              : fase === 'pos-natal'
+                ? descreverIdade(dados?.idadeMeses ?? 0)
+                : undefined
+          }
+        />
+      )}
 
-      <SeletorPaciente />
+      {!embutido && <SeletorPaciente />}
 
       {erro && <AlertaErro>{erro}</AlertaErro>}
 

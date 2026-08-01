@@ -3,6 +3,7 @@ import QRCode from 'qrcode'
 import { Share2, Copy, Check, QrCode, Link2, UserMinus, ShieldCheck, Users, Stethoscope, X } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { useAuth } from '@/lib/stores/auth'
+import { UsarCodigo } from '@/features/pacientes/UsarCodigo'
 import { Button } from '@/components/Button'
 
 interface Vinculo {
@@ -77,6 +78,8 @@ function FamiliaView() {
           prontuário, caderninho e trilha — e você pode desfazer quando quiser.
         </p>
       </header>
+
+      <UsarCodigo onVinculada={recarregar} />
 
       <GerarConvite
         titulo="Conectar meu médico"

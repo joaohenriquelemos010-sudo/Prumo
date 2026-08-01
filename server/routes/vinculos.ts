@@ -211,7 +211,13 @@ vinculosRouter.get('/pacientes', requireAuth, requireRole('medico'), async (req,
       return {
         vinculoId: String(v._id),
         crianca: String(v.crianca),
-        nome: v.pacienteNome || jornada?.nome || 'Paciente',
+        nome: jornada?.titular?.nome || v.pacienteNome || jornada?.nome || 'Paciente',
+        /**
+         * Falso enquanto a paciente foi cadastrada no consultório e não criou
+         * conta. A lista mostra isso porque muda o que o médico pode esperar:
+         * ninguém do outro lado está lendo o que ele escreve ainda.
+         */
+        temConta: Boolean(jornada?.responsavel),
         momento: jornada?.momento ?? null,
         dpp: jornada?.dpp ? new Date(jornada.dpp).toISOString() : null,
         dataNascimento: jornada?.dataNascimento

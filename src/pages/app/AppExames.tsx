@@ -36,7 +36,15 @@ const CATEGORIAS: { value: string; label: string }[] = [
 
 const CAT_LABEL = Object.fromEntries(CATEGORIAS.map((c) => [c.value, c.label]))
 
-export default function AppExames() {
+/**
+ * `embutido` = renderizada como aba dentro do hub da paciente (`AppPaciente`).
+ *
+ * Quando é aba, quem diz de quem é o prontuário e o que a tela é já está no
+ * cabeçalho do hub, e o seletor de paciente viraria uma segunda maneira de
+ * trocar de pessoa — dois controles para a mesma coisa é a origem do "confuso".
+ * Então os dois somem, e só o conteúdo fica.
+ */
+export default function AppExames({ embutido = false }: { embutido?: boolean } = {}) {
   const papel = useAuth((s) => s.user?.papel)
   const isMedico = papel === 'medico'
   const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
@@ -58,19 +66,21 @@ export default function AppExames() {
 
   return (
     <div className="flex flex-col gap-lg">
-      <header className="flex flex-col gap-1">
-        <p className="u-eyebrow">Exames</p>
-        <h1 className="text-3xl sm:text-4xl">
-          {isMedico ? 'Exames do paciente' : 'Seus exames, sempre à mão'}
-        </h1>
-        <p className="text-ink-soft">
-          {isMedico
-            ? 'Todo o histórico de exames, reunido pela Prumo — sem precisar pedir cópia a cada consulta.'
-            : 'Guarde aqui cada exame. Quando você for a uma consulta, o médico vê tudo pela Prumo — nada se perde.'}
-        </p>
-      </header>
+      {!embutido && (
+        <header className="flex flex-col gap-1">
+          <p className="u-eyebrow">Exames</p>
+          <h1 className="text-3xl sm:text-4xl">
+            {isMedico ? 'Exames do paciente' : 'Seus exames, sempre à mão'}
+          </h1>
+          <p className="text-ink-soft">
+            {isMedico
+              ? 'Todo o histórico de exames, reunido pela Prumo — sem precisar pedir cópia a cada consulta.'
+              : 'Guarde aqui cada exame. Quando você for a uma consulta, o médico vê tudo pela Prumo — nada se perde.'}
+          </p>
+        </header>
+      )}
 
-      <SeletorPaciente />
+      {!embutido && <SeletorPaciente />}
 
       <NovoExame onCreated={(e) => setExames((prev) => [e, ...prev])} />
 

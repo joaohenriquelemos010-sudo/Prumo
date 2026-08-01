@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, CalendarDays, Route, Syringe, ShieldQuestion, FlaskConical, NotebookPen, X, Sparkles, Users } from 'lucide-react'
+import { ArrowRight, CalendarDays, Route, Syringe, ShieldQuestion, NotebookPen, X, Sparkles, Users } from 'lucide-react'
 import { useAuth } from '@/lib/stores/auth'
 import { useTrilha } from '@/lib/stores/trilha'
 import { usePerfil } from '@/lib/stores/perfil'
 import { api } from '@/lib/api/client'
 import { Blob } from '@/components/Blob'
 import { Skeleton } from '@/components/Skeleton'
-import { PainelClinico } from '@/features/painel/PainelClinico'
 import { STATUS_ATIVOS, ehFuturo, distanciaHumana, quandoPorExtenso } from '@/features/agenda/agenda'
 import type { Agendamento } from '@/features/agenda/agenda'
-import { SeletorPaciente } from '@/features/painel/SeletorPaciente'
 import { MeuDia } from '@/features/atendimento/MeuDia'
 import { PainelAlertas } from '@/features/clinico/PainelAlertas'
 import AppAdmin from '@/pages/app/AppAdmin'
@@ -186,14 +184,16 @@ function MedicoHome() {
         <PainelAlertas />
       </section>
 
-      <SeletorPaciente />
-
-      <PainelClinico />
-
-      <div className="grid gap-md sm:grid-cols-3">
-        <MedicoAtalho to="/app/pacientes" label="Meus pacientes" icon={Users} />
-        <MedicoAtalho to="/app/exames" label="Ver exames" icon={FlaskConical} />
-        <MedicoAtalho to="/app/vacinas" label="Vacinas do paciente" icon={Syringe} />
+      {/*
+        O seletor de paciente, o painel clínico e os atalhos para "exames" e
+        "vacinas do paciente" saíram daqui. Todos os três respondiam sobre *uma*
+        paciente escolhida num canto da tela — e uma home que fala de alguém sem
+        dizer de quem é o começo do "não sei o que estou olhando". O resumo
+        clínico agora abre dentro da paciente, onde o nome dela está no título.
+      */}
+      <div className="grid gap-md sm:grid-cols-2">
+        <MedicoAtalho to="/app/pacientes" label="Pacientes" icon={Users} />
+        <MedicoAtalho to="/app/agenda" label="Minha agenda" icon={CalendarDays} />
       </div>
     </div>
   )

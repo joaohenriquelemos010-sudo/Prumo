@@ -8,13 +8,11 @@ import {
   Home,
   Route,
   CalendarDays,
-  FileHeart,
   Syringe,
   LogOut,
   Activity,
   NotebookPen,
   FlaskConical,
-  Stethoscope,
   MapPin,
   Link2,
   Users,
@@ -61,19 +59,24 @@ const NAV_PACIENTE: NavItem[] = [
 
 /**
  * Rótulos de consultório, não de software. Quem usa isto é uma obstetra entre
- * duas consultas — "Painel" não diz o que tem lá dentro, "Meu dia" diz. Nomes
- * específicos criam previsibilidade; guarda-chuvas genéricos custam um clique de
- * descoberta toda vez.
+ * duas consultas — "Painel" não diz o que tem lá dentro, "Meu dia" diz.
+ *
+ * E são **quatro** destinos, nenhum deles uma tela clínica.
+ *
+ * Prontuário, consultas, exames, bebê, vacinas e dúvidas **saíram do menu** — não
+ * porque sumiram, mas porque nunca foram lugares: eram seis portas para a mesma
+ * sala, todas agindo sobre uma "paciente ativa" invisível que o médico tinha
+ * escolhido em outra tela. Trocar de aba sem saber de quem era o prontuário é o
+ * defeito, e mais itens no menu era o sintoma.
+ *
+ * Agora tudo o que é *de alguém* mora dentro da paciente (`/app/pacientes/:id`),
+ * onde o nome dela está no cabeçalho e na URL. O menu ficou com o que é do
+ * médico: o dia dele, a agenda dele, a lista dele, o dinheiro dele.
  */
 const NAV_MEDICO: NavItem[] = [
   { to: '/app', label: 'Meu dia', icon: Activity },
   { to: '/app/agenda', label: 'Agenda', icon: CalendarDays },
-  { to: '/app/pacientes', label: 'Meus pacientes', icon: Users },
-  { to: '/app/prontuario', label: 'Prontuários', icon: FileHeart },
-  { to: '/app/bebe', label: 'Bebê', icon: Baby },
-  { to: '/app/consultas', label: 'Consultas', icon: Stethoscope },
-  { to: '/app/exames', label: 'Exames', icon: FlaskConical },
-  { to: '/app/caderninho', label: 'Dúvidas', icon: NotebookPen },
+  { to: '/app/pacientes', label: 'Pacientes', icon: Users },
   { to: '/app/financeiro', label: 'Financeiro', icon: Wallet },
 ]
 

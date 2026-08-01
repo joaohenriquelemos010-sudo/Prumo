@@ -10,11 +10,60 @@ import { campoCifrado } from '../security/cripto.js'
  */
 const criancaSchema = new Schema(
   {
+    /**
+     * Quem é dono desta jornada. **Pode ser nulo**, e essa é a decisão central
+     * do cadastro sem conta: o atendimento acontece antes de a paciente existir
+     * na plataforma, e não depois. Obrigar uma conta para poder registrar uma
+     * consulta transforma a recepção do consultório em cadastro de software.
+     *
+     * Nulo aqui significa "jornada de arquivo", tutelada pelo médico que a
+     * criou (`criadaPorMedico`). Quando a paciente cria a conta e usa o código,
+     * este campo é preenchido e a jornada passa a ser dela — mesma jornada,
+     * mesmo histórico, sem cópia e sem migração.
+     *
+     * Nenhuma checagem de acesso solta por causa disso: quem compara
+     * `String(jornada.responsavel) === user.id` recebe `'null'` de um lado, que
+     * não é id de ninguém.
+     */
     responsavel: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      default: null,
       index: true,
+    },
+    /**
+     * O médico que abriu a jornada antes de existir conta. Fica gravado mesmo
+     * depois da vinculação — é quem responde pelo registro de origem.
+     */
+    criadaPorMedico: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    /**
+     * Os dados da paciente enquanto não há `User` para carregá-los. Depois da
+     * vinculação continuam aqui: são o que o médico digitou e conferiu, e
+     * sobrescrevê-los com o cadastro da conta apagaria a versão checada por
+     * quem estava na sala.
+     */
+    titular: {
+      nome: { type: String, trim: true, maxlength: 80, default: '' },
+      dataNascimento: { type: Date, default: null },
+      telefone: { type: String, trim: true, maxlength: 20, default: '' },
+      email: { type: String, trim: true, lowercase: true, maxlength: 120, default: '' },
+      /** Cifrado em repouso, como o CPF do `User`. */
+      cpf: { type: String, default: '', select: false, ...campoCifrado },
+      observacoes: { type: String, maxlength: 500, default: '' },
+    },
+    /**
+     * O código que a paciente digita para reivindicar esta jornada.
+     *
+     * A direção importa: **quem vincula é quem digita**. Se o médico pudesse
+     * apontar a jornada para um e-mail qualquer, um erro de digitação entregaria
+     * um prontuário inteiro para a pessoa errada. Com o código, o registro só
+     * encontra dono quando alguém que o recebeu em mãos age.
+     */
+    vinculacao: {
+      codigo: { type: String, default: '' },
+      geradoEm: { type: Date, default: null },
+      expiraEm: { type: Date, default: null },
+      vinculadaEm: { type: Date, default: null },
     },
     /**
      * Co-responsáveis — the other parent(s) linked to this journey (mãe↔pai).
@@ -90,6 +139,16 @@ const criancaSchema = new Schema(
     },
   },
   { timestamps: true },
+)
+
+/**
+ * Único e esparso: só as jornadas com código pendente ocupam o índice, e duas
+ * nunca carregam o mesmo. O `partialFilterExpression` é o que impede o vazio de
+ * colidir com o vazio — sem ele, a segunda jornada sem código seria recusada.
+ */
+criancaSchema.index(
+  { 'vinculacao.codigo': 1 },
+  { unique: true, partialFilterExpression: { 'vinculacao.codigo': { $type: 'string', $ne: '' } } },
 )
 
 export type CriancaDoc = InferSchemaType<typeof criancaSchema> & {

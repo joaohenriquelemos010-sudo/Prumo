@@ -19,6 +19,7 @@ import { registrar } from '../services/evolucao.js'
 import { aoFinalizarConsulta } from '../services/lembretes/programar.js'
 import { serializeConsulta } from './consultas.js'
 import { serializeProntuario } from './prontuario.js'
+import type { SessionUser } from '../types.js'
 
 export const atendimentoRouter = Router()
 
@@ -30,6 +31,54 @@ export const atendimentoRouter = Router()
  * responde a uma tela de leitura, o outro a alguém digitando com uma pessoa
  * esperando — e misturá-los foi o que deixou o fluxo espalhado por cinco telas.
  */
+
+/**
+ * O agendamento que representa "chegou agora e vai ser atendido".
+ *
+ * Reaproveita um confirmado das últimas horas se já houver: quem marcou pela
+ * manhã e foi atendido à tarde não deve virar dois atendimentos no relatório do
+ * mês. Fora dessa janela, cria um novo já `confirmado`, porque a paciente está
+ * na sala — pendente descreveria uma dúvida que não existe.
+ */
+async function abrirAgendamentoDeBalcao(jornadaId: string, medico: SessionUser) {
+  if (!isValidObjectId(jornadaId)) return null
+
+  const jornada = await resolveJornada(medico, jornadaId)
+  if (!jornada) return null
+
+  const agora = new Date()
+  const existente = await Agendamento.findOne({
+    crianca: jornada._id,
+    medicoId: medico.id,
+    status: { $in: ['pendente', 'confirmado'] },
+    inicio: { $gte: new Date(agora.getTime() - JANELA_BALCAO_MS), $lte: new Date(agora.getTime() + JANELA_BALCAO_MS) },
+  }).sort({ inicio: 1 })
+  if (existente) {
+    if (existente.status === 'pendente') {
+      existente.status = 'confirmado'
+      await existente.save()
+    }
+    return existente
+  }
+
+  return Agendamento.create({
+    crianca: jornada._id,
+    pacienteId: jornada.responsavel ? String(jornada.responsavel) : '',
+    pacienteNome: jornada.titular?.nome ?? jornada.nome ?? '',
+    medicoId: medico.id,
+    medicoNome: medico.nome,
+    origem: 'medico',
+    objetivo: jornada.momento === 'ja-nasceu' ? 'consulta-crianca' : jornada.momento === 'planejando' ? 'pre-concepcional' : 'consulta-gestante',
+    modalidade: 'presencial',
+    inicio: agora,
+    duracaoMin: 30,
+    status: 'confirmado',
+    mensagem: 'Atendimento sem hora marcada.',
+  })
+}
+
+/** Meia hora para os dois lados: o atraso normal de um consultório. */
+const JANELA_BALCAO_MS = 30 * 60 * 1000
 
 /** Só o autor mexe no próprio rascunho. Nem outro médico vinculado. */
 async function rascunhoDoAutorOr404(id: string, autorId: string) {
@@ -56,15 +105,22 @@ atendimentoRouter.post('/iniciar', requireAuth, requireRole('medico'), async (re
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Confere os dados.' })
     return
   }
-  const { agendamentoId } = parsed.data
-  if (!isValidObjectId(agendamentoId)) {
-    res.status(404).json({ error: 'Não encontramos esse agendamento.' })
-    return
-  }
+  const { agendamentoId, jornadaId } = parsed.data
 
-  const agendamento = await Agendamento.findById(agendamentoId)
+  /*
+   * O caminho de balcão termina com um `Agendamento` como qualquer outro, e é
+   * essa a decisão: em vez de uma consulta órfã com um `if` em cada tela adiante,
+   * o atendimento sem hora marcada **cria** o agendamento correspondente e segue
+   * pelo mesmo trilho. Agenda, financeiro, receituário e teleconsulta continuam
+   * lendo uma coisa só — nenhum deles precisa saber que esta paciente entrou sem
+   * marcar.
+   */
+  const agendamento = jornadaId
+    ? await abrirAgendamentoDeBalcao(jornadaId, req.user!)
+    : await Agendamento.findById(isValidObjectId(agendamentoId ?? '') ? agendamentoId : null)
+
   if (!agendamento) {
-    res.status(404).json({ error: 'Não encontramos esse agendamento.' })
+    res.status(404).json({ error: 'Não encontramos essa paciente.' })
     return
   }
   // Quem atende é quem foi agendado. Um vínculo com a paciente dá acesso ao

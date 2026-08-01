@@ -86,7 +86,15 @@ const slide = {
   transition: { duration: 0.26, ease: [0.16, 1, 0.3, 1] as const },
 }
 
-export default function AppConsultas() {
+/**
+ * `embutido` = renderizada como aba dentro do hub da paciente (`AppPaciente`).
+ *
+ * Quando é aba, quem diz de quem é o prontuário e o que a tela é já está no
+ * cabeçalho do hub, e o seletor de paciente viraria uma segunda maneira de
+ * trocar de pessoa — dois controles para a mesma coisa é a origem do "confuso".
+ * Então os dois somem, e só o conteúdo fica.
+ */
+export default function AppConsultas({ embutido = false }: { embutido?: boolean } = {}) {
   const papel = useAuth((s) => s.user?.papel)
   const isMedico = papel === 'medico'
   const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
@@ -109,24 +117,26 @@ export default function AppConsultas() {
 
   return (
     <div className="flex flex-col gap-lg">
-      <header className="flex flex-wrap items-start justify-between gap-md">
-        <div className="flex flex-col gap-1">
-          <p className="u-eyebrow">Consultas</p>
-          <h1 className="text-3xl sm:text-4xl">{isMedico ? 'Registro de consultas' : 'Suas consultas'}</h1>
-          <p className="text-ink-soft">
-            {isMedico
-              ? 'O roteiro da diretriz, passo a passo — sem esquecer nada, e sem levar para a família o que ainda é hipótese.'
-              : 'O que foi conversado e combinado em cada consulta, guardado para você.'}
-          </p>
-        </div>
-        {isMedico && !criando && (
-          <Button size="md" iconLeft={<Plus className="size-4" aria-hidden />} onClick={() => setCriando(true)}>
-            Nova consulta
-          </Button>
-        )}
-      </header>
+      {!embutido && (
+        <header className="flex flex-wrap items-start justify-between gap-md">
+          <div className="flex flex-col gap-1">
+            <p className="u-eyebrow">Consultas</p>
+            <h1 className="text-3xl sm:text-4xl">{isMedico ? 'Registro de consultas' : 'Suas consultas'}</h1>
+            <p className="text-ink-soft">
+              {isMedico
+                ? 'O roteiro da diretriz, passo a passo — sem esquecer nada, e sem levar para a família o que ainda é hipótese.'
+                : 'O que foi conversado e combinado em cada consulta, guardado para você.'}
+            </p>
+          </div>
+          {isMedico && !criando && (
+            <Button size="md" iconLeft={<Plus className="size-4" aria-hidden />} onClick={() => setCriando(true)}>
+              Nova consulta
+            </Button>
+                )}
+              </header>
+      )}
 
-      <SeletorPaciente />
+      {!embutido && <SeletorPaciente />}
 
       {criando && isMedico && (
         <NovaConsulta

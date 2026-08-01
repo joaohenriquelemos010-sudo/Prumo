@@ -11,7 +11,14 @@ import type { InferSchemaType } from 'mongoose'
 const vinculoSchema = new Schema(
   {
     crianca: { type: Schema.Types.ObjectId, ref: 'Crianca', required: true, index: true },
-    pacienteId: { type: String, required: true, index: true },
+    /**
+     * Vazio quando a paciente ainda não tem conta (jornada aberta pelo médico no
+     * consultório). O vínculo existe assim mesmo, e é de propósito: é ele que
+     * governa o acesso do médico e que faz a paciente aparecer em "Meus
+     * pacientes" — as duas coisas continuam valendo antes de existir conta.
+     * Preenchido na vinculação.
+     */
+    pacienteId: { type: String, default: '', index: true },
     pacienteNome: { type: String, default: '' },
     medicoId: { type: String, required: true, index: true },
     medicoNome: { type: String, default: '' },

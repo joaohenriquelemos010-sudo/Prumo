@@ -32,6 +32,7 @@ const AppCompartilhar = lazy(() => import('@/pages/app/AppCompartilhar'))
 const AppComunidade = lazy(() => import('@/pages/app/AppComunidade'))
 const AppAdmin = lazy(() => import('@/pages/app/AppAdmin'))
 const AppPacientes = lazy(() => import('@/pages/app/AppPacientes'))
+const AppPaciente = lazy(() => import('@/pages/app/AppPaciente'))
 const AppAtendimento = lazy(() => import('@/pages/app/AppAtendimento'))
 const AppLembretes = lazy(() => import('@/pages/app/AppLembretes'))
 const AppTeleconsulta = lazy(() => import('@/pages/app/AppTeleconsulta'))
@@ -90,6 +91,8 @@ export const router = createBrowserRouter(
         { path: 'consultas', element: <AppConsultas /> },
         { path: 'profissionais', element: <AppProfissionais /> },
         { path: 'pacientes', element: <AppPacientes /> },
+        /* O hub de uma paciente. Tudo o que é clínico mora aqui dentro, em abas. */
+        { path: 'pacientes/:jornadaId', element: <AppPaciente /> },
         { path: 'compartilhar', element: <AppCompartilhar /> },
         { path: 'comunidade', element: <AppComunidade /> },
         { path: 'lembretes', element: <AppLembretes /> },

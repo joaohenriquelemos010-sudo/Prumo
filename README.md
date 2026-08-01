@@ -310,13 +310,67 @@ remarcar, cancelar, exportar `.ics`) · **Agendar** (escolhe profissional, dia e
 (calendário SUS/PNI) · **Comunidade** (feed estilo FLO + quizzes mito×verdade) ·
 **Conectar** (link + QR para o médico) · Perfil (plano de saúde; exportar/excluir dados — LGPD).
 
-**Médico:** **Meu dia** (a fila de hoje, cada horário com *Iniciar atendimento*) ·
-**Agenda** (próximos, fila de pedidos para confirmar/recusar, e o editor de disponibilidade) ·
-**Meus pacientes** (ordenados por urgência: próximo horário, alertas abertos, dúvidas sem
-resposta) · **Prontuários** contínuos, incluindo o resumo de nascimento que passa o caso
-para a pediatria · **Bebê** (registro de biometria fetal) · **Consultas** (leitura) ·
-**Exames** · **Dúvidas**. O acesso do médico aos dados de um paciente é **escopado por
-vínculo consentido e revogável**.
+**Médico — quatro destinos, e nenhum deles é uma tela clínica:** **Meu dia** (a fila de
+hoje, cada horário com *Iniciar atendimento*) · **Agenda** (próximos, fila de pedidos para
+confirmar/recusar, e o editor de disponibilidade) · **Pacientes** (ordenados por urgência:
+próximo horário, alertas abertos, dúvidas sem resposta) · **Financeiro**.
+
+Prontuário, consultas, exames, bebê, vacinas e dúvidas **não estão no menu**. Não sumiram:
+nunca foram lugares. Eram seis destinos globais agindo sobre uma "paciente ativa" invisível,
+escolhida em outra tela e guardada em memória — dava para trocar de aba sem saber de quem era
+o prontuário aberto. Tudo o que é *de alguém* mora dentro da paciente, em `/app/pacientes/:id`.
+
+O acesso do médico aos dados de um paciente é **escopado por vínculo consentido e revogável**.
+
+### O hub da paciente
+
+`/app/pacientes/:jornadaId` é uma tela por pessoa, com abas internas — Resumo · Prontuário ·
+Consultas · Exames · Bebê · Vacinas · Dúvidas — e o nome dela no título.
+
+A diferença que importa não é visual: **a paciente está na URL**. Recarregar a página, abrir
+em outra aba, voltar pelo histórico do navegador ou mandar o endereço para um colega passaram
+a funcionar — nenhuma dessas coisas um estado em memória jamais deu. As abas são as páginas
+que já existiam, renderizadas com `embutido` (que esconde o cabeçalho e o seletor de
+paciente): o hub mudou a navegação, não o conteúdo, e por isso não há duas versões do
+prontuário para manter em dia.
+
+### Paciente sem conta — atender antes do cadastro
+
+O médico cadastra quem ele atende **sem que essa pessoa exista na plataforma**. Só o nome é
+obrigatório. É a regra do consultório, não a exceção: chega alguém, é atendido, e o registro
+tem que existir na hora. Exigir que a pessoa instale um app e crie uma conta para poder ser
+atendida inverte quem trabalha para quem — e o que acontece de verdade é que o médico anota
+no papel e nunca mais volta.
+
+A decisão que sustenta isso é uma linha de schema: **`Crianca.responsavel` deixou de ser
+obrigatório.** Nulo significa "jornada de arquivo", tutelada pelo médico que a criou. O
+`Vinculo` nasce junto, então a paciente já aparece em *Pacientes* e o acesso já é o mesmo de
+sempre — nenhuma dessas duas coisas tinha motivo para esperar por um cadastro que talvez
+nunca venha.
+
+*Iniciar atendimento* funciona sem agendamento prévio. Por dentro, o atendimento de balcão
+**cria** o agendamento correspondente e segue pelo trilho normal: agenda, financeiro,
+receituário e teleconsulta continuam lendo uma coisa só, e nenhum deles precisa saber que
+esta paciente entrou sem marcar.
+
+**A vinculação é uma adoção, não uma cópia.** Quando a paciente quiser acompanhar pelo
+celular, o médico gera um código de 8 caracteres; ela cria a conta, digita o código em
+*Conectar*, e a **mesma** jornada passa a ser dela — com o histórico inteiro no lugar, sem
+migração e sem ninguém redigitar nada. A jornada vazia que o cadastro dela criou é
+descartada, e só depois de verificar coleção por coleção que não há nada dentro.
+
+Duas escolhas aqui não são de estilo:
+
+- **Quem digita o código é a paciente.** O caminho óbvio seria o médico apontar a jornada
+  para um e-mail — e um erro de digitação entregaria um prontuário inteiro para outra pessoa,
+  sem que ninguém notasse. Com o código em mãos, o registro só encontra dono quando alguém
+  que esteve na consulta age.
+- **O alfabeto do código não tem `O/0`, `I/1/L` nem `S/5`.** Ele é ditado em voz alta no
+  balcão e digitado por outra pessoa depois; cada par ambíguo custaria uma ligação.
+
+A reivindicação é uma escrita condicional única (`findOneAndUpdate` filtrando pelo código e
+por `responsavel: null`), então dois usos simultâneos do mesmo código terminam com um dono só
+— e não com o segundo apagando o primeiro em silêncio.
 
 ### O cockpit de atendimento
 

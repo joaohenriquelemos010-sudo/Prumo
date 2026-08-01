@@ -25,6 +25,7 @@ import { agendamentosRouter } from './routes/agendamentos.js'
 import { disponibilidadeRouter } from './routes/disponibilidade.js'
 import { bebeRouter } from './routes/bebe.js'
 import { vinculosRouter } from './routes/vinculos.js'
+import { pacientesRouter } from './routes/pacientes.js'
 import { familiaRouter } from './routes/familia.js'
 import { compartilhamentosRouter } from './routes/compartilhamentos.js'
 import { adminRouter } from './routes/admin.js'
@@ -74,6 +75,7 @@ export function createApp() {
   app.use('/api/caderninho', caderninhoRouter)
   app.use('/api/consultas', consultasRouter)
   app.use('/api/atendimento', atendimentoRouter)
+  app.use('/api/pacientes', pacientesRouter)
   app.use('/api/transferencias', transferenciasRouter)
   app.use('/api/checklists', checklistsRouter)
   app.use('/api/lembretes', lembretesRouter)

@@ -27,7 +27,15 @@ const STATUS_META: Record<DoseStatus, { label: string; className: string; icon: 
   futura: { label: 'Futura', className: 'text-ink-mute', icon: Circle },
 }
 
-export default function AppVacinas() {
+/**
+ * `embutido` = renderizada como aba dentro do hub da paciente (`AppPaciente`).
+ *
+ * Quando é aba, quem diz de quem é o prontuário e o que a tela é já está no
+ * cabeçalho do hub, e o seletor de paciente viraria uma segunda maneira de
+ * trocar de pessoa — dois controles para a mesma coisa é a origem do "confuso".
+ * Então os dois somem, e só o conteúdo fica.
+ */
+export default function AppVacinas({ embutido = false }: { embutido?: boolean } = {}) {
   const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
   const perfilProprio = usePerfil((s) => s.perfil)
   // When a doctor views a connected patient, the birth date comes from THAT
@@ -90,16 +98,18 @@ export default function AppVacinas() {
 
   return (
     <div className="flex flex-col gap-lg">
-      <header className="flex flex-col gap-1">
-        <p className="u-eyebrow">Carteira de vacinas</p>
-        <h1 className="text-3xl sm:text-4xl">Vacinas em dia, no ritmo do SUS</h1>
-        <p className="text-ink-soft">
-          Seguindo o Calendário Nacional de Vacinação. Marque o que já foi aplicado —
-          a Prumo cuida de mostrar o que vem a seguir.
-        </p>
-      </header>
+      {!embutido && (
+        <header className="flex flex-col gap-1">
+          <p className="u-eyebrow">Carteira de vacinas</p>
+          <h1 className="text-3xl sm:text-4xl">Vacinas em dia, no ritmo do SUS</h1>
+          <p className="text-ink-soft">
+            Seguindo o Calendário Nacional de Vacinação. Marque o que já foi aplicado —
+            a Prumo cuida de mostrar o que vem a seguir.
+          </p>
+        </header>
+      )}
 
-      <SeletorPaciente />
+      {!embutido && <SeletorPaciente />}
 
       {!criancaAtiva && <DadosCrianca />}
 

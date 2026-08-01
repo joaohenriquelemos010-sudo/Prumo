@@ -37,7 +37,15 @@ interface Prontuario {
   resumoNascimento: ResumoNascimentoDados | null
 }
 
-export default function AppProntuario() {
+/**
+ * `embutido` = renderizada como aba dentro do hub da paciente (`AppPaciente`).
+ *
+ * Quando é aba, quem diz de quem é o prontuário e o que a tela é já está no
+ * cabeçalho do hub, e o seletor de paciente viraria uma segunda maneira de
+ * trocar de pessoa — dois controles para a mesma coisa é a origem do "confuso".
+ * Então os dois somem, e só o conteúdo fica.
+ */
+export default function AppProntuario({ embutido = false }: { embutido?: boolean } = {}) {
   const papel = useAuth((s) => s.user?.papel)
   const nome = useAuth((s) => s.user?.nome)
   const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
@@ -67,15 +75,17 @@ export default function AppProntuario() {
 
   return (
     <div className="flex flex-col gap-lg">
-      <header className="flex flex-col gap-1">
-        <p className="u-eyebrow">Prontuário</p>
-        <h1 className="text-3xl sm:text-4xl">O histórico contínuo, num só lugar</h1>
-        <p className="text-ink-soft">
-          Da gestação à pediatria, sem se perder. {podeEditar ? 'Você pode editar o resumo e registrar anotações.' : 'Você pode acompanhar e adicionar anotações.'}
-        </p>
-      </header>
+      {!embutido && (
+        <header className="flex flex-col gap-1">
+          <p className="u-eyebrow">Prontuário</p>
+          <h1 className="text-3xl sm:text-4xl">O histórico contínuo, num só lugar</h1>
+          <p className="text-ink-soft">
+            Da gestação à pediatria, sem se perder. {podeEditar ? 'Você pode editar o resumo e registrar anotações.' : 'Você pode acompanhar e adicionar anotações.'}
+          </p>
+        </header>
+      )}
 
-      <SeletorPaciente />
+      {!embutido && <SeletorPaciente />}
 
       {loading || !prontuario ? (
         <div className="flex flex-col gap-2">

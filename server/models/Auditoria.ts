@@ -38,6 +38,8 @@ export const ACOES = [
   // Mesmo conteúdo do `baixar`, outro formato — ação separada porque "quem
   // puxou como FHIR" é a pergunta que a auditoria de interoperabilidade faz.
   'transferencia.baixar-fhir',
+  'paciente.criar',
+  'paciente.vincular',
   'dados.exportar',
   'conta.excluir',
   'login.sucesso',

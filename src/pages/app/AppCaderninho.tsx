@@ -33,7 +33,15 @@ function diaLabel(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })
 }
 
-export default function AppCaderninho() {
+/**
+ * `embutido` = renderizada como aba dentro do hub da paciente (`AppPaciente`).
+ *
+ * Quando é aba, quem diz de quem é o prontuário e o que a tela é já está no
+ * cabeçalho do hub, e o seletor de paciente viraria uma segunda maneira de
+ * trocar de pessoa — dois controles para a mesma coisa é a origem do "confuso".
+ * Então os dois somem, e só o conteúdo fica.
+ */
+export default function AppCaderninho({ embutido = false }: { embutido?: boolean } = {}) {
   const papel = useAuth((s) => s.user?.papel)
   const nome = useAuth((s) => s.user?.nome)
   const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
@@ -67,19 +75,21 @@ export default function AppCaderninho() {
 
   return (
     <div className="flex flex-col gap-lg">
-      <header className="flex flex-col gap-1">
-        <p className="u-eyebrow">Caderninho de dúvidas</p>
-        <h1 className="caderno-hand text-4xl text-indigo sm:text-5xl">
-          {isMedico ? 'Dúvidas do seu paciente' : 'Suas dúvidas, no seu tempo'}
-        </h1>
-        <p className="text-ink-soft">
-          {isMedico
-            ? 'As perguntas que a família anotou e escolheu compartilhar. Responda com carinho.'
-            : 'Anote o que surgir — de madrugada, na fila, no susto. Depois é só levar (ou compartilhar) com quem cuida de vocês.'}
-        </p>
-      </header>
+      {!embutido && (
+        <header className="flex flex-col gap-1">
+          <p className="u-eyebrow">Caderninho de dúvidas</p>
+          <h1 className="caderno-hand text-4xl text-indigo sm:text-5xl">
+            {isMedico ? 'Dúvidas do seu paciente' : 'Suas dúvidas, no seu tempo'}
+          </h1>
+          <p className="text-ink-soft">
+            {isMedico
+              ? 'As perguntas que a família anotou e escolheu compartilhar. Responda com carinho.'
+              : 'Anote o que surgir — de madrugada, na fila, no susto. Depois é só levar (ou compartilhar) com quem cuida de vocês.'}
+          </p>
+        </header>
+      )}
 
-      <SeletorPaciente />
+      {!embutido && <SeletorPaciente />}
 
       {!isMedico && <NovaDuvida criancaAtiva={criancaAtiva} onCreated={(d) => setDuvidas((prev) => [d, ...prev])} />}
 

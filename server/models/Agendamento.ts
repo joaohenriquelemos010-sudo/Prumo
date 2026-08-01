@@ -53,7 +53,13 @@ const historicoSchema = new Schema(
 const agendamentoSchema = new Schema(
   {
     crianca: { type: Schema.Types.ObjectId, ref: 'Crianca', required: true, index: true },
-    pacienteId: { type: String, required: true, index: true },
+    /**
+     * Vazio quando a jornada ainda não tem conta — o atendimento de balcão, que
+     * o médico registra sem que a paciente tenha se cadastrado. A `crianca` é
+     * que identifica de quem é o atendimento; o `pacienteId` só diz qual conta o
+     * enxerga, e antes da vinculação não existe nenhuma.
+     */
+    pacienteId: { type: String, default: '', index: true },
     pacienteNome: { type: String, default: '' },
 
     // Exactly one of these two is set — see `origem`.

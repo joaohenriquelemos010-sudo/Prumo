@@ -303,9 +303,20 @@ export const consultaCreateSchema = z.object({
 })
 
 /** POST /api/consultas/iniciar — abre (ou reabre) o rascunho de um agendamento. */
-export const consultaIniciarSchema = z.object({
-  agendamentoId: z.string().trim().min(1, 'Sem agendamento não há atendimento para iniciar.'),
-})
+/**
+ * Um dos dois, nunca nenhum: `agendamentoId` para o que estava marcado,
+ * `jornadaId` para quem chegou sem hora. O atendimento de balcão é a regra em
+ * consultório cheio, não a exceção — e sem este segundo caminho ele obrigaria o
+ * médico a inventar um agendamento no passado antes de poder atender.
+ */
+export const consultaIniciarSchema = z
+  .object({
+    agendamentoId: z.string().trim().min(1).optional(),
+    jornadaId: z.string().trim().min(1).optional(),
+  })
+  .refine((d) => Boolean(d.agendamentoId) !== Boolean(d.jornadaId), {
+    message: 'Informe o agendamento ou a paciente — um dos dois.',
+  })
 
 /**
  * PATCH /api/consultas/:id — autosave do cockpit.
@@ -567,4 +578,30 @@ export const recebimentoPatchSchema = z.object({
   estado: z.enum(['previsto', 'recebido', 'cancelado']).optional(),
   dataAtendimento: z.string().trim().optional(),
   observacao: z.string().trim().max(300).optional(),
+})
+
+/**
+ * Cadastro de paciente sem conta — o que a recepção digita.
+ *
+ * Só o nome é obrigatório. Tudo o mais é opcional de propósito: um cadastro que
+ * exige data de nascimento e telefone antes de deixar registrar a consulta é
+ * exatamente o atrito que faz o médico anotar no papel e nunca mais voltar.
+ */
+export const pacienteCreateSchema = z.object({
+  nome: z.string().trim().min(2, 'Escreva o nome da paciente.').max(80),
+  momento: z.enum(['planejando', 'gestante', 'ja-nasceu']).default('gestante'),
+  /** ISO ou vazio — a rota converte e ignora o que não for data. */
+  dpp: z.string().trim().max(40).optional(),
+  dataNascimentoBebe: z.string().trim().max(40).optional(),
+  dataNascimento: z.string().trim().max(40).optional(),
+  telefone: z.string().trim().max(20).optional(),
+  email: z.union([z.string().trim().toLowerCase().email('E-mail inválido.'), z.literal('')]).optional(),
+  nomeBebe: z.string().trim().max(80).optional(),
+  observacoes: z.string().trim().max(500).optional(),
+})
+
+export const pacientePatchSchema = pacienteCreateSchema.partial()
+
+export const vincularCodigoSchema = z.object({
+  codigo: z.string().trim().min(6, 'O código tem 8 caracteres.').max(20),
 })
