@@ -26,6 +26,8 @@ import { disponibilidadeRouter } from './routes/disponibilidade.js'
 import { bebeRouter } from './routes/bebe.js'
 import { vinculosRouter } from './routes/vinculos.js'
 import { pacientesRouter } from './routes/pacientes.js'
+import { tiposAtendimentoRouter } from './routes/tiposAtendimento.js'
+import { listaEsperaRouter } from './routes/listaEspera.js'
 import { familiaRouter } from './routes/familia.js'
 import { compartilhamentosRouter } from './routes/compartilhamentos.js'
 import { adminRouter } from './routes/admin.js'
@@ -76,6 +78,8 @@ export function createApp() {
   app.use('/api/consultas', consultasRouter)
   app.use('/api/atendimento', atendimentoRouter)
   app.use('/api/pacientes', pacientesRouter)
+  app.use('/api/tipos-atendimento', tiposAtendimentoRouter)
+  app.use('/api/lista-espera', listaEsperaRouter)
   app.use('/api/transferencias', transferenciasRouter)
   app.use('/api/checklists', checklistsRouter)
   app.use('/api/lembretes', lembretesRouter)

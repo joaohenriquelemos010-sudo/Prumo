@@ -2,6 +2,8 @@ import type { Types } from 'mongoose'
 import { Lembrete } from '../../models/Lembrete.js'
 import type { TipoLembrete } from '../../models/Lembrete.js'
 import { PreferenciasNotificacao } from '../../models/PreferenciasNotificacao.js'
+import { Agendamento } from '../../models/Agendamento.js'
+import { Consulta } from '../../models/Consulta.js'
 
 /**
  * Quem cria os lembretes.
@@ -148,6 +150,23 @@ export async function aoFinalizarConsulta(dados: {
   jornada: Types.ObjectId
   pacienteId: string
 }): Promise<void> {
+  /*
+   * O e-mail leva a próxima consulta e quantas já houve. As duas informações
+   * viajam na carga porque o worker de envio roda muito depois — e ir ao banco
+   * na hora do disparo devolveria um estado diferente do que a médica viu ao
+   * finalizar.
+   */
+  const [proxima, anteriores] = await Promise.all([
+    Agendamento.findOne({
+      crianca: dados.jornada,
+      inicio: { $gte: new Date() },
+      status: { $in: ['pendente', 'confirmado'] },
+    })
+      .sort({ inicio: 1 })
+      .select('inicio'),
+    Consulta.countDocuments({ crianca: dados.jornada, status: 'finalizada' }),
+  ])
+
   await agendar({
     jornada: dados.jornada,
     destinatarioId: dados.pacienteId,
@@ -157,6 +176,11 @@ export async function aoFinalizarConsulta(dados: {
     referencia: { colecao: 'consultas', id: dados.consultaId },
     agendadoPara: new Date(),
     chaveDedup: `consulta:${dados.consultaId}:resumo`,
+    carga: {
+      proximaConsulta: proxima?.inicio ? new Date(proxima.inicio).toISOString() : null,
+      // Menos a que acabou de ser finalizada — "suas outras consultas".
+      consultasAnteriores: Math.max(0, anteriores - 1),
+    },
   })
 }
 

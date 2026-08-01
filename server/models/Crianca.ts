@@ -49,6 +49,20 @@ const criancaSchema = new Schema(
       email: { type: String, trim: true, lowercase: true, maxlength: 120, default: '' },
       /** Cifrado em repouso, como o CPF do `User`. */
       cpf: { type: String, default: '', select: false, ...campoCifrado },
+      /**
+       * Endereço. Campos separados e não uma linha só porque cidade e UF são o
+       * que responde "de onde vêm minhas pacientes" — e um texto livre não
+       * responde isso nunca.
+       */
+      endereco: {
+        cep: { type: String, default: '', maxlength: 12 },
+        logradouro: { type: String, default: '', maxlength: 120 },
+        numero: { type: String, default: '', maxlength: 12 },
+        complemento: { type: String, default: '', maxlength: 60 },
+        bairro: { type: String, default: '', maxlength: 60 },
+        cidade: { type: String, default: '', maxlength: 60 },
+        uf: { type: String, default: '', maxlength: 2, uppercase: true },
+      },
       observacoes: { type: String, maxlength: 500, default: '' },
     },
     /**

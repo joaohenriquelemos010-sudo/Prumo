@@ -9,8 +9,24 @@ import { ConviteVinculo } from '../models/ConviteVinculo.js'
 import { Agendamento } from '../models/Agendamento.js'
 import { Alerta } from '../models/Alerta.js'
 import { Duvida } from '../models/Duvida.js'
+import { Consulta } from '../models/Consulta.js'
+import { calcularInsights } from '../services/insights.js'
 
 export const vinculosRouter = Router()
+
+/**
+ * Comparação de nome sem acento e sem caixa.
+ *
+ * Quem digita "jose" tem que achar "José" — em português, exigir o acento na
+ * busca é o mesmo que não ter busca.
+ */
+function normalizarBusca(v: string): string {
+  return v
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
 
 const VALIDADE_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -204,6 +220,15 @@ vinculosRouter.get('/pacientes', requireAuth, requireRole('medico'), async (req,
   const contar = (linhas: { _id: unknown; total: number }[], id: unknown) =>
     linhas.find((l) => String(l._id) === String(id))?.total ?? 0
 
+  /*
+   * Busca no servidor, sobre o nome do vínculo E o da titular.
+   *
+   * Filtrar no cliente funcionaria hoje e quebraria em silêncio no dia em que a
+   * lista passar do limite da consulta — o consultório com 400 pacientes é
+   * exatamente quem precisa de busca, e seria o único a não achar ninguém.
+   */
+  const termo = normalizarBusca(String(req.query.q ?? ''))
+
   res.json({
     pacientes: vinculos.map((v) => {
       const jornada = jornadas.find((j) => String(j._id) === String(v.crianca))
@@ -234,8 +259,65 @@ vinculosRouter.get('/pacientes', requireAuth, requireRole('medico'), async (req,
         alertas: contar(alertas, v.crianca),
         duvidas: contar(duvidas, v.crianca),
       }
-    }),
+    }).filter((p) => !termo || normalizarBusca(p.nome).includes(termo)),
   })
+})
+
+/**
+ * GET /api/vinculos/insights — o consultório visto de cima.
+ *
+ * Cada número existe para mudar o que o médico faz hoje: quantas gestantes
+ * entram no terceiro trimestre (quantas consultas quinzenais vêm por aí), quem
+ * está sem retorno marcado (quem some se ninguém ligar), quantas ainda não têm
+ * conta (quanto do produto ainda é invisível para as pacientes).
+ */
+vinculosRouter.get('/insights', requireAuth, requireRole('medico'), async (req, res) => {
+  const vinculos = await Vinculo.find({ medicoId: req.user!.id, status: 'ativo' })
+  if (vinculos.length === 0) {
+    res.json({ insights: calcularInsights([]) })
+    return
+  }
+
+  const ids = vinculos.map((v) => v.crianca)
+  const agora = new Date()
+
+  const [jornadas, proximos, ultimas, alertas] = await Promise.all([
+    Crianca.find({ _id: { $in: ids } }).select('nome titular momento dpp dataNascimento responsavel'),
+    Agendamento.find({
+      crianca: { $in: ids },
+      medicoId: req.user!.id,
+      inicio: { $gte: agora },
+      status: { $in: ['pendente', 'confirmado'] },
+    }).sort({ inicio: 1 }).select('crianca inicio'),
+    // A última consulta FINALIZADA de cada jornada — rascunho não é atendimento.
+    Consulta.aggregate([
+      { $match: { crianca: { $in: ids }, status: 'finalizada' } },
+      { $group: { _id: '$crianca', em: { $max: '$data' } } },
+    ]),
+    Alerta.aggregate([
+      { $match: { crianca: { $in: ids }, resolvido: false } },
+      { $group: { _id: '$crianca', total: { $sum: 1 } } },
+    ]),
+  ])
+
+  const brutos = vinculos.map((v) => {
+    const j = jornadas.find((x) => String(x._id) === String(v.crianca))
+    const prox = proximos.find((a) => String(a.crianca) === String(v.crianca))
+    const ult = ultimas.find((u) => String(u._id) === String(v.crianca))
+    return {
+      jornada: String(v.crianca),
+      nome: j?.titular?.nome || v.pacienteNome || j?.nome || 'Paciente',
+      momento: j?.momento ?? null,
+      dpp: j?.dpp ? new Date(j.dpp) : null,
+      dataNascimento: j?.dataNascimento ? new Date(j.dataNascimento) : null,
+      temConta: Boolean(j?.responsavel),
+      proximo: prox ? new Date(prox.inicio) : null,
+      ultimaConsulta: ult?.em ? new Date(ult.em) : null,
+      alertas: alertas.find((a) => String(a._id) === String(v.crianca))?.total ?? 0,
+    }
+  })
+
+  res.json({ insights: calcularInsights(brutos, agora) })
 })
 
 // DELETE /api/vinculos/:id — revoke (either party; the patient can always cut it).

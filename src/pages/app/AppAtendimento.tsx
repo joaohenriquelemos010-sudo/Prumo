@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 import { useAtendimento } from '@/lib/stores/atendimento'
 import { ContextoPaciente } from '@/features/atendimento/ContextoPaciente'
 import { PainelSOAP } from '@/features/atendimento/PainelSOAP'
+import { FormularioProntuario } from '@/features/atendimento/Formulario'
 import { RoteiroLateral } from '@/features/atendimento/RoteiroLateral'
 import { MedidasRapidas } from '@/features/atendimento/MedidasRapidas'
 import { PreviaFamilia } from '@/features/atendimento/PreviaFamilia'
@@ -65,7 +66,7 @@ export default function AppAtendimento() {
   // por isso a rota aceita os dois e o store é idempotente.
   useEffect(() => {
     if (!agendamentoId || cockpit) return
-    void iniciar(agendamentoId).then((r) => {
+    void iniciar({ agendamentoId }).then((r) => {
       if (r.ok && r.consultaId && r.consultaId !== consultaId) {
         navigate(`/app/atendimento/${r.consultaId}?agendamento=${agendamentoId}`, { replace: true })
       }
@@ -103,6 +104,15 @@ export default function AppAtendimento() {
   const notasPrivadas = (pendente.notasPrivadas ?? consulta?.notasPrivadas ?? '') as string
   const resumo = (pendente.resumoParaFamilia ?? consulta?.resumoParaFamilia ?? '') as string
   const avaliacaoPrivada = pendente.avaliacaoPrivada ?? consulta?.avaliacaoPrivada ?? false
+  /*
+   * O que está na tela é o que o servidor tem MAIS o que ainda não subiu — nessa
+   * ordem. O contrário faria o campo em edição piscar de volta para o valor
+   * antigo toda vez que uma resposta do autosave chegasse.
+   */
+  const estruturado = {
+    ...(consulta?.estruturado ?? {}),
+    ...(pendente.estruturado ?? {}),
+  }
   const checklist = pendente.checklist ?? consulta?.checklist ?? []
 
   const blocos = useMemo(() => {
@@ -224,7 +234,20 @@ export default function AppAtendimento() {
             painel === 'nota' ? 'block' : 'hidden',
           )}
         >
-          <div className="mx-auto flex max-w-2xl flex-col gap-md">
+          <div className="mx-auto flex max-w-2xl flex-col gap-lg">
+            {/*
+              O formulário vem ANTES do SOAP, e a ordem não é estética: na
+              primeira consulta a anamnese é o trabalho, e o SOAP é o
+              fechamento. No retorno o bloco encolhe para as poucas perguntas de
+              acompanhamento mais o que já foi respondido — e o SOAP volta a ser
+              a primeira coisa que se vê.
+            */}
+            <FormularioProntuario
+              formulario={cockpit.formulario}
+              valores={estruturado}
+              onCampo={(id, valor) => editar({ estruturado: { [id]: valor } })}
+            />
+
             <PainelSOAP
               valores={campos}
               onChange={(campo, valor) => editar({ [campo]: valor })}

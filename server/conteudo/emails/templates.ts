@@ -190,12 +190,35 @@ export const TEMPLATES: Record<string, (d: DadosTemplate) => EmailMontado> = {
   },
 
   resumo: (d) => {
+    /*
+     * A próxima consulta vai no MESMO e-mail.
+     *
+     * Mandar o resumo hoje e a data do retorno num e-mail separado dobra o
+     * número de mensagens e divide a informação que só faz sentido junta: o que
+     * ficou combinado, e quando vocês se veem de novo. Quando não há retorno
+     * marcado, a frase muda em vez de sumir — "sem retorno marcado" é
+     * exatamente o que a paciente precisa saber para ligar.
+     */
+    const proxima = d.carga.proximaConsulta ? quando(d.carga.proximaConsulta) : null
+    const evolucao = Number(d.carga.consultasAnteriores ?? 0)
+
+    const paragrafos = [
+      `${primeiroNome(d.nome)}, sua médica deixou um resumo do que vocês conversaram.`,
+    ]
+    if (evolucao > 0) {
+      paragrafos.push(
+        `No Prumo ele aparece junto das suas ${evolucao === 1 ? 'outra consulta' : `outras ${evolucao} consultas`}, para você ver a evolução em vez de páginas soltas.`,
+      )
+    }
+    paragrafos.push(
+      proxima
+        ? `Sua próxima consulta está marcada para ${proxima}.`
+        : 'Você ainda não tem a próxima consulta marcada — dá para agendar por aqui quando quiser.',
+    )
+
     const { html, texto } = montar({
       titulo: 'O resumo da sua consulta está pronto',
-      paragrafos: [
-        `${primeiroNome(d.nome)}, sua médica deixou um resumo do que vocês conversaram.`,
-        'Dá para ler no Prumo e baixar em PDF, se quiser guardar ou mostrar para alguém.',
-      ],
+      paragrafos,
       acao: { rotulo: 'Ler o resumo', url: `${d.base}/app/consultas` },
       urlDescadastro: d.urlDescadastro,
     })

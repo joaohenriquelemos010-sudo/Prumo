@@ -9,6 +9,7 @@ import type { AgendamentoDoc, StatusAgendamento } from '../models/Agendamento.js
 import { Prestador } from '../models/Prestador.js'
 import { User } from '../models/User.js'
 import { Disponibilidade } from '../models/Disponibilidade.js'
+import { TipoAtendimento } from '../models/TipoAtendimento.js'
 import { agendamentoCreateSchema, agendamentoUpdateSchema } from '../validation.js'
 import { normalizeField } from '../sanitize.js'
 import { rateLimit } from '../rate-limit.js'
@@ -37,6 +38,9 @@ function serialize(a: HydratedDocument<AgendamentoDoc>) {
     motivo: a.motivo,
     mensagem: a.mensagem,
     convenio: a.convenio,
+    cobertura: a.cobertura,
+    tipoAtendimentoId: a.tipoAtendimento ? String(a.tipoAtendimento) : '',
+    tipoAtendimentoNome: a.tipoAtendimentoNome,
     consultaId: a.consulta ? String(a.consulta) : '',
     criadoEm: a.createdAt.toISOString(),
   }
@@ -220,6 +224,7 @@ agendamentosRouter.post(
       mensagem: normalizeField(d.mensagem ?? '', 500),
       convenio: normalizeField(d.convenio ?? '', 80),
       status: 'pendente' as const,
+      cobertura: d.cobertura ?? (d.convenio ? 'convenio' : 'particular'),
     }
 
     if (d.medicoId) {
@@ -251,12 +256,27 @@ agendamentosRouter.post(
         return
       }
 
+      /*
+       * O tipo escolhido manda na duração. A duração global vira o palpite de
+       * quem não escolheu — que é o caso do marketplace e das marcações
+       * anteriores ao catálogo existir.
+       */
+      const tipo = d.tipoAtendimentoId
+        ? await TipoAtendimento.findOne({
+            _id: isValidObjectId(d.tipoAtendimentoId) ? d.tipoAtendimentoId : null,
+            medicoId: String(medico._id),
+            ativo: true,
+          })
+        : null
+
       const agendamento = await Agendamento.create({
         ...base,
         origem: 'medico',
         medicoId: String(medico._id),
         medicoNome: medico.nome,
-        duracaoMin: disp.duracaoPadraoMin,
+        duracaoMin: tipo?.duracaoMin ?? disp.duracaoPadraoMin,
+        tipoAtendimento: tipo?._id ?? null,
+        tipoAtendimentoNome: tipo?.nome ?? '',
       })
       registrarHistorico(agendamento, req.user!, '', 'pendente', 'Solicitado pela família')
       await agendamento.save()

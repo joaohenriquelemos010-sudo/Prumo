@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarClock, Inbox, Settings2, Plus, Trash2, CalendarOff, Check } from 'lucide-react'
+import { CalendarClock, CalendarOff, Check, Inbox, Plus, Settings2, Trash2, Users } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { Button } from '@/components/Button'
 import { Skeleton } from '@/components/Skeleton'
 import { AlertaErro } from '@/components/AlertaErro'
+import { ListaEspera } from '@/features/agenda/ListaEspera'
+import { TiposAtendimento } from '@/features/agenda/TiposAtendimento'
 import { CardAgendamento } from '@/features/agenda/CardAgendamento'
 import { paraChaveDia, rotuloDoDia, horaCurta, MODALIDADE_LABEL } from '@/features/agenda/agenda'
 import type { Agendamento, ModalidadeAgendamento } from '@/features/agenda/agenda'
@@ -28,6 +30,7 @@ interface Bloqueio {
 
 interface Disponibilidade {
   ativo: boolean
+  almoco: { inicio: string; fim: string }
   duracaoPadraoMin: number
   antecedenciaMinHoras: number
   janelaMaxDias: number
@@ -43,7 +46,7 @@ const DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sáb
 const DIAS_CURTOS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
 const MODALIDADES: ModalidadeAgendamento[] = ['presencial', 'teleconsulta', 'domiciliar']
 
-type Aba = 'dia' | 'pedidos' | 'disponibilidade'
+type Aba = 'dia' | 'pedidos' | 'espera' | 'disponibilidade'
 
 /**
  * The doctor's side of the agenda — the half that did not exist. Three jobs:
@@ -130,8 +133,11 @@ export default function AppAgendaMedico() {
         <TabBtn ativo={aba === 'pedidos'} onClick={() => setAba('pedidos')} icon={Inbox} contador={pendentes.length}>
           Pedidos
         </TabBtn>
+        <TabBtn ativo={aba === 'espera'} onClick={() => setAba('espera')} icon={Users}>
+          Espera
+        </TabBtn>
         <TabBtn ativo={aba === 'disponibilidade'} onClick={() => setAba('disponibilidade')} icon={Settings2}>
-          Disponibilidade
+          Configurar
         </TabBtn>
       </div>
 
@@ -225,7 +231,20 @@ export default function AppAgendaMedico() {
           </ul>
         ))}
 
-      {aba === 'disponibilidade' && <EditorDisponibilidade />}
+      {aba === 'espera' && <ListaEspera />}
+
+      {/*
+        Disponibilidade e catálogo de tipos moram na mesma aba de propósito: são
+        as duas metades da mesma pergunta — quando eu atendo, e do que é cada
+        atendimento. Separá-las faria o médico configurar uma e esquecer a outra,
+        e é a combinação das duas que gera os horários da agenda.
+      */}
+      {aba === 'disponibilidade' && (
+        <div className="flex flex-col gap-lg">
+          <EditorDisponibilidade />
+          <TiposAtendimento />
+        </div>
+      )}
     </div>
   )
 }
@@ -295,6 +314,7 @@ function EditorDisponibilidade() {
         {
           ativo: disp.ativo,
           duracaoPadraoMin: disp.duracaoPadraoMin,
+          almoco: disp.almoco ?? { inicio: '', fim: '' },
           antecedenciaMinHoras: disp.antecedenciaMinHoras,
           janelaMaxDias: disp.janelaMaxDias,
           regras: disp.regras.map(({ diaSemana, inicio, fim, modalidades, local }) => ({
@@ -375,6 +395,45 @@ function EditorDisponibilidade() {
             onChange={(v) => mudar({ janelaMaxDias: v })}
             ajuda="Horizonte visível da agenda."
           />
+        </div>
+
+        {/*
+          O almoço vale para todos os dias que têm regra.
+          Dava para expressá-lo com duas regras no mesmo dia (09–12 e 14–18) — e
+          era como funcionava. Só que ninguém descobre sozinho, e o resultado
+          prático era agenda aberta na hora do almoço.
+        */}
+        <div className="mt-md flex flex-wrap items-end gap-3">
+          <label className="text-sm">
+            Almoço — de
+            <input
+              type="time"
+              value={disp.almoco?.inicio ?? ''}
+              onChange={(e) => mudar({ almoco: { ...disp.almoco, inicio: e.target.value } })}
+              className="input mt-1"
+            />
+          </label>
+          <label className="text-sm">
+            até
+            <input
+              type="time"
+              value={disp.almoco?.fim ?? ''}
+              onChange={(e) => mudar({ almoco: { ...disp.almoco, fim: e.target.value } })}
+              className="input mt-1"
+            />
+          </label>
+          {(disp.almoco?.inicio || disp.almoco?.fim) && (
+            <button
+              type="button"
+              className="pb-2 text-sm text-ink-soft underline"
+              onClick={() => mudar({ almoco: { inicio: '', fim: '' } })}
+            >
+              Sem intervalo
+            </button>
+          )}
+          <p className="w-full text-xs text-ink-mute">
+            Vale para todos os dias. Em branco significa que você atende direto.
+          </p>
         </div>
       </section>
 

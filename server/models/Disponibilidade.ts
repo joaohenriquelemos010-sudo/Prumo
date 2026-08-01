@@ -42,6 +42,16 @@ const disponibilidadeSchema = new Schema(
     medicoId: { type: String, required: true, unique: true, index: true },
     ativo: { type: Boolean, default: false },
     duracaoPadraoMin: { type: Number, default: 30, min: 10, max: 240 },
+    /**
+     * Almoço, em 'HH:MM'. Vale para todos os dias que têm regra.
+     *
+     * Vazio significa "sem intervalo" e não "meio-dia": inventar um padrão aqui
+     * fecharia silenciosamente a agenda de quem atende direto.
+     */
+    almoco: {
+      inicio: { type: String, default: '' },
+      fim: { type: String, default: '' },
+    },
     /** How soon before a slot someone may still book it. */
     antecedenciaMinHoras: { type: Number, default: 12, min: 0, max: 720 },
     /** How far ahead the agenda is open. */

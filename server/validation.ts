@@ -170,6 +170,9 @@ export const agendamentoCreateSchema = z
     inicio: dataISO,
     mensagem: z.string().trim().max(500).optional(),
     convenio: z.string().trim().max(80).optional(),
+    /** Do catálogo do médico — decide a duração e o formulário de prontuário. */
+    tipoAtendimentoId: z.string().trim().optional(),
+    cobertura: z.enum(['particular', 'convenio', 'sus']).optional(),
   })
   .superRefine((d, ctx) => {
     if (!d.medicoId && !d.prestadorId) {
@@ -203,6 +206,13 @@ export const agendamentoUpdateSchema = z
 export const disponibilidadeUpdateSchema = z.object({
   ativo: z.boolean().optional(),
   duracaoPadraoMin: z.number().int().min(10).max(240).optional(),
+  /** 'HH:MM' nos dois; vazio nos dois significa "sem intervalo". */
+  almoco: z
+    .object({
+      inicio: z.string().trim().regex(/^([01]\d|2[0-3]):[0-5]\d$|^$/, 'Horário inválido.'),
+      fim: z.string().trim().regex(/^([01]\d|2[0-3]):[0-5]\d$|^$/, 'Horário inválido.'),
+    })
+    .optional(),
   antecedenciaMinHoras: z.number().int().min(0).max(720).optional(),
   janelaMaxDias: z.number().int().min(1).max(365).optional(),
   regras: z
@@ -344,6 +354,20 @@ export const consultaPatchSchema = z.object({
       }),
     )
     .max(60)
+    .optional(),
+  /**
+   * As respostas do formulário de prontuário, por id de campo.
+   *
+   * Chaves livres porque o formato é o template, e o template é conteúdo — mas o
+   * teto de 120 campos e o de 3000 caracteres por valor continuam valendo: sem
+   * eles, um cliente qualquer transformaria um autosave em gravação arbitrária.
+   */
+  estruturado: z
+    .record(
+      z.string().max(60),
+      z.union([z.string().max(3000), z.number(), z.boolean(), z.null()]),
+    )
+    .refine((r) => Object.keys(r).length <= 120, 'Formulário grande demais.')
     .optional(),
 })
 
@@ -597,6 +621,18 @@ export const pacienteCreateSchema = z.object({
   telefone: z.string().trim().max(20).optional(),
   email: z.union([z.string().trim().toLowerCase().email('E-mail inválido.'), z.literal('')]).optional(),
   nomeBebe: z.string().trim().max(80).optional(),
+  cpf: z.string().trim().max(14).optional(),
+  endereco: z
+    .object({
+      cep: z.string().trim().max(12).optional(),
+      logradouro: z.string().trim().max(120).optional(),
+      numero: z.string().trim().max(12).optional(),
+      complemento: z.string().trim().max(60).optional(),
+      bairro: z.string().trim().max(60).optional(),
+      cidade: z.string().trim().max(60).optional(),
+      uf: z.string().trim().max(2).optional(),
+    })
+    .optional(),
   observacoes: z.string().trim().max(500).optional(),
 })
 
@@ -604,4 +640,35 @@ export const pacientePatchSchema = pacienteCreateSchema.partial()
 
 export const vincularCodigoSchema = z.object({
   codigo: z.string().trim().min(6, 'O código tem 8 caracteres.').max(20),
+})
+
+/** Um tipo de consulta do catálogo do médico. */
+export const tipoAtendimentoSchema = z.object({
+  nome: z.string().trim().min(2, 'Dê um nome ao tipo de consulta.').max(60),
+  duracaoMin: z.number().int().min(5, 'Curto demais.').max(480, 'Longo demais.'),
+  cor: z.enum(['indigo', 'lilas', 'azul', 'success', 'warn']).default('indigo'),
+  template: z.string().trim().max(60).default('soap-generico'),
+  procedimento: z.boolean().optional(),
+  observacaoPadrao: z.string().trim().max(300).optional(),
+  ordem: z.number().int().min(0).max(999).optional(),
+  ativo: z.boolean().optional(),
+})
+
+
+/** Entrada na lista de espera. Nome é o mínimo — o resto ajuda a decidir. */
+export const listaEsperaSchema = z.object({
+  nome: z.string().trim().min(2, 'Escreva o nome.').max(80),
+  telefone: z.string().trim().max(20).optional(),
+  jornadaId: z.string().trim().optional(),
+  tipoAtendimentoId: z.string().trim().optional(),
+  prioridade: z.number().int().min(1).max(3).optional(),
+  disponibilidade: z.string().trim().max(160).optional(),
+  observacao: z.string().trim().max(300).optional(),
+})
+
+export const listaEsperaPatchSchema = z.object({
+  prioridade: z.number().int().min(1).max(3).optional(),
+  disponibilidade: z.string().trim().max(160).optional(),
+  observacao: z.string().trim().max(300).optional(),
+  estado: z.enum(['aguardando', 'chamado', 'agendado', 'desistiu']).optional(),
 })

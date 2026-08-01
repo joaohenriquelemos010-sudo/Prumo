@@ -372,6 +372,68 @@ A reivindicação é uma escrita condicional única (`findOneAndUpdate` filtrand
 por `responsavel: null`), então dois usos simultâneos do mesmo código terminam com um dono só
 — e não com o segundo apagando o primeiro em silêncio.
 
+### Prontuário por tipo de consulta
+
+Na primeira consulta você pergunta tudo — antecedentes, gestações anteriores,
+cirurgias, história familiar. Da segunda em diante você **não pergunta de novo**:
+olha o que já foi respondido e registra o que mudou. Repetir a anamnese a cada
+retorno não é só perda de tempo; é o que faz o médico parar de preencher, e um
+prontuário preenchido pela metade vale menos que um caderno.
+
+Três peças fazem isso funcionar:
+
+- **`server/conteudo/prontuario-templates.ts`** — os formulários, como conteúdo
+  puro. Pré-natal, puericultura e ginecologia, cada um com o par
+  *primeira consulta* / *retorno*. Um `Campo` marcado `permanente` descreve fato
+  que não muda (tipo sanguíneo, menarca, cirurgia prévia); o resto é do dia.
+- **`server/models/TipoAtendimento.ts`** — o catálogo do consultório. Cada tipo
+  tem a própria duração, cor na agenda e o formulário que abre. Substitui os três
+  tipos fixos no código e a duração global única, que não descreviam consultório
+  nenhum. Vem semeado pela especialidade do médico: configuração em branco é a
+  forma mais confiável de um recurso não ser usado.
+- **`server/services/prontuarioTemplates.ts`** — a regra. Se esta jornada já teve
+  a primeira consulta **desta linha de cuidado**, o que abre é o acompanhamento,
+  mesmo que o tipo aponte para a anamnese. E o retorno traz as respostas
+  permanentes como leitura, nunca como campo — um valor de anamnese editável
+  dentro do retorno pareceria que a paciente respondeu aquilo hoje.
+
+A pergunta é por linha, não por jornada: a mesma mulher pode ter feito a anamnese
+ginecológica no ano passado e estar hoje na primeira consulta de pré-natal.
+
+Dois testes guardam o conteúdo contra si mesmo: **um id de campo significa a
+mesma coisa em todo template** e **um campo permanente é permanente em todo
+lugar**. Foram eles que pegaram `dum` significando "última menstruação" na
+ginecologia e "o que data esta gestação" no pré-natal — com o mesmo id, o retorno
+de pré-natal herdaria a DUM de uma consulta ginecológica de dois anos atrás e a
+exibiria como o marco da gravidez.
+
+### Agenda do consultório
+
+- **Intervalo de almoço** com campo próprio, válido para todos os dias. Dava para
+  expressá-lo com duas regras no mesmo dia (09–12 e 14–18) — e era assim, o que
+  na prática significava agenda aberta ao meio-dia porque ninguém descobria o
+  truque. Em branco significa "atendo direto", nunca "meio-dia por padrão".
+- **Lista de espera** (`server/models/ListaEspera.ts`). Existe para um momento só:
+  alguém cancela na quinta e é preciso saber quem chamar primeiro. Urgente
+  primeiro; empate, quem espera há mais tempo. Sem isso o horário vago é perdido
+  — o buraco mais caro de uma agenda cheia.
+- **Cobertura por atendimento** (`particular | convenio | sus`). O que existia
+  estava na disponibilidade do médico e respondia *se ele aceita*, não *como este
+  atendimento foi pago* — que é o que o financeiro precisa saber.
+
+### Insights de pacientes
+
+`GET /api/vinculos/insights` não é painel de indicadores: é uma lista de coisas
+para fazer hoje. Quantas entram no terceiro trimestre (quantas consultas
+quinzenais vêm por aí), quantos partos em 30 dias, quem está sem retorno marcado,
+quantas ainda não vinculam conta.
+
+O bloco que importa mais é o último: **quem sumiu não aparece em lista nenhuma.**
+Uma lista ordenada por urgência mostra quem tem horário marcado, e quem não voltou
+não tem. A gestante que abandona o pré-natal é exatamente o desfecho que o
+pré-natal existe para evitar, e era o único que o produto era cego para enxergar.
+O corte é 90 dias sem consulta e sem nada agendado.
+
 ### O cockpit de atendimento
 
 `/app/atendimento/:id` é a tela onde a consulta acontece — e é a única fora do shell da

@@ -31,6 +31,9 @@ import { cn } from '@/lib/cn'
 const BaixarResumo = lazy(() =>
   import('@/features/pdf/documents').then((m) => ({ default: m.BaixarResumoDaConsulta })),
 )
+const BaixarHistorico = lazy(() =>
+  import('@/features/pdf/documents').then((m) => ({ default: m.BaixarHistoricoConsultas })),
+)
 
 interface Medidas {
   pesoKg?: number | null
@@ -98,6 +101,7 @@ export default function AppConsultas({ embutido = false }: { embutido?: boolean 
   const papel = useAuth((s) => s.user?.papel)
   const isMedico = papel === 'medico'
   const criancaAtiva = useMedicoContext((s) => s.criancaAtiva)
+  const nomeAtivo = useMedicoContext((s) => s.nomeAtivo)
   const [consultas, setConsultas] = useState<Consulta[]>([])
   const [loading, setLoading] = useState(true)
   const [criando, setCriando] = useState(false)
@@ -137,6 +141,34 @@ export default function AppConsultas({ embutido = false }: { embutido?: boolean 
       )}
 
       {!embutido && <SeletorPaciente />}
+
+      {/*
+        O histórico inteiro num PDF só. O resumo de uma consulta já existia; o
+        que o consultório usa de verdade é este — para levar a um colega, anexar
+        a um pedido de convênio, ou guardar ao mudar de médico.
+      */}
+      {consultas.length > 1 && (
+        <Suspense fallback={null}>
+          <BaixarHistorico
+            dados={{
+              pacienteNome: nomeAtivo ?? 'Paciente',
+              geradoEm: new Date().toISOString(),
+              consultas: consultas.map((c) => ({
+                data: c.data,
+                tipo: c.tipo,
+                autorNome: c.autorNome,
+                igSemanas: c.igSemanas,
+                igDias: c.igDias,
+                subjetivo: c.subjetivo,
+                objetivo: c.objetivo,
+                avaliacao: c.avaliacaoOculta ? '' : c.avaliacao,
+                plano: c.plano,
+                medidas: c.medidas as Record<string, number | null | undefined>,
+              })),
+            }}
+          />
+        </Suspense>
+      )}
 
       {criando && isMedico && (
         <NovaConsulta

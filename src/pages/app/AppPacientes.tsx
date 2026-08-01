@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AlertTriangle, CalendarDays, MessageCircleQuestion, Play, UserPlus, Users } from 'lucide-react'
+import { AlertTriangle, CalendarDays, MessageCircleQuestion, Play, Search, UserPlus, Users } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { useMedicoContext } from '@/lib/stores/medico-context'
 import { Button } from '@/components/Button'
@@ -10,6 +10,7 @@ import { AlertaErro } from '@/components/AlertaErro'
 import { idadeGestacional } from '@/features/clinico/schedule'
 import { cn } from '@/lib/cn'
 import { NovoPaciente } from '@/features/pacientes/NovoPaciente'
+import { InsightsPacientes } from '@/features/pacientes/Insights'
 
 interface Paciente {
   vinculoId: string
@@ -26,6 +27,11 @@ interface Paciente {
 }
 
 const JANELA_INICIAR_MS = 4 * 60 * 60 * 1000
+
+/** Quem digita "jose" tem que achar "José" — sem isso, não é busca. */
+function normalizar(v: string): string {
+  return v.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
 
 function descricao(p: Paciente): string {
   if (p.dpp) {
@@ -56,6 +62,7 @@ export default function AppPacientes() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [cadastrando, setCadastrando] = useState(false)
+  const [busca, setBusca] = useState('')
   const setPaciente = useMedicoContext((s) => s.setPaciente)
   const navigate = useNavigate()
 
@@ -79,13 +86,16 @@ export default function AppPacientes() {
     navigate(`/app/pacientes/${p.crianca}`)
   }
 
-  const ordenados = [...pacientes].sort((a, b) => {
-    const ta = a.proximo ? new Date(a.proximo.inicio).getTime() : Infinity
-    const tb = b.proximo ? new Date(b.proximo.inicio).getTime() : Infinity
-    if (ta !== tb) return ta - tb
-    if (b.alertas !== a.alertas) return b.alertas - a.alertas
-    return b.duvidas - a.duvidas
-  })
+  const termo = normalizar(busca)
+  const ordenados = pacientes
+    .filter((p) => !termo || normalizar(p.nome).includes(termo))
+    .sort((a, b) => {
+      const ta = a.proximo ? new Date(a.proximo.inicio).getTime() : Infinity
+      const tb = b.proximo ? new Date(b.proximo.inicio).getTime() : Infinity
+      if (ta !== tb) return ta - tb
+      if (b.alertas !== a.alertas) return b.alertas - a.alertas
+      return b.duvidas - a.duvidas
+    })
 
   return (
     <div>
@@ -106,6 +116,26 @@ export default function AppPacientes() {
       </header>
 
       {erro && <AlertaErro>{erro}</AlertaErro>}
+
+      <InsightsPacientes />
+
+      {/*
+        Busca sem acento e sem caixa, filtrando o que já está em memória. Com
+        muitos pacientes o servidor também filtra (`?q=`), e o mesmo campo serve
+        aos dois — quem digita não precisa saber onde o corte acontece.
+      */}
+      {pacientes.length > 6 && (
+        <label className="relative mb-md mt-md block">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-mute" aria-hidden />
+          <input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="input pl-9"
+            placeholder="Buscar paciente pelo nome"
+            aria-label="Buscar paciente"
+          />
+        </label>
+      )}
 
       {carregando ? (
         <div className="flex flex-col gap-3">

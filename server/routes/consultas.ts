@@ -63,6 +63,19 @@ export function serializeConsulta(c: HydratedDocument<ConsultaDoc>, user: Sessio
      */
     resumoParaFamilia: equipe || c.resumoEnviadoEm ? c.resumoParaFamilia : '',
     resumoEnviadoEm: c.resumoEnviadoEm ? new Date(c.resumoEnviadoEm).toISOString() : null,
+    template: c.template ?? { chave: '', versao: 1 },
+    /*
+     * A anamnese é da equipe.
+     *
+     * O SOAP passa por um filtro campo a campo antes de chegar à família, e
+     * `estruturado` teria que passar pelo mesmo — só que ele é um saco de chaves
+     * definido por conteúdo, então não há como um filtro acompanhar campo novo
+     * que entre num template amanhã. Enquanto o corte não for por campo, o corte
+     * é por papel: a família lê o resumo em linguagem leiga, que é escrito para
+     * ela. "Situação de vulnerabilidade ou violência" não vaza porque alguém
+     * esqueceu de listar o campo numa allowlist.
+     */
+    ...(equipe ? { estruturado: c.estruturado ?? {} } : {}),
     // Only ever leaves the server for clinical staff.
     ...(equipe ? { notasPrivadas: c.notasPrivadas, avaliacaoPrivada: c.avaliacaoPrivada } : {}),
     peso: c.peso,

@@ -22,6 +22,14 @@ type Rascunho = Partial<
   checklist?: ItemChecklist[]
   igSemanas?: number | null
   igDias?: number | null
+  /**
+   * As respostas do formulário de prontuário, por id de campo.
+   *
+   * Acumula em vez de substituir: o servidor mescla, então mandar só o campo que
+   * mudou é suficiente — e é o que mantém o autosave barato num formulário de
+   * anamnese com trinta campos.
+   */
+  estruturado?: Record<string, string | number | boolean | null>
 }
 
 interface EstadoAtendimento {
@@ -34,7 +42,9 @@ interface EstadoAtendimento {
   salvoEm: string | null
   finalizando: boolean
 
-  iniciar: (agendamentoId: string) => Promise<{ ok: boolean; consultaId?: string; erro?: string }>
+  iniciar: (
+    alvo: { agendamentoId: string } | { jornadaId: string },
+  ) => Promise<{ ok: boolean; consultaId?: string; erro?: string }>
   carregar: (cockpit: Cockpit) => void
   editar: (mudanca: Rascunho) => void
   salvarAgora: () => Promise<void>
@@ -55,10 +65,10 @@ export const useAtendimento = create<EstadoAtendimento>((set, get) => ({
   salvoEm: null,
   finalizando: false,
 
-  iniciar: async (agendamentoId) => {
+  iniciar: async (alvo) => {
     set({ carregando: true, erro: null })
     try {
-      const cockpit = await api.post<Cockpit>('/atendimento/iniciar', { agendamentoId })
+      const cockpit = await api.post<Cockpit>('/atendimento/iniciar', alvo)
       set({ cockpit, carregando: false, pendente: {}, salvoEm: null })
       return { ok: true, consultaId: cockpit.consulta.id }
     } catch (e) {
@@ -71,7 +81,18 @@ export const useAtendimento = create<EstadoAtendimento>((set, get) => ({
   carregar: (cockpit) => set({ cockpit, pendente: {}, erro: null }),
 
   editar: (mudanca) => {
-    set((s) => ({ pendente: { ...s.pendente, ...mudanca } }))
+    set((s) => ({
+      pendente: {
+        ...s.pendente,
+        ...mudanca,
+        // `estruturado` é o único campo que se acumula em vez de substituir: um
+        // spread raso trocaria o objeto inteiro e perderia os campos digitados
+        // antes desta tecla.
+        ...(mudanca.estruturado
+          ? { estruturado: { ...(s.pendente.estruturado ?? {}), ...mudanca.estruturado } }
+          : {}),
+      },
+    }))
 
     // Debounce: cada tecla reinicia a contagem, e só a pausa dispara a gravação.
     if (timerAutosave) clearTimeout(timerAutosave)

@@ -29,6 +29,7 @@ const { MeusDadosDocument } = await import('./MeusDados')
 const { ResumoDaConsultaDocument } = await import('./ResumoDaConsulta')
 const { TransferenciaDocument } = await import('./Transferencia')
 const { ReceitaDocument } = await import('./Receita')
+const { HistoricoConsultasDocument } = await import('./HistoricoConsultas')
 
 const ISO = '2026-03-15T10:30:00.000Z'
 
@@ -553,4 +554,75 @@ describe('documentos PDF', () => {
     expect(paginas(b)).toBeGreaterThan(1)
   })
 
+})
+
+describe('histórico de consultas', () => {
+  const consulta = (over: Record<string, unknown> = {}) => ({
+    data: ISO,
+    tipo: 'pre-natal',
+    autorNome: 'Dra. Ana',
+    igSemanas: 24,
+    igDias: 3,
+    subjetivo: 'Refere boa movimentação fetal.',
+    plano: 'Retorno em 4 semanas.',
+    medidas: { pesoKg: 68.4, paSistolica: 118, paDiastolica: 74, alturaUterinaCm: 24, bcfBpm: 142 },
+    ...over,
+  })
+
+  it('renderiza o histórico completo', async () => {
+    const b = await renderiza(
+      <HistoricoConsultasDocument
+        dados={{
+          pacienteNome: 'Marina Souza',
+          geradoEm: ISO,
+          consultas: [consulta(), consulta({ igSemanas: 28 }), consulta({ igSemanas: 32 })],
+          medico: { nome: 'Dra. Ana', crm: '123456/SP', especialidade: 'Obstetrícia' },
+        }}
+      />,
+    )
+    expect(ehPdf(b)).toBe(true)
+    expect(b.length).toBeGreaterThan(5000)
+  })
+
+  it('renderiza vazio — é o caminho de quem acabou de cadastrar a paciente', async () => {
+    const b = await renderiza(
+      <HistoricoConsultasDocument
+        dados={{ pacienteNome: 'Marina Souza', geradoEm: ISO, consultas: [] }}
+      />,
+    )
+    expect(ehPdf(b)).toBe(true)
+  })
+
+  it('aguenta um histórico longo o bastante para paginar', async () => {
+    // 30 consultas passam de uma página: exercita o cabeçalho fixo repetindo e a
+    // tabela quebrando — os dois lugares em que o react-pdf falha em silêncio.
+    const b = await renderiza(
+      <HistoricoConsultasDocument
+        dados={{
+          pacienteNome: 'Marina Souza',
+          geradoEm: ISO,
+          consultas: Array.from({ length: 30 }, (_, i) => consulta({ igSemanas: 12 + i })),
+        }}
+      />,
+    )
+    expect(ehPdf(b)).toBe(true)
+  })
+
+  it('não desenha coluna de medida que ninguém preencheu', async () => {
+    // Uma tabela de puericultura com colunas de altura uterina e BCF vazias é
+    // ruído — e ruído numa tabela clínica se lê como dado faltando.
+    const b = await renderiza(
+      <HistoricoConsultasDocument
+        dados={{
+          pacienteNome: 'Bebê',
+          geradoEm: ISO,
+          consultas: [
+            consulta({ medidas: { pesoKg: 6.2 }, igSemanas: null, igDias: null }),
+            consulta({ medidas: { pesoKg: 6.9 }, igSemanas: null, igDias: null }),
+          ],
+        }}
+      />,
+    )
+    expect(ehPdf(b)).toBe(true)
+  })
 })

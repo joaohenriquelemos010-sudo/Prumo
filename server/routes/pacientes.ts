@@ -21,6 +21,19 @@ import { normalizeField } from '../sanitize.js'
 
 export const pacientesRouter = Router()
 
+/** Endereço sempre completo em forma, mesmo quando vazio em conteúdo. */
+function enderecoDe(e: Record<string, string | undefined> | undefined) {
+  return {
+    cep: normalizeField(e?.cep ?? '', 12),
+    logradouro: normalizeField(e?.logradouro ?? '', 120),
+    numero: normalizeField(e?.numero ?? '', 12),
+    complemento: normalizeField(e?.complemento ?? '', 60),
+    bairro: normalizeField(e?.bairro ?? '', 60),
+    cidade: normalizeField(e?.cidade ?? '', 60),
+    uf: normalizeField(e?.uf ?? '', 2).toUpperCase(),
+  }
+}
+
 /** Data só quando é data. Campo bagunçado vira vazio, nunca `Invalid Date`. */
 function data(valor: unknown): Date | null {
   if (typeof valor !== 'string' || valor.trim() === '') return null
@@ -45,6 +58,15 @@ function serialize(j: HydratedDocument<JornadaDoc>) {
       telefone: j.titular?.telefone ?? '',
       email: j.titular?.email ?? '',
       observacoes: j.titular?.observacoes ?? '',
+      endereco: {
+        cep: j.titular?.endereco?.cep ?? '',
+        logradouro: j.titular?.endereco?.logradouro ?? '',
+        numero: j.titular?.endereco?.numero ?? '',
+        complemento: j.titular?.endereco?.complemento ?? '',
+        bairro: j.titular?.endereco?.bairro ?? '',
+        cidade: j.titular?.endereco?.cidade ?? '',
+        uf: j.titular?.endereco?.uf ?? '',
+      },
     },
     /**
      * O código só volta enquanto vale. Um código expirado exibido na tela é uma
@@ -94,6 +116,8 @@ pacientesRouter.post('/', requireAuth, requireRole('medico'), auditar('paciente.
       dataNascimento: data(d.dataNascimento),
       telefone: normalizeField(d.telefone ?? '', 20),
       email: d.email ?? '',
+      cpf: normalizeField(d.cpf ?? '', 14),
+      endereco: enderecoDe(d.endereco),
       observacoes: normalizeField(d.observacoes ?? '', 500),
     },
   })
@@ -159,6 +183,7 @@ pacientesRouter.patch('/:id', requireAuth, requireRole('medico'), async (req, re
     telefone: '',
     observacoes: '',
     dataNascimento: null as Date | null,
+    endereco: enderecoDe(undefined),
     ...(jornada.titular ?? {}),
   }
   if (d.nome !== undefined) titular.nome = normalizeField(d.nome, 80)
@@ -166,6 +191,8 @@ pacientesRouter.patch('/:id', requireAuth, requireRole('medico'), async (req, re
   if (d.telefone !== undefined) titular.telefone = normalizeField(d.telefone, 20)
   if (d.email !== undefined) titular.email = d.email
   if (d.observacoes !== undefined) titular.observacoes = normalizeField(d.observacoes, 500)
+  if (d.cpf !== undefined) titular.cpf = normalizeField(d.cpf, 14)
+  if (d.endereco !== undefined) titular.endereco = enderecoDe(d.endereco)
   jornada.titular = titular
   await jornada.save()
 

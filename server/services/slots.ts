@@ -32,6 +32,15 @@ export interface BloqueioDisponibilidade {
 
 export interface ConfigDisponibilidade {
   ativo: boolean
+  /**
+   * O intervalo do almoço, em 'HH:MM' no relógio do consultório.
+   *
+   * Dava para expressar isso com duas regras no mesmo dia (09:00–12:00 e
+   * 14:00–18:00) — e era o que existia. Só que ninguém descobre sozinho, e o
+   * resultado prático era agenda aberta na hora do almoço. Um campo explícito
+   * custa dez linhas e resolve para todos os dias de uma vez.
+   */
+  almoco?: { inicio: string; fim: string } | null
   duracaoPadraoMin: number
   antecedenciaMinHoras: number
   janelaMaxDias: number
@@ -102,6 +111,9 @@ export function expandirSlots(
   const maxDias = Math.min(config.janelaMaxDias + 1, 366)
 
   let chave = de
+  const almocoInicio = config.almoco?.inicio ? minutosDoDia(config.almoco.inicio) : null
+  const almocoFim = config.almoco?.fim ? minutosDoDia(config.almoco.fim) : null
+
   for (let i = 0; i < maxDias && chave <= ate; i++, chave = somarDias(chave, 1)) {
     const partes = partesDaData(chave)
     if (!partes) break
@@ -115,6 +127,11 @@ export function expandirSlots(
       if (inicioMin === null || fimMin === null || fimMin <= inicioMin) continue
 
       for (let m = inicioMin; m + duracao <= fimMin; m += duracao) {
+        // O almoço é o mesmo em todos os dias que têm regra — vale por minuto do
+        // dia, então é comparado antes de virar instante e não custa fuso.
+        if (almocoInicio !== null && almocoFim !== null && m < almocoFim && m + duracao > almocoInicio) {
+          continue
+        }
         const inicio = zonaParaUtc(partes.ano, partes.mes, partes.dia, Math.floor(m / 60), m % 60, zona)
         const t = inicio.getTime()
         const fim = t + duracao * MINUTO

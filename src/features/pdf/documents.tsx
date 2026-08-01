@@ -26,6 +26,8 @@ import { MeusDadosDocument } from './documentos/MeusDados'
 import type { MeusDadosExport } from './documentos/MeusDados'
 import { ResumoDaConsultaDocument } from './documentos/ResumoDaConsulta'
 import type { ResumoConsultaPDF } from './documentos/ResumoDaConsulta'
+import { HistoricoConsultasDocument } from './documentos/HistoricoConsultas'
+import type { HistoricoConsultasPDF } from './documentos/HistoricoConsultas'
 import { TransferenciaDocument } from './documentos/Transferencia'
 import type { PacotePDF } from './documentos/Transferencia'
 import { ReceitaDocument } from './documentos/Receita'
@@ -39,6 +41,7 @@ export {
   TrilhaDocument,
   MeusDadosDocument,
   ResumoDaConsultaDocument,
+  HistoricoConsultasDocument,
   TransferenciaDocument,
   ReceitaDocument,
 }
@@ -110,6 +113,16 @@ export function BaixarResumoDaConsulta({ dados }: { dados: ResumoConsultaPDF }) 
       documento={<ResumoDaConsultaDocument dados={dados} />}
       fileName="resumo-da-consulta.pdf"
       label="Baixar resumo (PDF)"
+    />
+  )
+}
+
+export function BaixarHistoricoConsultas({ dados }: { dados: HistoricoConsultasPDF }) {
+  return (
+    <DownloadLink
+      documento={<HistoricoConsultasDocument dados={dados} />}
+      fileName="historico-de-consultas.pdf"
+      label="Baixar todas as consultas (PDF)"
     />
   )
 }

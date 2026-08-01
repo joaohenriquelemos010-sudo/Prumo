@@ -80,6 +80,34 @@ const consultaSchema = new Schema(
     medidas: { type: medidasSchema, default: () => ({}) },
     checklist: { type: [itemChecklistSchema], default: [] },
 
+    /**
+     * Qual formulário de prontuário esta consulta usou
+     * (`server/conteudo/prontuario-templates.ts`).
+     *
+     * A `versao` é gravada junto e essa é a razão de o campo ser um objeto: o
+     * conteúdo dos formulários vai mudar, e um registro assinado tem que
+     * continuar significando o que significava no dia. Sem a versão, editar o
+     * rótulo de um campo reescreveria retroativamente o que a paciente
+     * respondeu.
+     */
+    template: {
+      chave: { type: String, default: '' },
+      versao: { type: Number, default: 1 },
+    },
+
+    /**
+     * As respostas do formulário, indexadas por id de campo.
+     *
+     * `Mixed` porque o formato é o template — e o template é conteúdo, não
+     * schema. Enrijecer isto num sub-schema significaria uma migração de banco
+     * a cada campo novo de anamnese, que é exatamente o custo que o sistema de
+     * templates existe para evitar.
+     *
+     * Nunca é lido sem passar pelo template correspondente, então uma chave
+     * órfã (campo removido de uma versão para outra) simplesmente não aparece.
+     */
+    estruturado: { type: Schema.Types.Mixed, default: () => ({}) },
+
     /** Nunca retornado para a família. */
     notasPrivadas: { type: String, default: '', maxlength: 3000 },
     /** Quando true, a impressão diagnóstica também fica só com a equipe. */

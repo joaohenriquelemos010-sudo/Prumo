@@ -39,6 +39,9 @@ export interface Consulta {
   igDias: number | null
   medidas: Medidas
   checklist: ItemChecklist[]
+  /** Respostas do formulário de prontuário, por id de campo. */
+  estruturado?: Record<string, string | number | boolean | null>
+  template?: { chave: string; versao: number }
   status: 'rascunho' | 'finalizada'
   iniciadaEm: string | null
   finalizadaEm: string | null
@@ -71,6 +74,8 @@ export interface ProntuarioResumo {
 }
 
 /** Tudo que o cockpit precisa, numa resposta só. */
+import type { Formulario } from './Formulario'
+
 export interface Cockpit {
   consulta: Consulta
   agendamento: {
@@ -88,4 +93,11 @@ export interface Cockpit {
   medidasFetais: { semana: number; pfeG: number | null; percentis: Record<string, number> }[]
   alertas: AlertaAberto[]
   duvidas: { id: string; texto: string }[]
+  /**
+   * O formulário de prontuário resolvido pelo servidor para ESTE atendimento —
+   * anamnese completa na primeira consulta da linha de cuidado, acompanhamento
+   * da segunda em diante, com o que já foi respondido vindo junto.
+   */
+  formulario: Formulario
+  tipoAtendimento: { id: string; nome: string; procedimento: boolean } | null
 }

@@ -20,6 +20,8 @@ import { aoFinalizarConsulta } from '../services/lembretes/programar.js'
 import { serializeConsulta } from './consultas.js'
 import { serializeProntuario } from './prontuario.js'
 import type { SessionUser } from '../types.js'
+import { TipoAtendimento } from '../models/TipoAtendimento.js'
+import { formularioPara } from '../services/prontuarioTemplates.js'
 
 export const atendimentoRouter = Router()
 
@@ -168,6 +170,31 @@ atendimentoRouter.post('/iniciar', requireAuth, requireRole('medico'), async (re
     await agendamento.save()
   }
 
+  /*
+   * O formulário de hoje. Resolvido no servidor porque a regra é clínica, não de
+   * tela: se esta jornada já teve a primeira consulta desta linha de cuidado, o
+   * que abre é o acompanhamento — mesmo que o tipo de atendimento aponte para a
+   * anamnese. É o "na 2ª já não pergunta porque já tem as informações da 1ª".
+   */
+  const tipoAtendimento = agendamento.tipoAtendimento
+    ? await TipoAtendimento.findById(agendamento.tipoAtendimento)
+    : null
+
+  const formulario = await formularioPara(
+    jornada._id,
+    consulta.template?.chave || tipoAtendimento?.template || padraoDoObjetivo(agendamento.objetivo),
+  )
+
+  // Grava a escolha na consulta: o registro tem que dizer qual formulário foi
+  // usado, e em que versão, para continuar significando o mesmo daqui a anos.
+  if (consulta.template?.chave !== formulario.template.chave) {
+    consulta.set('template', {
+      chave: formulario.template.chave,
+      versao: formulario.template.versao,
+    })
+    await consulta.save()
+  }
+
   const [prontuario, duvidas, alertas, medidasFetais] = await Promise.all([
     Prontuario.findOne({ crianca: jornada._id }),
     Duvida.find({ crianca: jornada._id, respondida: false, compartilhada: true })
@@ -223,8 +250,34 @@ atendimentoRouter.post('/iniciar', requireAuth, requireRole('medico'), async (re
       condutaSugerida: a.condutaSugerida,
     })),
     duvidas: duvidas.map((d) => ({ id: String(d._id), texto: d.texto })),
+    formulario: {
+      chave: formulario.template.chave,
+      versao: formulario.template.versao,
+      rotulo: formulario.template.rotulo,
+      natureza: formulario.template.natureza,
+      quando: formulario.template.quando,
+      primeiraVez: formulario.primeiraVez,
+      secoes: formulario.template.secoes,
+      /** Respostas de consultas passadas — para ler, não para repreencher. */
+      herdado: formulario.herdado,
+    },
+    tipoAtendimento: tipoAtendimento
+      ? { id: String(tipoAtendimento._id), nome: tipoAtendimento.nome, procedimento: tipoAtendimento.procedimento }
+      : null,
   })
 })
+
+/**
+ * Quando o agendamento não aponta um tipo (marcações antigas, ou o marketplace),
+ * o objetivo ainda diz de que consulta se trata. É palpite, mas é palpite bom —
+ * e o médico troca em um clique se errarmos.
+ */
+function padraoDoObjetivo(objetivo: string): string {
+  if (objetivo === 'consulta-gestante') return 'pre-natal-primeira'
+  if (objetivo === 'consulta-crianca') return 'puericultura-primeira'
+  if (objetivo === 'pre-concepcional') return 'ginecologia-primeira'
+  return 'soap-generico'
+}
 
 /**
  * PATCH /api/atendimento/:id — autosave.
@@ -273,6 +326,16 @@ atendimentoRouter.patch('/:id', requireAuth, requireRole('medico'), async (req, 
         observacao: (i.observacao ?? '').slice(0, 300),
       })),
     )
+  }
+
+  if (d.estruturado !== undefined) {
+    /*
+     * Mescla, nunca substitui. O cockpit manda só o campo que mudou (é
+     * autosave com debounce), e um PATCH que trocasse o objeto inteiro apagaria
+     * tudo o que foi digitado antes do último keystroke.
+     */
+    consulta.set('estruturado', { ...(consulta.estruturado ?? {}), ...d.estruturado })
+    consulta.markModified('estruturado')
   }
 
   await consulta.save()

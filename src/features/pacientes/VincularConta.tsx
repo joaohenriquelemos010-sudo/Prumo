@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import QRCode from 'qrcode'
 import { Copy, KeyRound, RefreshCw, X } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { Button } from '@/components/Button'
@@ -26,7 +27,31 @@ export function VincularConta({
 }) {
   const [erro, setErro] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
+  const [qr, setQr] = useState<string | null>(null)
   const codigo = paciente.vinculacao.codigo
+
+  /*
+   * O QR carrega o **código**, nunca o CPF.
+   *
+   * O caminho tentador seria deixar a paciente entrar com o CPF: ela sabe de cor
+   * e não precisa guardar papel. Mas CPF não é segredo — está em cadastro de
+   * farmácia, boleto e ficha de laboratório — e usar CPF como chave de acesso
+   * significaria que quem tiver a nota fiscal dela abre o prontuário inteiro. O
+   * QR resolve a mesma dor (não digitar) sem abrir o mesmo buraco.
+   */
+  useEffect(() => {
+    if (!codigo) {
+      setQr(null)
+      return
+    }
+    let vivo = true
+    void QRCode.toDataURL(codigo, { margin: 1, width: 220 }).then((url) => {
+      if (vivo) setQr(url)
+    })
+    return () => {
+      vivo = false
+    }
+  }, [codigo])
 
   async function chamar(metodo: 'post' | 'delete') {
     setErro(null)
@@ -56,12 +81,20 @@ export function VincularConta({
       {codigo ? (
         <>
           <p className="mt-1 text-sm text-ink-soft">
-            Ela cria a conta, entra em <strong>Conectar</strong> e digita este código. Todo o
-            histórico que você já registrou passa a aparecer para ela — nada é digitado de novo.
+            Ela cria a conta, entra em <strong>Conectar</strong> e digita o código — ou aponta a
+            câmera para o QR. Todo o histórico que você já registrou passa a aparecer para ela,
+            sem nada ser digitado de novo.
           </p>
           <p className="mt-3 font-display text-3xl font-bold tracking-[0.18em] text-indigo">
             {codigo}
           </p>
+          {qr && (
+            <img
+              src={qr}
+              alt={`QR code do código ${codigo}`}
+              className="mt-3 size-40 rounded-xl border border-line bg-white p-2"
+            />
+          )}
           {paciente.vinculacao.expiraEm && (
             <p className="mt-1 text-xs text-ink-mute">
               Vale até {new Date(paciente.vinculacao.expiraEm).toLocaleDateString('pt-BR')}.

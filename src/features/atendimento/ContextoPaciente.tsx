@@ -1,5 +1,6 @@
 import { AlertTriangle, Droplet, HeartPulse, MessageCircleQuestion, ShieldAlert } from 'lucide-react'
 import type { AlertaAberto, Consulta, PacienteDoAtendimento, ProntuarioResumo } from './tipos'
+import { EvolucaoObjetiva } from './EvolucaoObjetiva'
 import { idadeGestacional } from '@/features/clinico/schedule'
 import { cn } from '@/lib/cn'
 
@@ -107,6 +108,13 @@ export function ContextoPaciente({
           </ul>
         </section>
       )}
+
+      {/*
+        Antes da lista de consultas: a tendência responde "está indo bem?" num
+        relance, e a lista responde "o que aconteceu em cada uma" — nessa ordem,
+        porque a primeira pergunta é a que o médico faz com a paciente na frente.
+      */}
+      <EvolucaoObjetiva consultas={anteriores} />
 
       {anteriores.length > 0 && (
         <section>

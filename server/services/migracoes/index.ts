@@ -5,6 +5,7 @@ import { up as up003 } from './003-eventos-para-evolucoes.js'
 import { up as up004 } from './004-semear-checklists.js'
 import { up as up005 } from './005-cifrar-campos-sensiveis.js'
 import { up as up006 } from './006-vinculo-sem-conta.js'
+import { up as up007 } from './007-tipos-e-cobertura.js'
 
 /**
  * Runner de migrações.
@@ -41,6 +42,7 @@ const MIGRACOES: Migracion[] = [
   { nome: '004-semear-checklists', up: up004 },
   { nome: '005-cifrar-campos-sensiveis', up: up005 },
   { nome: '006-vinculo-sem-conta', up: up006 },
+  { nome: '007-tipos-e-cobertura', up: up007 },
 ]
 
 /**

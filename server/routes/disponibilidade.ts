@@ -17,6 +17,7 @@ function serialize(d: HydratedDocument<DisponibilidadeDoc>) {
   return {
     ativo: d.ativo,
     duracaoPadraoMin: d.duracaoPadraoMin,
+    almoco: { inicio: d.almoco?.inicio ?? '', fim: d.almoco?.fim ?? '' },
     antecedenciaMinHoras: d.antecedenciaMinHoras,
     janelaMaxDias: d.janelaMaxDias,
     fuso: d.fuso,
@@ -54,6 +55,7 @@ export function paraConfig(d: DisponibilidadeDoc): ConfigDisponibilidade {
   return {
     ativo: d.ativo,
     duracaoPadraoMin: d.duracaoPadraoMin,
+    almoco: { inicio: d.almoco?.inicio ?? '', fim: d.almoco?.fim ?? '' },
     antecedenciaMinHoras: d.antecedenciaMinHoras,
     janelaMaxDias: d.janelaMaxDias,
     fuso: d.fuso,
@@ -96,6 +98,7 @@ disponibilidadeRouter.put('/me', requireAuth, requireRole('medico'), async (req,
 
   if (d.ativo !== undefined) disp.ativo = d.ativo
   if (d.duracaoPadraoMin !== undefined) disp.duracaoPadraoMin = d.duracaoPadraoMin
+  if (d.almoco !== undefined) disp.almoco = { inicio: d.almoco.inicio, fim: d.almoco.fim }
   if (d.antecedenciaMinHoras !== undefined) disp.antecedenciaMinHoras = d.antecedenciaMinHoras
   if (d.janelaMaxDias !== undefined) disp.janelaMaxDias = d.janelaMaxDias
   if (d.regras) {

@@ -231,3 +231,84 @@ describe('slotDisponivel', () => {
     expect(slotDisponivel(config(), terca, [], ANTES)).toBe(false)
   })
 })
+
+/**
+ * O almoço.
+ *
+ * Dava para expressá-lo com duas regras no mesmo dia — e era assim que
+ * funcionava, o que na prática significava agenda aberta ao meio-dia porque
+ * ninguém descobria o truque. Agora é um campo, e estas asserções são o que
+ * impede que ele volte a ser decorativo.
+ */
+describe('intervalo de almoço', () => {
+  const horaLocal = (iso: string) =>
+    new Date(iso).toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+
+  it('remove os horários que caem dentro do intervalo', () => {
+    const dias = expandirSlots(
+      config({
+        regras: [
+          { diaSemana: 1, inicio: '09:00', fim: '14:00', modalidades: ['presencial'], local: '' },
+        ],
+        almoco: { inicio: '12:00', fim: '13:00' },
+      }),
+      SEGUNDA,
+      SEGUNDA,
+      [],
+      ANTES,
+    )
+    const horas = dias[0].slots.map((s) => horaLocal(s.inicio))
+    expect(horas).toEqual(['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30'])
+  })
+
+  it('remove também o horário que apenas ENCOSTA no intervalo', () => {
+    // Um horário de 30 min começando 11:45 termina 12:15 — invade o almoço. A
+    // comparação é de sobreposição, não de "o início cai dentro"; senão o médico
+    // é interrompido no meio da refeição por um agendamento tecnicamente válido.
+    const dias = expandirSlots(
+      config({
+        regras: [
+          { diaSemana: 1, inicio: '11:45', fim: '14:00', modalidades: ['presencial'], local: '' },
+        ],
+        almoco: { inicio: '12:00', fim: '13:00' },
+      }),
+      SEGUNDA,
+      SEGUNDA,
+      [],
+      ANTES,
+    )
+    const horas = dias[0].slots.map((s) => horaLocal(s.inicio))
+    expect(horas).not.toContain('11:45')
+    expect(horas[0]).toBe('13:15')
+  })
+
+  it('sem almoço configurado, nada é removido', () => {
+    const semCampo = expandirSlots(config(), SEGUNDA, SEGUNDA, [], ANTES)
+    const vazio = expandirSlots(
+      config({ almoco: { inicio: '', fim: '' } }),
+      SEGUNDA,
+      SEGUNDA,
+      [],
+      ANTES,
+    )
+    // Em branco significa "atendo direto", nunca "meio-dia por padrão": inventar
+    // um default aqui fecharia a agenda de quem não almoça em silêncio.
+    expect(vazio).toEqual(semCampo)
+    expect(vazio[0].slots.length).toBe(6)
+  })
+
+  it('almoço que cobre a jornada inteira não deixa horário nenhum', () => {
+    const dias = expandirSlots(
+      config({ almoco: { inicio: '08:00', fim: '18:00' } }),
+      SEGUNDA,
+      SEGUNDA,
+      [],
+      ANTES,
+    )
+    expect(dias).toEqual([])
+  })
+})

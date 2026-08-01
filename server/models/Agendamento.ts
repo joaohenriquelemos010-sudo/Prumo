@@ -70,6 +70,26 @@ const agendamentoSchema = new Schema(
     origem: { type: String, enum: ['medico', 'marketplace'], default: 'marketplace' },
 
     objetivo: { type: String, enum: OBJETIVOS_AGENDAMENTO, required: true },
+    /**
+     * O tipo do catálogo do médico (`models/TipoAtendimento.ts`).
+     *
+     * É ele que decide a duração e **qual formulário de prontuário abre**. Fica
+     * opcional porque o marketplace e as marcações anteriores ao catálogo não
+     * têm um — nesses casos o `objetivo` ainda dá o palpite.
+     */
+    tipoAtendimento: { type: Schema.Types.ObjectId, ref: 'TipoAtendimento', default: null },
+    tipoAtendimentoNome: { type: String, default: '', maxlength: 60 },
+    /**
+     * Quem paga. Estava só na `Disponibilidade` do médico ("atendo convênio X"),
+     * o que responde se ele aceita — não como ESTE atendimento foi pago, que é o
+     * que o financeiro e o faturamento precisam saber.
+     */
+    cobertura: {
+      type: String,
+      enum: ['particular', 'convenio', 'sus'],
+      default: 'particular',
+      index: true,
+    },
     modalidade: {
       type: String,
       enum: ['teleconsulta', 'presencial', 'domiciliar'],
