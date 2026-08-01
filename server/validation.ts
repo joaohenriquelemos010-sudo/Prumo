@@ -676,6 +676,18 @@ export const tipoAtendimentoSchema = z.object({
   ativo: z.boolean().optional(),
 })
 
+/**
+ * Área de atendimento (Gestação, Ginecologia, Mastologia…).
+ *
+ * Sem duração e sem cor de propósito: quem descreve o horário é o
+ * `tipoAtendimentoSchema`. Aqui é só o guarda-chuva.
+ */
+export const categoriaAtendimentoSchema = z.object({
+  nome: z.string().trim().min(2, 'Dê um nome à área de atendimento.').max(60),
+  descricao: z.string().trim().max(200).optional(),
+  ordem: z.number().int().min(0).max(999).optional(),
+  ativo: z.boolean().optional(),
+})
 
 /** Entrada na lista de espera. Nome é o mínimo — o resto ajuda a decidir. */
 export const listaEsperaSchema = z.object({

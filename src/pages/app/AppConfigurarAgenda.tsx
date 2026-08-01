@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, CalendarDays, Check, Stethoscope } from 'lucide-react'
+import { ArrowRight, CalendarDays, Check, Layers, Stethoscope } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { Button } from '@/components/Button'
 import { Skeleton } from '@/components/Skeleton'
@@ -9,14 +9,16 @@ import { GradeSemanal } from '@/features/agenda/GradeSemanal'
 import { daDisponibilidade, faixasInvalidas, paraCorpoApi } from '@/features/agenda/semana'
 import type { DisponibilidadeSemana, SemanaConfig } from '@/features/agenda/semana'
 import { TiposAtendimento } from '@/features/agenda/TiposAtendimento'
+import { CategoriasAtendimento } from '@/features/agenda/CategoriasAtendimento'
 import { useAuth } from '@/lib/stores/auth'
 import { useConfiguracao } from '@/lib/stores/configuracao'
 import { cn } from '@/lib/cn'
 
-type Passo = 'semana' | 'tipos' | 'pronto'
+type Passo = 'semana' | 'categorias' | 'tipos' | 'pronto'
 
 const PASSOS: { id: Passo; rotulo: string; icone: typeof CalendarDays }[] = [
   { id: 'semana', rotulo: 'Quando você atende', icone: CalendarDays },
+  { id: 'categorias', rotulo: 'O que você atende', icone: Layers },
   { id: 'tipos', rotulo: 'Tipos de consulta', icone: Stethoscope },
   { id: 'pronto', rotulo: 'Pronto', icone: Check },
 ]
@@ -30,9 +32,10 @@ const PASSOS: { id: Passo; rotulo: string; icone: typeof CalendarDays }[] = [
  * tipo de consulta, e nenhuma pista de que faltava configurar alguma coisa. O
  * produto funcionava; ele é que não tinha como saber por onde começar.
  *
- * Dois passos, e só dois, porque são os dois de que tudo o mais depende: **os
- * dias e horários** geram os horários que a paciente enxerga, e os **tipos de
- * consulta** decidem a duração de cada horário e qual formulário de prontuário
+ * Três passos, e só três, porque são os três de que tudo o mais depende: **os
+ * dias e horários** geram os horários que a paciente enxerga, as **áreas de
+ * atendimento** dizem sob qual guarda-chuva cada consulta acontece, e os **tipos
+ * de consulta** decidem a duração de cada horário e qual formulário de prontuário
  * abre no atendimento. O resto (antecedência, convênios, bloqueios de férias)
  * tem valor padrão razoável e mora em *Configurar*, para quem quiser mexer.
  *
@@ -80,7 +83,7 @@ export default function AppConfigurarAgenda() {
        * ele acabou de configurar, e o cliente ainda acharia que não.
        */
       marcarConfigurada()
-      setPasso('tipos')
+      setPasso('categorias')
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não consegui salvar.')
     } finally {
@@ -107,7 +110,7 @@ export default function AppConfigurarAgenda() {
         <p className="text-ink-soft">
           {passo === 'pronto'
             ? 'Sua agenda está no ar. A partir daqui é só atender.'
-            : 'Duas coisas e você já pode marcar a primeira consulta.'}
+            : 'Três coisas e você já pode marcar a primeira consulta.'}
         </p>
       </header>
 
@@ -171,6 +174,32 @@ export default function AppConfigurarAgenda() {
         </section>
       )}
 
+      {passo === 'categorias' && (
+        <>
+          <div className="rounded-2xl border border-line bg-paper-2 p-md">
+            <p className="text-sm text-ink-soft">
+              Antes de quanto tempo dura cada consulta, o que você atende: Gestação, Ginecologia,
+              Mastologia, Telemedicina. São as áreas que organizam seus atendimentos na agenda, nos
+              prontuários e nos relatórios — e dá para começar com uma só.
+            </p>
+          </div>
+
+          <CategoriasAtendimento />
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              iconRight={<ArrowRight className="size-4" aria-hidden />}
+              onClick={() => setPasso('tipos')}
+            >
+              Continuar
+            </Button>
+            <Button variant="ghost" onClick={() => setPasso('semana')}>
+              Voltar
+            </Button>
+          </div>
+        </>
+      )}
+
       {passo === 'tipos' && (
         <>
           <div className="rounded-2xl border border-line bg-paper-2 p-md">
@@ -191,7 +220,7 @@ export default function AppConfigurarAgenda() {
             >
               Está bom assim
             </Button>
-            <Button variant="ghost" onClick={() => setPasso('semana')}>
+            <Button variant="ghost" onClick={() => setPasso('categorias')}>
               Voltar
             </Button>
           </div>

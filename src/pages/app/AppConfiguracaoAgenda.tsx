@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarRange, Check, Clock, Info, Stethoscope } from 'lucide-react'
+import { ArrowRight, Check, Clock, Info, Layers, Stethoscope } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { Button } from '@/components/Button'
 import { Skeleton } from '@/components/Skeleton'
@@ -9,10 +9,16 @@ import { GradeSemanal } from '@/features/agenda/GradeSemanal'
 import { daDisponibilidade, faixasInvalidas, paraCorpoApi } from '@/features/agenda/semana'
 import type { DisponibilidadeSemana, SemanaConfig } from '@/features/agenda/semana'
 import { TiposAtendimento } from '@/features/agenda/TiposAtendimento'
+import { CategoriasAtendimento } from '@/features/agenda/CategoriasAtendimento'
 import { useConfiguracao } from '@/lib/stores/configuracao'
 import { cn } from '@/lib/cn'
 
-type Aba = 'horarios' | 'tipos'
+/**
+ * Os três passos da configuração, na ordem em que uma pergunta depende da
+ * anterior: *quando* você atende, *o que* você atende, e *quanto tempo* leva
+ * cada coisa.
+ */
+type Aba = 'horarios' | 'categorias' | 'tipos'
 
 /**
  * Configuração da agenda — a semana inteira numa tela só.
@@ -88,7 +94,7 @@ export default function AppConfiguracaoAgenda() {
         <div>
           <h1 className="text-3xl sm:text-4xl">Configuração da agenda</h1>
           <p className="mt-1 text-ink-soft">
-            Defina os dias, turnos, intervalos, bloqueios e tipos de procedimento na sua agenda.
+            Defina os dias e turnos, as áreas que você atende e os tipos de consulta da sua agenda.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -122,17 +128,21 @@ export default function AppConfiguracaoAgenda() {
           <AbaBtn ativa={aba === 'horarios'} onClick={() => setAba('horarios')} icon={Clock}>
             Horários
           </AbaBtn>
+          <AbaBtn ativa={aba === 'categorias'} onClick={() => setAba('categorias')} icon={Layers}>
+            Tipos de atendimento
+          </AbaBtn>
           <AbaBtn ativa={aba === 'tipos'} onClick={() => setAba('tipos')} icon={Stethoscope}>
             Tipos de consulta
           </AbaBtn>
         </div>
-        {aba === 'horarios' && (
+        {/* O caminho para a frente, sem obrigar a voltar à barra de abas. */}
+        {aba !== 'tipos' && (
           <Button
             variant="secondary"
-            iconLeft={<CalendarRange className="size-4" aria-hidden />}
-            onClick={() => setAba('tipos')}
+            iconRight={<ArrowRight className="size-4" aria-hidden />}
+            onClick={() => setAba(aba === 'horarios' ? 'categorias' : 'tipos')}
           >
-            Ir para tipos de procedimentos
+            {aba === 'horarios' ? 'Ir para tipos de atendimento' : 'Ir para tipos de consulta'}
           </Button>
         )}
       </div>
@@ -164,6 +174,8 @@ export default function AppConfiguracaoAgenda() {
             </p>
           </>
         ) : null)}
+
+      {aba === 'categorias' && <CategoriasAtendimento />}
 
       {aba === 'tipos' && <TiposAtendimento />}
     </div>

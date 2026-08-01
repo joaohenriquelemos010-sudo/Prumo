@@ -27,6 +27,7 @@ import { bebeRouter } from './routes/bebe.js'
 import { vinculosRouter } from './routes/vinculos.js'
 import { pacientesRouter } from './routes/pacientes.js'
 import { tiposAtendimentoRouter } from './routes/tiposAtendimento.js'
+import { categoriasAtendimentoRouter } from './routes/categoriasAtendimento.js'
 import { listaEsperaRouter } from './routes/listaEspera.js'
 import { agendaRouter } from './routes/agenda.js'
 import { familiaRouter } from './routes/familia.js'
@@ -80,6 +81,7 @@ export function createApp() {
   app.use('/api/atendimento', atendimentoRouter)
   app.use('/api/pacientes', pacientesRouter)
   app.use('/api/tipos-atendimento', tiposAtendimentoRouter)
+  app.use('/api/categorias-atendimento', categoriasAtendimentoRouter)
   app.use('/api/lista-espera', listaEsperaRouter)
   app.use('/api/agenda', agendaRouter)
   app.use('/api/transferencias', transferenciasRouter)
