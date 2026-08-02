@@ -5,6 +5,7 @@ import { api } from '@/lib/api/client'
 import { Button } from '@/components/Button'
 import { Skeleton } from '@/components/Skeleton'
 import { AlertaErro } from '@/components/AlertaErro'
+import { BarraAcoes } from '@/features/agenda/BarraAcoes'
 import { GradeSemanal } from '@/features/agenda/GradeSemanal'
 import { daDisponibilidade, faixasInvalidas, paraCorpoApi } from '@/features/agenda/semana'
 import type { DisponibilidadeSemana, SemanaConfig } from '@/features/agenda/semana'
@@ -153,24 +154,35 @@ export default function AppConfigurarAgenda() {
 
           <GradeSemanal valor={semana} onChange={setSemana} />
 
-          <div className="flex flex-wrap items-center gap-3">
+          {/*
+            A mesma barra da tela de configuração, com o verbo deste momento:
+            aqui não existe "salvar alterações" nem agenda para visualizar — a
+            agenda nasce deste clique.
+          */}
+          <BarraAcoes
+            estado={salvando ? 'salvando' : 'parado'}
+            aviso={
+              semana.periodos.length === 0 ? (
+                <span className="text-sm text-ink-mute">Ative pelo menos um dia para continuar.</span>
+              ) : !valido ? (
+                <span className="text-sm font-semibold text-warn-ink">
+                  Tem faixa terminando antes de começar — veja os dias em vermelho.
+                </span>
+              ) : (
+                <span className="text-sm text-ink-soft">Dá para mudar tudo depois, quando quiser.</span>
+              )
+            }
+          >
             <Button
+              size="md"
               disabled={!valido || salvando}
+              loading={salvando}
               iconRight={<ArrowRight className="size-4" aria-hidden />}
               onClick={() => void salvarSemana()}
             >
-              {salvando ? 'Salvando…' : 'Continuar'}
+              Salvar e continuar
             </Button>
-            {semana.periodos.length === 0 ? (
-              <p className="text-xs text-ink-mute">Ative pelo menos um dia para continuar.</p>
-            ) : (
-              !valido && (
-                <p className="text-xs font-semibold text-warn-ink">
-                  Tem faixa terminando antes de começar — confira os horários em vermelho.
-                </p>
-              )
-            )}
-          </div>
+          </BarraAcoes>
         </section>
       )}
 

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Check, Clock, Info, Layers, Stethoscope } from 'lucide-react'
+import { ArrowRight, CalendarCheck, Clock, Eye, Info, Layers, Stethoscope } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { Button } from '@/components/Button'
 import { Skeleton } from '@/components/Skeleton'
 import { AlertaErro } from '@/components/AlertaErro'
+import { BarraAcoes } from '@/features/agenda/BarraAcoes'
 import { GradeSemanal } from '@/features/agenda/GradeSemanal'
 import { daDisponibilidade, faixasInvalidas, paraCorpoApi } from '@/features/agenda/semana'
 import type { DisponibilidadeSemana, SemanaConfig } from '@/features/agenda/semana'
@@ -88,39 +89,23 @@ export default function AppConfiguracaoAgenda() {
     navigate('/app/agenda')
   }
 
+  /**
+   * Ver a agenda com mudanças pendentes mostraria a semana *antiga* — os horários
+   * que a paciente enxerga só mudam depois do PUT. Perguntar aqui é o que evita a
+   * conclusão errada de que a configuração não pegou.
+   */
+  function verAgenda() {
+    if (sujo && !window.confirm('Você tem alterações não salvas. Ver a agenda mesmo assim?')) return
+    navigate('/app/agenda')
+  }
+
   return (
     <div className="flex flex-col gap-md">
-      <header className="flex flex-wrap items-start justify-between gap-md">
-        <div>
-          <h1 className="text-3xl sm:text-4xl">Configuração da agenda</h1>
-          <p className="mt-1 text-ink-soft">
-            Defina os dias e turnos, as áreas que você atende e os tipos de consulta da sua agenda.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {salvo && !sujo && (
-            <span
-              className="inline-flex items-center gap-1 text-sm font-semibold text-success-ink"
-              role="status"
-            >
-              <Check className="size-4" aria-hidden /> Salvo
-            </span>
-          )}
-          <Button variant="ghost" onClick={cancelar}>
-            Cancelar
-          </Button>
-          <Button
-            variant="secondary"
-            loading={salvando}
-            disabled={invalidas > 0}
-            onClick={() => void salvar(false)}
-          >
-            Salvar
-          </Button>
-          <Button loading={salvando} disabled={invalidas > 0} onClick={() => void salvar(true)}>
-            Salvar e fechar
-          </Button>
-        </div>
+      <header>
+        <h1 className="text-3xl sm:text-4xl">Configuração da agenda</h1>
+        <p className="mt-1 text-ink-soft">
+          Defina os dias e turnos, as áreas que você atende e os tipos de consulta da sua agenda.
+        </p>
       </header>
 
       <div className="flex flex-wrap items-center justify-between gap-md">
@@ -156,14 +141,6 @@ export default function AppConfiguracaoAgenda() {
           <>
             <GradeSemanal valor={semana} onChange={mudar} />
 
-            {invalidas > 0 && (
-              <AlertaErro>
-                {invalidas === 1
-                  ? 'Uma faixa termina antes de começar — confira o horário marcado em vermelho.'
-                  : `${invalidas} faixas terminam antes de começar — confira os horários marcados em vermelho.`}
-              </AlertaErro>
-            )}
-
             <p className="flex items-start gap-2 rounded-2xl border border-line bg-paper-2 px-4 py-3 text-sm text-ink-soft">
               <Info className="mt-0.5 size-4 shrink-0 text-indigo" aria-hidden />
               <span>
@@ -178,6 +155,53 @@ export default function AppConfiguracaoAgenda() {
       {aba === 'categorias' && <CategoriasAtendimento />}
 
       {aba === 'tipos' && <TiposAtendimento />}
+
+      {/*
+        As ações moram no rodapé, e não no cabeçalho: a semana é alta, e um botão
+        de salvar que sai da tela ao rolar até domingo é um botão que se procura
+        de volta. Nas outras abas ele nem aparece — cada tipo de atendimento se
+        salva no próprio diálogo, e um "Salvar alterações" inerte ao lado disso
+        seria um botão que não faz nada.
+      */}
+      <BarraAcoes
+        estado={salvando ? 'salvando' : sujo ? 'sujo' : salvo ? 'salvo' : 'parado'}
+        aviso={
+          aba !== 'horarios' ? (
+            <span className="text-sm text-ink-soft">Alterações desta aba são salvas na hora.</span>
+          ) : invalidas > 0 ? (
+            <span className="text-sm font-semibold text-warn-ink">
+              {invalidas === 1
+                ? 'Uma faixa termina antes de começar — veja o dia em vermelho.'
+                : `${invalidas} faixas terminam antes de começar — veja os dias em vermelho.`}
+            </span>
+          ) : undefined
+        }
+      >
+        {aba === 'horarios' && (
+          <>
+            <Button
+              size="md"
+              loading={salvando}
+              disabled={invalidas > 0}
+              iconLeft={<CalendarCheck className="size-4" aria-hidden />}
+              onClick={() => void salvar(false)}
+            >
+              Salvar alterações
+            </Button>
+            <Button size="md" variant="ghost" onClick={cancelar}>
+              Descartar
+            </Button>
+          </>
+        )}
+        <Button
+          size="md"
+          variant="secondary"
+          iconLeft={<Eye className="size-4" aria-hidden />}
+          onClick={verAgenda}
+        >
+          Visualizar agenda
+        </Button>
+      </BarraAcoes>
     </div>
   )
 }

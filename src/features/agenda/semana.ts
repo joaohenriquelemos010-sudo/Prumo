@@ -132,3 +132,44 @@ export function substituirDia<T extends FaixaSemanal>(lista: T[], dia: number, n
     (a, b) => a.diaSemana - b.diaSemana,
   )
 }
+
+/**
+ * O dia inteiro copiado para os outros — as quatro listas de uma vez.
+ *
+ * Uma semana de consultório é quase sempre o mesmo dia repetido: 08:00–18:00 com
+ * uma hora de almoço, de segunda a sexta. Configurar isso dia a dia é digitar a
+ * mesma coisa cinco vezes, e é onde a quarta-feira acaba com o almoço meia hora
+ * fora de lugar sem ninguém perceber.
+ *
+ * Copia por valor e reescreve `diaSemana`: sem isso, as faixas do destino
+ * continuariam apontando para o dia de origem e o motor de slots geraria a
+ * segunda-feira sete vezes.
+ */
+export function repetirDia(
+  valor: SemanaConfig,
+  origem: number,
+  destinos: number[],
+): SemanaConfig {
+  const alvos = destinos.filter((d) => d !== origem)
+  if (alvos.length === 0) return valor
+
+  const espalhar = <T extends FaixaSemanal>(lista: T[]): T[] => {
+    const modelo = doDia(lista, origem)
+    return alvos.reduce(
+      (acc, dia) =>
+        substituirDia(
+          acc,
+          dia,
+          modelo.map((f) => ({ ...f, diaSemana: dia })),
+        ),
+      lista,
+    )
+  }
+
+  return {
+    periodos: espalhar(valor.periodos),
+    intervalos: espalhar(valor.intervalos),
+    bloqueios: espalhar(valor.bloqueios),
+    reposicoes: espalhar(valor.reposicoes),
+  }
+}

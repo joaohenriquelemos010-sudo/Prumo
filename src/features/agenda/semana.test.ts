@@ -4,6 +4,7 @@ import {
   faixaInvalida,
   faixasInvalidas,
   paraCorpoApi,
+  repetirDia,
   substituirDia,
 } from './semana'
 import type { SemanaConfig } from './semana'
@@ -70,6 +71,59 @@ describe('substituirDia', () => {
   it('lista vazia para um dia apaga o dia', () => {
     const lista = [{ diaSemana: 1, inicio: '08:00', fim: '12:00' }]
     expect(substituirDia(lista, 1, [])).toEqual([])
+  })
+})
+
+describe('repetirDia', () => {
+  it('copia as quatro listas do dia de origem, reescrevendo o dia de destino', () => {
+    const nova = repetirDia(
+      semana({
+        periodos: [
+          { diaSemana: 1, inicio: '08:00', fim: '18:00', modalidades: ['presencial'], local: 'Sala 3' },
+        ],
+        intervalos: [{ diaSemana: 1, inicio: '12:00', fim: '13:00' }],
+      }),
+      1,
+      [2, 3],
+    )
+
+    expect(nova.periodos).toEqual([
+      { diaSemana: 1, inicio: '08:00', fim: '18:00', modalidades: ['presencial'], local: 'Sala 3' },
+      { diaSemana: 2, inicio: '08:00', fim: '18:00', modalidades: ['presencial'], local: 'Sala 3' },
+      { diaSemana: 3, inicio: '08:00', fim: '18:00', modalidades: ['presencial'], local: 'Sala 3' },
+    ])
+    expect(nova.intervalos.map((f) => f.diaSemana)).toEqual([1, 2, 3])
+  })
+
+  it('substitui o que o destino tinha em vez de somar', () => {
+    // Repetir é "a terça fica igual à segunda", não "a terça ganha mais uma faixa".
+    const nova = repetirDia(
+      semana({
+        periodos: [
+          { diaSemana: 1, inicio: '08:00', fim: '12:00', modalidades: ['presencial'], local: '' },
+          { diaSemana: 2, inicio: '14:00', fim: '20:00', modalidades: ['presencial'], local: '' },
+        ],
+      }),
+      1,
+      [2],
+    )
+    expect(nova.periodos).toHaveLength(2)
+    expect(nova.periodos[1]).toMatchObject({ diaSemana: 2, inicio: '08:00', fim: '12:00' })
+  })
+
+  it('apaga no destino a lista que a origem não tem', () => {
+    const nova = repetirDia(
+      semana({ intervalos: [{ diaSemana: 2, inicio: '12:00', fim: '13:00' }] }),
+      1,
+      [2],
+    )
+    expect(nova.intervalos).toEqual([])
+  })
+
+  it('ignora a própria origem e a lista vazia de destinos', () => {
+    const original = semana()
+    expect(repetirDia(original, 1, [1])).toBe(original)
+    expect(repetirDia(original, 1, [])).toBe(original)
   })
 })
 
