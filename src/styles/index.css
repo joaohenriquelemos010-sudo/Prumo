@@ -294,6 +294,7 @@
   :root {
     /* Superfícies translúcidas viram sólidas. Uma variável, todo o produto. */
     --material-opacidade: 100%;
+    --vidro-opacidade: 100%;
   }
 }
 

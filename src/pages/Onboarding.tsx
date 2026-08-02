@@ -1,443 +1,807 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { HeartHandshake, Baby, Stethoscope, CalendarClock, Sprout, ArrowLeft, ArrowRight, UserRound } from 'lucide-react'
-import { useOnboarding } from '@/lib/stores/onboarding'
+import type { LucideIcon } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ChevronRight, Stethoscope, UserRound } from 'lucide-react'
+import { useOnboarding, progressoDe } from '@/lib/stores/onboarding'
 import type { MomentoGestacao, Perfil } from '@/lib/stores/onboarding'
 import { useAuth } from '@/lib/stores/auth'
 import { useTrilha } from '@/lib/stores/trilha'
 import { Button } from '@/components/Button'
 import { AlertaErro } from '@/components/AlertaErro'
 import { Blob } from '@/components/Blob'
+import { Logo } from '@/components/Logo'
+import { Vidro, HaloIcone } from '@/components/Vidro'
+import { Campo, CampoSelect, CampoSenha, CaixaAceite } from '@/components/Campo'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { normalizeField } from '@/lib/sanitize'
-import { validarCPF, formatarCPF, UFS } from '@/lib/br-docs'
+import { formatarCPF, formatarTelefone, hojeISO, somenteDigitos, UFS } from '@/lib/br-docs'
+import { useMovimento } from '@/lib/motion'
 import { cn } from '@/lib/cn'
+import { ESPECIALIDADES, PERFIS, PERFIS_FAMILIA } from '@/features/cadastro/perfis'
+import {
+  DADOS_VAZIOS,
+  dadosParaPerfil,
+  paraRegistro,
+  temErro,
+  validarIdentidade,
+  validarSeguranca,
+} from '@/features/cadastro/formulario'
+import type { DadosCadastro, Erros } from '@/features/cadastro/formulario'
 
-const slide = {
-  initial: { opacity: 0, x: 24 },
-  animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -24 },
-  transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] as const },
-}
-
-/** Common medical specialties for the doctor sign-up (plus a free "Outra"). */
-const ESPECIALIDADES = [
-  'Pediatria',
-  'Obstetrícia',
-  'Ginecologia',
-  'Ginecologia e Obstetrícia',
-  'Neonatologia',
-  'Clínica Geral',
-  'Medicina de Família',
-  'Enfermagem Obstétrica',
-  'Nutrição',
-  'Outra',
-] as const
-
+/**
+ * O fluxo de acesso.
+ *
+ * Cinco telas de vidro sobre o fundo ambiente da marca: escolher o caminho,
+ * conhecer a conta, dizer quem você é, criar o acesso, chegar. Duas coisas
+ * governam o desenho:
+ *
+ * - **A escolha é a resposta.** Onde a tela oferece opções, tocar numa avança —
+ *   não existe "próximo" para confirmar o que a pessoa acabou de tocar.
+ * - **O formulário se divide onde a natureza do que se pede muda**: primeiro
+ *   quem você é, depois como você entra. Doze campos numa tela só viram um
+ *   scroll que ninguém termina.
+ */
 export default function OnboardingPage() {
-  const { step, perfil, momento, nome, start, setPerfil, setMomento, setNome, next, back, complete, reset } =
+  const { passo, acesso, perfil, start, escolherAcesso, escolherPerfil, avancar, voltar, complete, reset } =
     useOnboarding()
   const registrar = useAuth((s) => s.register)
   const resetDemo = useTrilha((s) => s.resetDemo)
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [senha, setSenha] = useState('')
-  const [cpf, setCpf] = useState('')
-  const [crm, setCrm] = useState('')
-  const [crmUf, setCrmUf] = useState('')
-  const [especialidade, setEspecialidade] = useState('')
-  const [outraEsp, setOutraEsp] = useState(false)
-  /** `status` carries the HTTP code so we can offer the matching way out. */
-  const [erro, setErro] = useState<{ mensagem: string; status?: number } | null>(null)
+
+  const [dados, setDados] = useState<DadosCadastro>(DADOS_VAZIOS)
+  const [erros, setErros] = useState<Erros>({})
+  /** `status` carrega o código HTTP para oferecer a saída certa (409 → entrar). */
+  const [erroGeral, setErroGeral] = useState<{
+    mensagem: string
+    status?: number
+  } | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const [outraEsp, setOutraEsp] = useState(false)
+
+  const inicioRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     start()
     return () => reset()
-    // run once on mount
+    // roda uma vez na montagem
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const totalSteps = 3
-  const progresso = Math.round(((step + 1) / totalSteps) * 100)
+  /**
+   * Cada passo recomeça no topo, e o foco vai junto.
+   *
+   * Sem isso, quem apertou "Continuar" no fim de um formulário longo cai no meio
+   * da tela seguinte — e quem usa leitor de tela continua lendo de onde estava,
+   * numa tela que não existe mais. A primeira tela fica de fora: ninguém acabou
+   * de agir ali, e roubar a rolagem de quem só chegou é um susto.
+   */
+  useEffect(() => {
+    if (passo === 'acesso') return
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    /**
+     * `preventScroll` não é zelo: o foco padrão rola **todo** ancestral rolável
+     * para trazer o alvo à vista, e os blobs ambientes deixam o container mais
+     * largo que a tela. Sem isto, dar foco empurrava o cartão inteiro 53px para
+     * a esquerda a cada passo.
+     */
+    inicioRef.current?.focus({ preventScroll: true })
+  }, [passo])
 
-  function escolherPerfil(p: Perfil) {
-    setPerfil(p)
-    // Auto-advance — the choice IS the answer, no "próximo" needed.
-    setTimeout(next, 260)
+  /** Escrever num campo apaga o erro dele — e só o dele. */
+  function mudar<C extends keyof DadosCadastro>(campo: C, valor: DadosCadastro[C]) {
+    setDados((atual) => ({ ...atual, [campo]: valor }))
+    setErros((atuais) => (campo in atuais ? { ...atuais, [campo]: undefined } : atuais))
+    if (erroGeral) setErroGeral(null)
   }
 
-  function escolherMomento(m: MomentoGestacao) {
-    setMomento(m)
-    setTimeout(next, 260)
+  function abrirCadastro(escolhido: Perfil) {
+    setDados((atual) => dadosParaPerfil(atual, escolhido))
+    escolherPerfil(escolhido)
+  }
+
+  function voltarPasso() {
+    setErros({})
+    setErroGeral(null)
+    // Voltar da primeira bifurcação é desfazê-la, não só recuar um passo.
+    if (passo === 'perfil') reset()
+    else voltar()
+  }
+
+  function continuarIdentidade() {
+    const encontrados = validarIdentidade(dados)
+    setErros(encontrados)
+    if (!temErro(encontrados)) avancar()
   }
 
   async function finalizar() {
-    setErro(null)
+    if (!perfil) return
+    setErroGeral(null)
+
+    const encontrados = validarSeguranca(dados, perfil)
+    setErros(encontrados)
+    if (temErro(encontrados)) return
+
     const limite = checkRateLimit('onboarding-submit', 5, 60_000)
     if (!limite.allowed) {
-      setErro({ mensagem: `Muitas tentativas. Tente de novo em ${limite.retryAfter}s.` })
+      setErroGeral({
+        mensagem: `Muitas tentativas. Tente de novo em ${limite.retryAfter}s.`,
+      })
       return
-    }
-
-    const nomeLimpo = normalizeField(nome, 80)
-    if (nomeLimpo.length < 2) {
-      setErro({ mensagem: 'Conta pra gente como podemos te chamar.' })
-      return
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setErro({ mensagem: 'Esse e-mail parece incompleto. Confere pra mim?' })
-      return
-    }
-    if (senha.length < 8) {
-      setErro({ mensagem: 'Crie uma senha com pelo menos 8 caracteres.' })
-      return
-    }
-    if (!perfil) {
-      setErro({ mensagem: 'Volte e escolha por onde você entra.' })
-      return
-    }
-    if (perfil === 'medico') {
-      if (!validarCPF(cpf)) {
-        setErro({ mensagem: 'CPF inválido. Confere os números?' })
-        return
-      }
-      if (especialidade.trim().length < 2) {
-        setErro({ mensagem: 'Escolha ou informe sua especialidade.' })
-        return
-      }
-      // CRM é opcional por enquanto (sem validação oficial).
     }
 
     setEnviando(true)
-    const result = await registrar({
-      nome: nomeLimpo,
-      email: email.trim(),
-      senha,
-      papel: perfil,
-      ...(perfil === 'medico' ? { cpf, crm, crmUf, especialidade: especialidade.trim() } : {}),
-    })
+    const resultado = await registrar(paraRegistro(dados, perfil))
     setEnviando(false)
 
-    if (!result.ok) {
-      setErro({ mensagem: result.error ?? 'Não foi possível criar sua conta.', status: result.status })
+    if (!resultado.ok) {
+      setErroGeral({
+        mensagem: resultado.error ?? 'Não foi possível criar sua conta.',
+        status: resultado.status,
+      })
       return
     }
 
-    complete()
     resetDemo()
-    navigate('/app')
+    // A senha some da memória assim que deixa de ser necessária.
+    setDados((atual) => ({ ...atual, senha: '', confirmarSenha: '' }))
+    complete()
   }
 
+  const copia = perfil ? PERFIS[perfil] : null
+
+  /*
+   * `overflow-clip`, e não `hidden`: os dois cortam igual, mas `hidden` deixa o
+   * container **rolável** — e um container rolável é o que qualquer scroll
+   * programático encontra e empurra. Com os blobs ambientes o container mede
+   * 516px numa tela de 420, então dar foco no passo seguinte arrastava o cartão
+   * inteiro 53px para a esquerda.
+   */
   return (
-    <div className="relative min-h-[80vh] overflow-hidden">
-      <Blob variant="a" intensity={0.4} className="-left-20 top-0 size-96" />
-      <Blob variant="b" intensity={0.35} className="-right-20 bottom-0 size-96" />
+    <div className="relative min-h-[85vh] overflow-clip px-md py-xl">
+      <Blob variant="a" intensity={0.5} className="-left-24 -top-10 size-[28rem]" />
+      <Blob variant="b" intensity={0.42} className="-right-24 bottom-0 size-[28rem]" />
+      <Blob variant="c" intensity={0.22} className="left-1/3 top-1/3 size-[22rem]" />
 
-      <div className="u-shell flex max-w-2xl flex-col py-2xl">
-        {/* progress */}
-        <div className="mb-xl flex items-center gap-md">
-          {step > 0 && (
-            <button
-              type="button"
-              onClick={back}
-              className="grid size-10 shrink-0 place-items-center rounded-pill text-indigo hover:bg-paper-2"
-              aria-label="Voltar um passo"
-            >
-              <ArrowLeft className="size-5" aria-hidden />
-            </button>
-          )}
-          <div className="h-2 flex-1 overflow-hidden rounded-pill bg-paper-3" role="progressbar" aria-valuenow={progresso} aria-valuemin={0} aria-valuemax={100} aria-label="Progresso do cadastro">
-            <div
-              className="h-full rounded-pill [background-image:var(--grad-brand)] transition-[width] duration-[var(--dur-base)] ease-out"
-              style={{ width: `${progresso}%` }}
-            />
-          </div>
-          <span className="shrink-0 font-display text-sm font-semibold text-ink-mute">
-            {step + 1} / {totalSteps}
-          </span>
-        </div>
+      <div className="mx-auto flex w-full max-w-lg flex-col">
+        {passo !== 'sucesso' && (
+          <Cabecalho passo={passo} mostrarVoltar={passo !== 'acesso'} onVoltar={voltarPasso} />
+        )}
 
-        <AnimatePresence mode="wait">
-          {step === 0 && (
-            <motion.div key="perfil" {...slide}>
-              <StepHeading titulo="Boas-vindas à Prumo" subtitulo="Para começar, me conta: por onde você entra?" />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <ChoiceCard icon={HeartHandshake} label="Sou gestante" selected={perfil === 'gestante'} onClick={() => escolherPerfil('gestante')} />
-                <ChoiceCard icon={Baby} label="Sou mãe" selected={perfil === 'mae'} onClick={() => escolherPerfil('mae')} />
-                <ChoiceCard icon={UserRound} label="Sou pai" selected={perfil === 'pai'} onClick={() => escolherPerfil('pai')} />
-                <ChoiceCard icon={Stethoscope} label="Sou médico(a)" selected={perfil === 'medico'} onClick={() => escolherPerfil('medico')} />
-              </div>
-            </motion.div>
-          )}
+        <div ref={inicioRef} tabIndex={-1} className="outline-none">
+          <AnimatePresence mode="wait">
+            {passo === 'acesso' && (
+              <Tela key="acesso">
+                <TelaAcesso onEscolher={escolherAcesso} />
+              </Tela>
+            )}
 
-          {step === 1 && (
-            <motion.div key="momento" {...slide}>
-              {perfil === 'medico' ? (
-                <>
-                  <StepHeading titulo="Que bom te ver por aqui" subtitulo="Vamos direto ao ponto: como você quer olhar a trilha?" />
-                  <div className="grid gap-3">
-                    <ChoiceCard icon={CalendarClock} label="Acompanhar meus pacientes" selected={momento === 'gestante'} onClick={() => escolherMomento('gestante')} />
-                    <ChoiceCard icon={Sprout} label="Conhecer a plataforma primeiro" selected={momento === 'ja-nasceu'} onClick={() => escolherMomento('ja-nasceu')} />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <StepHeading titulo="Em que ponto vocês estão?" subtitulo="Assim a trilha já começa no lugar certo pra você." />
-                  <div className="grid gap-3">
-                    <ChoiceCard
-                      icon={Sprout}
-                      label={perfil === 'pai' ? 'Estamos planejando' : 'Estou planejando engravidar'}
-                      selected={momento === 'planejando'}
-                      onClick={() => escolherMomento('planejando')}
+            {passo === 'perfil' && acesso === 'medico' && (
+              <Tela key="medico">
+                <TelaBoasVindasMedico onContinuar={avancar} />
+              </Tela>
+            )}
+
+            {passo === 'perfil' && acesso === 'paciente' && (
+              <Tela key="paciente">
+                <TelaQuemEVoce onEscolher={abrirCadastro} />
+              </Tela>
+            )}
+
+            {passo === 'dados' && copia && (
+              <Tela key="dados">
+                <Vidro peso="denso" className="p-lg sm:p-xl">
+                  <CabecalhoPerfil copia={copia} />
+                  <ChipsBeneficios copia={copia} />
+
+                  <div className="mt-lg flex flex-col gap-3">
+                    <Campo
+                      rotulo="Nome completo"
+                      placeholder="Digite seu nome"
+                      autoComplete="name"
+                      maxLength={80}
+                      value={dados.nome}
+                      erro={erros.nome}
+                      onChange={(e) => mudar('nome', e.target.value)}
                     />
-                    <ChoiceCard
-                      icon={CalendarClock}
-                      label={perfil === 'pai' ? 'Estamos esperando um bebê' : 'Estou grávida agora'}
-                      selected={momento === 'gestante'}
-                      onClick={() => escolherMomento('gestante')}
+                    <Campo
+                      rotulo="E-mail"
+                      type="email"
+                      inputMode="email"
+                      placeholder="voce@email.com"
+                      autoComplete="email"
+                      value={dados.email}
+                      erro={erros.email}
+                      onChange={(e) => mudar('email', e.target.value)}
                     />
-                    <ChoiceCard icon={Baby} label="Meu bebê já nasceu" selected={momento === 'ja-nasceu'} onClick={() => escolherMomento('ja-nasceu')} />
-                  </div>
-                </>
-              )}
-            </motion.div>
-          )}
-
-          {step === 2 && (
-            <motion.div key="conta" {...slide}>
-              <StepHeading titulo="Falta só criar sua conta" subtitulo="Rapidinho — e sua trilha já fica salva de verdade." />
-              <div className="flex flex-col gap-3">
-                <label htmlFor="nome" className="flex flex-col gap-1.5">
-                  <span className="font-display text-sm font-semibold text-ink">Seu nome</span>
-                  <input
-                    id="nome"
-                    type="text"
-                    autoComplete="name"
-                    value={nome}
-                    maxLength={80}
-                    onChange={(e) => {
-                      setNome(e.target.value)
-                      if (erro) setErro(null)
-                    }}
-                    placeholder="Como podemos te chamar?"
-                    className="input"
-                  />
-                </label>
-                <label htmlFor="email" className="flex flex-col gap-1.5">
-                  <span className="font-display text-sm font-semibold text-ink">E-mail</span>
-                  <input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value)
-                      if (erro) setErro(null)
-                    }}
-                    placeholder="voce@email.com"
-                    className="input"
-                  />
-                </label>
-                <label htmlFor="senha" className="flex flex-col gap-1.5">
-                  <span className="font-display text-sm font-semibold text-ink">Senha</span>
-                  <input
-                    id="senha"
-                    type="password"
-                    autoComplete="new-password"
-                    value={senha}
-                    onChange={(e) => {
-                      setSenha(e.target.value)
-                      if (erro) setErro(null)
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && finalizar()}
-                    placeholder="Pelo menos 8 caracteres"
-                    className="input"
-                  />
-                </label>
-
-                {perfil === 'medico' && (
-                  <>
-                    <label htmlFor="cpf" className="flex flex-col gap-1.5">
-                      <span className="font-display text-sm font-semibold text-ink">CPF</span>
-                      <input
-                        id="cpf"
-                        type="text"
+                    <Campo
+                      rotulo="Celular (WhatsApp)"
+                      type="tel"
+                      inputMode="tel"
+                      placeholder="(11) 91234-5678"
+                      autoComplete="tel-national"
+                      value={dados.telefone}
+                      erro={erros.telefone}
+                      ajuda="É por aqui que chegam os lembretes de consulta."
+                      onChange={(e) => mudar('telefone', formatarTelefone(e.target.value))}
+                    />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Campo
+                        rotulo="CPF"
                         inputMode="numeric"
-                        autoComplete="off"
-                        value={cpf}
-                        onChange={(e) => {
-                          setCpf(formatarCPF(e.target.value))
-                          if (erro) setErro(null)
-                        }}
                         placeholder="000.000.000-00"
-                        className="input"
+                        autoComplete="off"
+                        value={dados.cpf}
+                        erro={erros.cpf}
+                        onChange={(e) => mudar('cpf', formatarCPF(e.target.value))}
                       />
-                    </label>
-                    <div className="grid grid-cols-[1fr_5.5rem] gap-2">
-                      <label htmlFor="crm" className="flex flex-col gap-1.5">
-                        <span className="font-display text-sm font-semibold text-ink">CRM (opcional)</span>
-                        <input
-                          id="crm"
-                          type="text"
-                          inputMode="numeric"
-                          value={crm}
-                          onChange={(e) => {
-                            setCrm(e.target.value.replace(/\D/g, '').slice(0, 6))
-                            if (erro) setErro(null)
-                          }}
-                          placeholder="Número"
-                          className="input"
-                        />
-                      </label>
-                      <label htmlFor="crmUf" className="flex flex-col gap-1.5">
-                        <span className="font-display text-sm font-semibold text-ink">UF</span>
-                        <select
-                          id="crmUf"
-                          value={crmUf}
-                          onChange={(e) => {
-                            setCrmUf(e.target.value)
-                            if (erro) setErro(null)
-                          }}
-                          className="input"
-                        >
-                          <option value="">--</option>
-                          {UFS.map((uf) => (
-                            <option key={uf} value={uf}>
-                              {uf}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      <Campo
+                        rotulo="Data de nascimento"
+                        type="date"
+                        max={hojeISO()}
+                        autoComplete="bday"
+                        value={dados.dataNascimento}
+                        erro={erros.dataNascimento}
+                        onChange={(e) => mudar('dataNascimento', e.target.value)}
+                      />
                     </div>
-                    <label htmlFor="especialidade" className="flex flex-col gap-1.5">
-                      <span className="font-display text-sm font-semibold text-ink">Especialidade</span>
-                      <select
-                        id="especialidade"
-                        value={outraEsp ? 'Outra' : especialidade}
-                        onChange={(e) => {
-                          const v = e.target.value
-                          if (v === 'Outra') {
-                            setOutraEsp(true)
-                            setEspecialidade('')
-                          } else {
-                            setOutraEsp(false)
-                            setEspecialidade(v)
-                          }
-                          if (erro) setErro(null)
-                        }}
-                        className="input"
+                    <p className="px-1 text-xs text-ink-mute">
+                      Seu CPF é guardado cifrado, nunca aparece para outras pessoas e nunca sai da Prumo.{' '}
+                      <Link
+                        to="/seguranca"
+                        className="font-semibold text-indigo underline underline-offset-2"
                       >
-                        <option value="">Selecione…</option>
-                        {ESPECIALIDADES.map((esp) => (
-                          <option key={esp} value={esp}>
-                            {esp}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {outraEsp && (
-                      <input
-                        type="text"
-                        aria-label="Informe sua especialidade"
-                        value={especialidade}
-                        maxLength={60}
-                        onChange={(e) => {
-                          setEspecialidade(e.target.value)
-                          if (erro) setErro(null)
-                        }}
-                        placeholder="Qual é a sua especialidade?"
-                        className="input"
-                      />
-                    )}
-                    <p className="text-xs text-ink-mute">
-                      Validamos seu CPF. O CRM é opcional por enquanto. Seus documentos
-                      ficam protegidos e nunca são exibidos publicamente.
+                        Como cuidamos disso
+                      </Link>
+                      .
                     </p>
-                  </>
-                )}
-              </div>
+                  </div>
 
-              {erro && (
-                <AlertaErro
-                  acao={
-                    erro.status === 409 ? (
-                      <>
-                        <Button
-                          size="md"
-                          iconRight={<ArrowRight className="size-4" aria-hidden />}
-                          onClick={() => navigate('/entrar', { state: { email: email.trim() } })}
-                        >
-                          Entrar com esse e-mail
-                        </Button>
+                  <div className="mt-lg">
+                    <Button
+                      size="lg"
+                      fullWidth
+                      iconRight={<ArrowRight className="size-4" aria-hidden />}
+                      onClick={continuarIdentidade}
+                    >
+                      Continuar
+                    </Button>
+                  </div>
+                </Vidro>
+              </Tela>
+            )}
+
+            {passo === 'seguranca' && copia && perfil && (
+              <Tela key="seguranca">
+                <Vidro peso="denso" className="p-lg sm:p-xl">
+                  <CabecalhoPerfil
+                    copia={copia}
+                    titulo="Falta só criar seu acesso"
+                    subtitulo="Depois disso sua trilha já fica salva de verdade."
+                  />
+
+                  <div className="mt-lg flex flex-col gap-3">
+                    <CampoSenha
+                      rotulo="Senha"
+                      medidor
+                      placeholder="Mínimo 8 caracteres"
+                      autoComplete="new-password"
+                      value={dados.senha}
+                      erro={erros.senha}
+                      onChange={(e) => mudar('senha', e.target.value)}
+                    />
+                    <CampoSenha
+                      rotulo="Confirmar senha"
+                      placeholder="Digite de novo"
+                      autoComplete="new-password"
+                      value={dados.confirmarSenha}
+                      erro={erros.confirmarSenha}
+                      onChange={(e) => mudar('confirmarSenha', e.target.value)}
+                    />
+
+                    {perfil === 'medico' ? (
+                      <CamposMedico
+                        dados={dados}
+                        erros={erros}
+                        outraEsp={outraEsp}
+                        setOutraEsp={setOutraEsp}
+                        mudar={mudar}
+                      />
+                    ) : (
+                      <CamposFamilia perfil={perfil} dados={dados} erros={erros} mudar={mudar} />
+                    )}
+
+                    <div className="mt-xs flex flex-col gap-2 border-t border-line pt-md">
+                      <CaixaAceite
+                        checked={dados.aceiteTermos}
+                        onChange={(v) => mudar('aceiteTermos', v)}
+                        erro={erros.aceiteTermos}
+                      >
+                        Li e concordo com os{' '}
                         <Link
-                          to="/esqueci-senha"
-                          state={{ email: email.trim() }}
-                          className="text-sm font-semibold text-indigo underline underline-offset-4"
+                          to="/seguranca"
+                          className="font-semibold text-indigo underline underline-offset-2"
                         >
-                          Esqueci minha senha
+                          Termos de Uso e a Política de Privacidade
                         </Link>
-                      </>
-                    ) : undefined
-                  }
-                >
-                  {erro.mensagem}
-                </AlertaErro>
-              )}
+                        .
+                      </CaixaAceite>
+                      <CaixaAceite
+                        checked={dados.aceiteComunicacoes}
+                        onChange={(v) => mudar('aceiteComunicacoes', v)}
+                      >
+                        Quero receber novidades e conteúdos da Prumo por e-mail.{' '}
+                        <span className="text-ink-mute">(opcional)</span>
+                      </CaixaAceite>
+                    </div>
+                  </div>
 
-              <div className="mt-lg">
-                <Button size="lg" fullWidth loading={enviando} onClick={finalizar}>
-                  {perfil === 'medico' ? 'Criar conta de médico' : 'Criar conta e ver minha trilha'}
-                </Button>
-              </div>
-              <p className="mt-md text-center text-xs text-ink-mute">
-                Ao continuar, você concorda com o cuidado que temos com seus dados.{' '}
-                <Link to="/seguranca" className="font-semibold text-indigo underline">
-                  Saiba mais
-                </Link>
-                .
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                  {erroGeral && (
+                    <AlertaErro
+                      acao={
+                        erroGeral.status === 409 ? (
+                          <>
+                            <Button
+                              size="md"
+                              iconRight={<ArrowRight className="size-4" aria-hidden />}
+                              onClick={() =>
+                                navigate('/entrar', {
+                                  state: { email: dados.email.trim() },
+                                })
+                              }
+                            >
+                              Entrar com esse e-mail
+                            </Button>
+                            <Link
+                              to="/esqueci-senha"
+                              state={{ email: dados.email.trim() }}
+                              className="text-sm font-semibold text-indigo underline underline-offset-4"
+                            >
+                              Esqueci minha senha
+                            </Link>
+                          </>
+                        ) : undefined
+                      }
+                    >
+                      {erroGeral.mensagem}
+                    </AlertaErro>
+                  )}
+
+                  <div className="mt-lg">
+                    <Button size="lg" fullWidth loading={enviando} onClick={finalizar}>
+                      {copia.acao}
+                    </Button>
+                  </div>
+                </Vidro>
+              </Tela>
+            )}
+
+            {passo === 'sucesso' && copia && (
+              <Tela key="sucesso">
+                <TelaSucesso
+                  copia={copia}
+                  onComecar={() => navigate('/app')}
+                  onDepois={() => navigate('/')}
+                />
+              </Tela>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   )
 }
 
-function StepHeading({ titulo, subtitulo }: { titulo: string; subtitulo: string }) {
+/* -------------------------------------------------------------------------- */
+/* Telas                                                                       */
+/* -------------------------------------------------------------------------- */
+
+function TelaAcesso({ onEscolher }: { onEscolher: (acesso: 'medico' | 'paciente') => void }) {
   return (
-    <div className="mb-lg flex flex-col gap-2">
-      <h1 className="text-3xl sm:text-4xl">{titulo}</h1>
-      <p className="text-lg text-ink-soft">{subtitulo}</p>
+    <div className="flex flex-col items-center">
+      <Logo variant="full" className="h-11" />
+      <p className="mt-md max-w-xs text-center text-lg text-ink-soft">
+        Conecta gestantes, mães e pais a médicos.
+      </p>
+
+      <Vidro peso="denso" className="mt-lg w-full p-lg sm:p-xl">
+        <h1 className="text-2xl">Como você deseja acessar?</h1>
+        <p className="mt-1 text-ink-soft">Escolha o perfil que melhor te representa para continuarmos.</p>
+
+        <div className="mt-lg flex flex-col gap-3">
+          <OpcaoLinha icone={Stethoscope} titulo="Sou médico(a)" onClick={() => onEscolher('medico')} />
+          <OpcaoLinha icone={UserRound} titulo="Sou paciente" onClick={() => onEscolher('paciente')} />
+        </div>
+
+        <p className="mt-lg text-center text-sm text-ink-soft">
+          Já tem uma conta?{' '}
+          <Link to="/entrar" className="font-semibold text-indigo underline underline-offset-4">
+            Entrar
+          </Link>
+        </p>
+      </Vidro>
     </div>
   )
 }
 
-interface ChoiceCardProps {
-  icon: typeof HeartHandshake
-  label: string
-  selected: boolean
-  onClick: () => void
+function TelaBoasVindasMedico({ onContinuar }: { onContinuar: () => void }) {
+  const copia = PERFIS.medico
+
+  return (
+    <Vidro peso="denso" className="p-lg sm:p-xl">
+      <div className="flex flex-col items-center text-center">
+        <HaloIcone tom={copia.tom}>
+          <copia.icone className="size-7" aria-hidden />
+        </HaloIcone>
+        <h1 className="mt-md text-2xl">Bem-vindo(a), médico(a)!</h1>
+        <p className="mt-1 text-ink-soft">{copia.subtitulo}</p>
+      </div>
+
+      <ul className="mt-lg flex flex-col gap-1 rounded-xl bg-paper p-2">
+        {copia.beneficios.map((beneficio) => (
+          <li key={beneficio.texto} className="flex items-center gap-3 rounded-lg px-3 py-2.5">
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg [background-image:var(--grad-brand-soft)] text-indigo">
+              <beneficio.icone className="size-4" aria-hidden />
+            </span>
+            <span className="text-sm font-semibold text-ink">{beneficio.texto}</span>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-lg">
+        <Button size="lg" fullWidth onClick={onContinuar}>
+          Criar minha conta
+        </Button>
+      </div>
+      <p className="mt-md text-center text-sm text-ink-soft">
+        Já tem uma conta?{' '}
+        <Link to="/entrar" className="font-semibold text-indigo underline underline-offset-4">
+          Entrar
+        </Link>
+      </p>
+    </Vidro>
+  )
 }
 
-function ChoiceCard({ icon: Icon, label, selected, onClick }: ChoiceCardProps) {
+function TelaQuemEVoce({ onEscolher }: { onEscolher: (perfil: Perfil) => void }) {
   return (
-    <button
+    <Vidro peso="denso" className="p-lg sm:p-xl">
+      <div className="flex flex-col items-center text-center">
+        <HaloIcone>
+          <UserRound className="size-7" aria-hidden />
+        </HaloIcone>
+        <h1 className="mt-md text-2xl">Para te oferecer a melhor experiência, quem é você?</h1>
+        <p className="mt-1 text-ink-soft">Escolha uma opção para continuarmos.</p>
+      </div>
+
+      <div className="mt-lg flex flex-col gap-3">
+        {PERFIS_FAMILIA.map((opcao) => (
+          <OpcaoLinha
+            key={opcao.perfil}
+            icone={opcao.icone}
+            titulo={opcao.titulo}
+            nota={opcao.nota}
+            onClick={() => onEscolher(opcao.perfil)}
+          />
+        ))}
+      </div>
+
+      <p className="mt-lg text-center text-sm text-ink-mute">Tudo bem, você pode alterar depois.</p>
+    </Vidro>
+  )
+}
+
+function TelaSucesso({
+  copia,
+  onComecar,
+  onDepois,
+}: {
+  copia: (typeof PERFIS)[Perfil]
+  onComecar: () => void
+  onDepois: () => void
+}) {
+  const { mola } = useMovimento()
+
+  return (
+    <Vidro peso="denso" className="p-lg text-center sm:p-xl">
+      <div className="flex flex-col items-center">
+        <motion.span
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          /**
+           * Aqui o overshoot é bem-vindo: é o único momento do fluxo em que algo
+           * chega, e não em que algo é pedido.
+           */
+          transition={mola('firme')}
+        >
+          <HaloIcone tom={copia.tom} tamanho="lg">
+            <Check className="size-9" aria-hidden strokeWidth={2.5} />
+          </HaloIcone>
+        </motion.span>
+        <h1 className="mt-lg text-2xl">Conta criada com sucesso!</h1>
+        <p className="mt-md font-display text-lg font-semibold text-indigo">{copia.sucesso.saudacao}</p>
+        <p className="mt-1 text-ink-soft">{copia.sucesso.texto}</p>
+      </div>
+
+      <div className="mt-lg flex flex-col gap-2">
+        <Button size="lg" fullWidth onClick={onComecar}>
+          Começar agora
+        </Button>
+        <Button variant="ghost" size="md" fullWidth onClick={onDepois}>
+          Explorar depois
+        </Button>
+      </div>
+    </Vidro>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/* Blocos de campo                                                             */
+/* -------------------------------------------------------------------------- */
+
+interface CamposProps {
+  dados: DadosCadastro
+  erros: Erros
+  mudar: <C extends keyof DadosCadastro>(campo: C, valor: DadosCadastro[C]) => void
+}
+
+function CamposMedico({
+  dados,
+  erros,
+  outraEsp,
+  setOutraEsp,
+  mudar,
+}: CamposProps & { outraEsp: boolean; setOutraEsp: (v: boolean) => void }) {
+  return (
+    <>
+      <div className="grid grid-cols-[1fr_6rem] gap-3">
+        <Campo
+          rotulo="CRM"
+          inputMode="numeric"
+          placeholder="Número do registro"
+          value={dados.crm}
+          erro={erros.crm}
+          onChange={(e) => mudar('crm', somenteDigitos(e.target.value).slice(0, 6))}
+        />
+        <CampoSelect rotulo="UF" value={dados.crmUf} onChange={(e) => mudar('crmUf', e.target.value)}>
+          <option value="">--</option>
+          {UFS.map((uf) => (
+            <option key={uf} value={uf}>
+              {uf}
+            </option>
+          ))}
+        </CampoSelect>
+      </div>
+
+      <CampoSelect
+        rotulo="Especialidade"
+        value={outraEsp ? 'Outra' : dados.especialidade}
+        erro={erros.especialidade}
+        onChange={(e) => {
+          const valor = e.target.value
+          setOutraEsp(valor === 'Outra')
+          mudar('especialidade', valor === 'Outra' ? '' : valor)
+        }}
+      >
+        <option value="">Selecione…</option>
+        {ESPECIALIDADES.map((esp) => (
+          <option key={esp} value={esp}>
+            {esp}
+          </option>
+        ))}
+      </CampoSelect>
+      {outraEsp && (
+        <Campo
+          rotulo="Qual é a sua especialidade?"
+          maxLength={60}
+          value={dados.especialidade}
+          onChange={(e) => mudar('especialidade', e.target.value)}
+        />
+      )}
+
+      <p className="px-1 text-xs text-ink-mute">
+        Conferimos seu CPF e guardamos o CRM para a verificação profissional, que fica pendente até a
+        validação junto ao conselho. Seus documentos nunca aparecem publicamente.
+      </p>
+    </>
+  )
+}
+
+function CamposFamilia({ perfil, dados, erros, mudar }: CamposProps & { perfil: Perfil }) {
+  const gestante = perfil === 'gestante'
+
+  return (
+    <>
+      {!gestante && (
+        <CampoSelect
+          rotulo="Em que ponto vocês estão?"
+          value={dados.momento}
+          onChange={(e) => mudar('momento', e.target.value as MomentoGestacao)}
+        >
+          <option value="ja-nasceu">Meu bebê já nasceu</option>
+          <option value="gestante">Estamos esperando um bebê</option>
+          <option value="planejando">Estamos planejando</option>
+        </CampoSelect>
+      )}
+
+      {dados.momento === 'gestante' && (
+        <Campo
+          rotulo="Data provável do parto (opcional)"
+          type="date"
+          value={dados.dpp}
+          erro={erros.dpp}
+          ajuda="Se ainda não sabe, tudo bem — dá para preencher depois."
+          onChange={(e) => mudar('dpp', e.target.value)}
+        />
+      )}
+
+      {dados.momento === 'ja-nasceu' && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Campo
+            rotulo="Nome do bebê (opcional)"
+            maxLength={80}
+            placeholder="Como vocês chamam"
+            value={dados.nomeBebe}
+            onChange={(e) => mudar('nomeBebe', e.target.value)}
+          />
+          <Campo
+            rotulo="Nascimento do bebê"
+            type="date"
+            max={hojeISO()}
+            value={dados.dataNascimentoBebe}
+            erro={erros.dataNascimentoBebe}
+            onChange={(e) => mudar('dataNascimentoBebe', e.target.value)}
+          />
+        </div>
+      )}
+    </>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/* Peças                                                                       */
+/* -------------------------------------------------------------------------- */
+
+function Cabecalho({
+  passo,
+  mostrarVoltar,
+  onVoltar,
+}: {
+  passo: Parameters<typeof progressoDe>[0]
+  mostrarVoltar: boolean
+  onVoltar: () => void
+}) {
+  const progresso = progressoDe(passo)
+
+  return (
+    <div className="mb-lg flex items-center gap-3">
+      {mostrarVoltar ? (
+        <button
+          type="button"
+          onClick={onVoltar}
+          className="grid size-10 shrink-0 place-items-center rounded-pill text-indigo transition-colors duration-[var(--dur-fast)] hover:bg-paper-2"
+          aria-label="Voltar um passo"
+        >
+          <ArrowLeft className="size-5" aria-hidden />
+        </button>
+      ) : (
+        <span className="size-10 shrink-0" aria-hidden />
+      )}
+      <div
+        className="h-1.5 flex-1 overflow-hidden rounded-pill bg-paper-3"
+        role="progressbar"
+        aria-valuenow={progresso}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Progresso do cadastro"
+      >
+        <div
+          className="h-full rounded-pill [background-image:var(--grad-brand)] transition-[width] duration-[var(--dur-base)] ease-out"
+          style={{ width: `${progresso}%` }}
+        />
+      </div>
+      <span className="w-10 shrink-0" aria-hidden />
+    </div>
+  )
+}
+
+/**
+ * A transição entre passos.
+ *
+ * O vidro **se materializa**: blur e escala animam juntos, para a superfície ler
+ * como um material chegando em vez de uma opacidade subindo. Sob movimento
+ * reduzido sobra só o cross-fade — que é o equivalente gentil, não a ausência de
+ * feedback.
+ */
+function Tela({ children }: { children: React.ReactNode }) {
+  const { ativo, mola, duracao } = useMovimento()
+
+  return (
+    <motion.div
+      initial={ativo ? { opacity: 0, y: 18, scale: 0.985, filter: 'blur(8px)' } : { opacity: 0 }}
+      animate={ativo ? { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' } : { opacity: 1 }}
+      exit={ativo ? { opacity: 0, y: -14, scale: 0.99, filter: 'blur(6px)' } : { opacity: 0 }}
+      transition={ativo ? mola('suave') : duracao(0.18)}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+function OpcaoLinha({
+  icone: Icone,
+  titulo,
+  nota,
+  onClick,
+}: {
+  icone: LucideIcon
+  titulo: string
+  nota?: string
+  onClick: () => void
+}) {
+  const { ativo, mola } = useMovimento()
+
+  return (
+    <motion.button
       type="button"
       onClick={onClick}
-      aria-pressed={selected}
+      whileTap={ativo ? { scale: 0.985 } : undefined}
+      transition={mola('rapida')}
       className={cn(
-        'flex items-center gap-4 rounded-2xl border-2 bg-paper p-lg text-left shadow-soft transition-[transform,border-color,box-shadow] duration-[var(--dur-fast)] ease-out hover:-translate-y-0.5 hover:shadow-lift',
-        'sm:flex-col sm:items-start sm:gap-3',
-        selected ? 'border-[var(--color-lilas)] shadow-glow' : 'border-transparent hover:border-[var(--color-lilas-soft)]',
+        'group flex w-full items-center gap-3 rounded-xl border border-line bg-paper p-3.5 text-left shadow-soft',
+        'transition-[border-color,box-shadow] duration-[var(--dur-fast)] ease-out',
+        'hover:border-[var(--color-lilas-soft)] hover:shadow-lift',
+        'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus)]',
       )}
     >
-      <span className="grid size-12 shrink-0 place-items-center rounded-xl [background-image:var(--grad-brand-soft)] text-indigo">
-        <Icon className="size-6" aria-hidden />
+      <span className="grid size-10 shrink-0 place-items-center rounded-lg [background-image:var(--grad-brand-soft)] text-indigo">
+        <Icone className="size-5" aria-hidden />
       </span>
-      <span className="font-display text-lg font-semibold text-ink">{label}</span>
-    </button>
+      <span className="min-w-0 flex-1">
+        <span className="block font-display font-semibold text-ink">{titulo}</span>
+        {nota && <span className="block text-sm text-ink-mute">{nota}</span>}
+      </span>
+      <ChevronRight
+        className="size-5 shrink-0 text-ink-mute transition-transform duration-[var(--dur-fast)] group-hover:translate-x-0.5"
+        aria-hidden
+      />
+    </motion.button>
+  )
+}
+
+function CabecalhoPerfil({
+  copia,
+  titulo,
+  subtitulo,
+}: {
+  copia: (typeof PERFIS)[Perfil]
+  titulo?: string
+  subtitulo?: string
+}) {
+  return (
+    <div className="flex flex-col items-center text-center">
+      <HaloIcone tom={copia.tom}>
+        <copia.icone className="size-7" aria-hidden />
+      </HaloIcone>
+      <h1 className="mt-md text-2xl">{titulo ?? copia.titulo}</h1>
+      <p className="mt-1 text-ink-soft">{subtitulo ?? copia.subtitulo}</p>
+    </div>
+  )
+}
+
+function ChipsBeneficios({ copia }: { copia: (typeof PERFIS)[Perfil] }) {
+  return (
+    <ul className="mt-lg grid grid-cols-2 gap-2">
+      {copia.beneficios.map((beneficio) => (
+        <li
+          key={beneficio.texto}
+          className="flex items-center gap-2 rounded-lg bg-paper px-3 py-2 text-[0.8rem] font-semibold leading-tight text-ink shadow-soft"
+        >
+          <beneficio.icone className="size-4 shrink-0 text-indigo" aria-hidden />
+          {/* Sem `truncate`: um benefício cortado no meio ("Acompanh…") não é
+              um benefício — é ruído. Melhor a linha quebrar. */}
+          <span className="min-w-0">{beneficio.texto}</span>
+        </li>
+      ))}
+    </ul>
   )
 }

@@ -43,6 +43,41 @@ const userSchema = new Schema(
     verificacaoStatus: { type: String, enum: VERIFICACAO, default: 'nao_aplicavel' },
 
     /**
+     * Contato e identidade coletados no cadastro.
+     *
+     * O telefone é o canal dos lembretes clínicos — a consulta que a pessoa não
+     * pode perder não chega por push de navegador. Fica fora de `select: false`
+     * porque é o próprio dono que lê o dele no perfil; o que nunca sai daqui é o
+     * CPF.
+     */
+    telefone: { type: String, default: '', trim: true, maxlength: 20 },
+    /**
+     * Data de nascimento do titular da conta — não confundir com a da criança,
+     * que vive na jornada (`Crianca.dataNascimento`). Aqui ela serve para duas
+     * coisas: conferir que quem cria a conta tem idade para consentir sozinho, e
+     * dar contexto clínico (idade materna é fator de risco gestacional).
+     */
+    dataNascimento: { type: Date, default: null },
+
+    /**
+     * O aceite dos termos, com versão e data.
+     *
+     * Guardar só `true` não prova nada: os termos mudam, e um aceite sem versão
+     * não diz *a que* a pessoa disse sim. A dupla versão+data é o que torna o
+     * consentimento auditável, que é o ponto da LGPD.
+     */
+    aceiteTermos: {
+      versao: { type: String, default: '' },
+      em: { type: Date, default: null },
+    },
+    /**
+     * Opt-in separado para comunicações de marketing/novidades. Separado de
+     * propósito: consentimento agregado não é consentimento — quem aceita os
+     * termos para poder usar o produto não aceitou receber e-mail promocional.
+     */
+    aceiteComunicacoes: { type: Boolean, default: false },
+
+    /**
      * A conta nasceu com senha que outra pessoa escolheu (hoje só a de admin,
      * provisionada). O `/app` empurra para a troca antes de deixar usar
      * qualquer coisa — uma senha inicial que nunca é trocada é uma senha

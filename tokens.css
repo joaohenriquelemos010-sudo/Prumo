@@ -105,6 +105,12 @@
    * desliga a translucidez do produto inteiro de uma vez. */
   --material-opacidade: 72%;
 
+  /* Vidro de cartão (ver components/Vidro.tsx). Mais transparente que o chrome
+   * porque um cartão de vidro fica sobre o fundo ambiente, não sobre texto — é
+   * onde a translucidez pode ser sentida sem custar legibilidade. Vira 100%
+   * junto com `--material-opacidade` sob prefers-reduced-transparency. */
+  --vidro-opacidade: 62%;
+
   --rule-hair: 1px;
 
   /* Height of the mobile tab bar. Content padding and the tab hit areas both read
