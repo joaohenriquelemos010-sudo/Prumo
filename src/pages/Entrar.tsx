@@ -4,10 +4,20 @@ import { Blob } from '@/components/Blob'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/Button'
 import { AlertaErro } from '@/components/AlertaErro'
+import { Vidro } from '@/components/Vidro'
+import { Campo, CampoSenha } from '@/components/Campo'
 import { useAuth } from '@/lib/stores/auth'
 import { useTrilha } from '@/lib/stores/trilha'
 import { checkRateLimit } from '@/lib/rate-limit'
 
+/**
+ * Entrar.
+ *
+ * Mesmo material do cadastro — um cartão de vidro sobre o fundo ambiente — para
+ * que as duas portas da casa sejam reconhecidamente a mesma casa. O campo de
+ * senha tem olho: a alternativa real ao segredo não é segurança, é a pessoa
+ * errando a digitação três vezes num teclado de celular e desistindo.
+ */
 export default function EntrarPage() {
   const login = useAuth((s) => s.login)
   const sessaoExpirada = useAuth((s) => s.sessaoExpirada)
@@ -15,8 +25,8 @@ export default function EntrarPage() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  /** Carried over when someone tried to sign up with an e-mail that already has
-   * an account — they shouldn't have to type it again. */
+  /** Vem preenchido quando alguém tentou se cadastrar com um e-mail que já tem
+   * conta — não faz sentido pedir que digite de novo. */
   const vindoDoCadastro = (location.state as { email?: string } | null)?.email ?? ''
 
   const [email, setEmail] = useState(vindoDoCadastro)
@@ -40,6 +50,7 @@ export default function EntrarPage() {
 
     if (result.ok) {
       resetDemo()
+      setSenha('')
       navigate('/app')
     } else {
       setErro({ mensagem: result.error ?? 'Não foi possível entrar.', status: result.status })
@@ -47,11 +58,11 @@ export default function EntrarPage() {
   }
 
   return (
-    <div className="relative grid min-h-[85vh] place-items-center overflow-hidden px-md py-2xl">
-      <Blob variant="b" intensity={0.4} className="-right-20 top-10 size-96" />
-      <Blob variant="a" intensity={0.35} className="-left-20 bottom-0 size-96" />
+    <div className="relative grid min-h-[85vh] place-items-center overflow-clip px-md py-2xl">
+      <Blob variant="b" intensity={0.48} className="-right-24 top-6 size-[28rem]" />
+      <Blob variant="a" intensity={0.4} className="-left-24 bottom-0 size-[28rem]" />
 
-      <form onSubmit={entrar} className="w-full max-w-md rounded-2xl border border-line bg-paper p-lg shadow-lift sm:p-xl">
+      <Vidro as="form" peso="denso" onSubmit={entrar} className="w-full max-w-md p-lg sm:p-xl">
         <Link to="/" aria-label="Prumo — início" className="inline-block">
           <Logo variant="full" className="h-9" />
         </Link>
@@ -65,30 +76,24 @@ export default function EntrarPage() {
         </p>
 
         <div className="mt-lg flex flex-col gap-3">
-          <Field label="E-mail" htmlFor="email">
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="voce@email.com"
-              className="input"
-              required
-            />
-          </Field>
-          <Field label="Senha" htmlFor="senha">
-            <input
-              id="senha"
-              type="password"
-              autoComplete="current-password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              placeholder="Sua senha"
-              className="input"
-              required
-            />
-          </Field>
+          <Campo
+            rotulo="E-mail"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="voce@email.com"
+            required
+          />
+          <CampoSenha
+            rotulo="Senha"
+            autoComplete="current-password"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            placeholder="Sua senha"
+            required
+          />
         </div>
 
         {erro && (
@@ -132,19 +137,10 @@ export default function EntrarPage() {
         <p className="mt-md text-center text-sm text-ink-soft">
           Ainda não tem conta?{' '}
           <Link to="/onboarding" className="font-semibold text-indigo underline underline-offset-4">
-            Comece a trilha
+            Criar minha conta
           </Link>
         </p>
-      </form>
+      </Vidro>
     </div>
-  )
-}
-
-function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
-  return (
-    <label htmlFor={htmlFor} className="flex flex-col gap-1.5">
-      <span className="font-display text-sm font-semibold text-ink">{label}</span>
-      {children}
-    </label>
   )
 }

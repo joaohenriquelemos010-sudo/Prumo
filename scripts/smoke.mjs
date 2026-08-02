@@ -56,6 +56,11 @@ const conta = (papel) => {
     email: `${papel}.${carimbo}.${n}@exemplo.test`,
     senha: 'prumo-teste-123',
     papel,
+    // Identidade e contato agora valem para todo perfil — ver server/validation.ts.
+    cpf: '11144477735', // valid check digits
+    telefone: '11912345678',
+    dataNascimento: '1994-03-12',
+    aceiteTermos: true,
   }
 }
 
@@ -73,10 +78,13 @@ const conta = (papel) => {
 async function registrar(request, dados, { configurar = true } = {}) {
   const corpo = { ...dados }
   if (dados.papel === 'medico') {
-    corpo.cpf = '11144477735' // valid check digits
     corpo.especialidade = 'Obstetrícia'
     corpo.crm = '123456'
     corpo.crmUf = 'SP'
+  } else {
+    // A jornada nasce no momento que o cadastro informou; sem ele o registro é
+    // recusado, e é de propósito — a trilha precisa saber onde começar.
+    corpo.momento = corpo.momento ?? 'gestante'
   }
   const res = await request.post(`${BASE}/api/auth/register`, { data: corpo })
   if (!res.ok()) throw new Error(`registro falhou (${res.status()}): ${await res.text()}`)

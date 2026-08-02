@@ -6,13 +6,38 @@ import { OBJETIVOS_AGENDAMENTO } from './models/Agendamento.js'
 import { TIPOS_CONSULTA } from './models/Consulta.js'
 import { ESCOPOS_TRANSFERENCIA } from './models/Transferencia.js'
 import { ESTADOS_GRUPO } from './models/Checklist.js'
-import { validarCPF, somenteDigitos, UFS } from './br-docs.js'
+import { validarCPF, validarCRM, validarTelefone, idadeEm, somenteDigitos, UFS } from './br-docs.js'
 
 /**
  * Server-side validation. The client validates too, but the server never trusts
  * the client — every request body is parsed here before it touches the database.
  */
 
+/**
+ * Versão dos termos que o cadastro registra no aceite. Suba junto com o texto
+ * dos termos — um aceite sem versão não diz *a que* a pessoa disse sim.
+ */
+export const VERSAO_TERMOS = '2026-08'
+
+/** Aceita `YYYY-MM-DD` (o que `<input type="date">` manda) ou ISO completo. */
+const dataCivil = z
+  .string()
+  .trim()
+  .refine((v) => !Number.isNaN(Date.parse(v.includes('T') ? v : `${v}T00:00:00`)), 'Data inválida.')
+
+/** Momento da jornada — a mesma trinca que `Crianca.momento` guarda. */
+export const MOMENTOS = ['planejando', 'gestante', 'ja-nasceu'] as const
+
+/**
+ * Cadastro.
+ *
+ * O formulário pede bem mais do que nome/e-mail/senha, e a razão é clínica: uma
+ * jornada materno-infantil sem telefone não consegue lembrar de uma consulta,
+ * sem data de nascimento não consegue calcular risco por idade, e sem CPF não
+ * consegue casar o registro com convênio ou com o cadastro que a clínica já
+ * tem. Cada campo obrigatório aqui existe porque alguma tela depende dele — e
+ * nenhum deles volta para o cliente depois (ver `GET /auth/me`).
+ */
 export const registerSchema = z
   .object({
     nome: z
@@ -20,34 +45,88 @@ export const registerSchema = z
       .trim()
       .min(2, 'Conta pra gente como podemos te chamar.')
       .max(80, 'Esse nome ficou longo demais.')
-      .regex(/^[\p{L}\s'.-]+$/u, 'Use só letras, por favor.'),
+      .regex(/^[\p{L}\s'.-]+$/u, 'Use só letras, por favor.')
+      .refine((v) => v.split(/\s+/).filter(Boolean).length >= 2, 'Escreva seu nome completo (nome e sobrenome).'),
     email: z.string().trim().toLowerCase().email('Esse e-mail parece incompleto.'),
     senha: z
       .string()
       .min(8, 'Sua senha precisa de pelo menos 8 caracteres.')
-      .max(100, 'Senha longa demais.'),
+      .max(100, 'Senha longa demais.')
+      .regex(/\p{L}/u, 'Sua senha precisa ter pelo menos uma letra.')
+      .regex(/\d/, 'Sua senha precisa ter pelo menos um número.'),
     papel: z.enum(PAPEIS),
-    // Doctor-only fields (validated conditionally below).
-    cpf: z.string().trim().optional(),
+
+    // ---- Identidade e contato (todos os perfis) ----
+    telefone: z.string().trim().refine(validarTelefone, 'Telefone inválido. Use DDD + número.'),
+    dataNascimento: dataCivil,
+    cpf: z.string().trim().refine(validarCPF, 'CPF inválido. Confere os números?'),
+
+    /**
+     * O aceite é `true` literal: um cadastro que chega sem ele não é um cadastro
+     * com um campo faltando, é um cadastro sem consentimento.
+     */
+    aceiteTermos: z.literal(true, {
+      errorMap: () => ({ message: 'Para criar a conta, é preciso aceitar os termos e a política de privacidade.' }),
+    }),
+    /** Marketing é opt-in separado — ver o comentário no modelo `User`. */
+    aceiteComunicacoes: z.boolean().optional().default(false),
+
+    // ---- Só médico ----
     crm: z.string().trim().optional(),
     crmUf: z.string().trim().toUpperCase().optional(),
     especialidade: z.string().trim().max(60).optional(),
+
+    // ---- Só família (gestante / mãe / pai) — semeiam a jornada ----
+    momento: z.enum(MOMENTOS).optional(),
+    dpp: dataCivil.optional(),
+    nomeBebe: z.string().trim().max(80).optional(),
+    dataNascimentoBebe: dataCivil.optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.papel !== 'medico') return
-    // CPF is validated (real check digits) + name required; CRM is optional and
-    // stored as-is for now (no official verification yet).
-    if (!data.cpf || !validarCPF(data.cpf)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['cpf'], message: 'CPF inválido. Confere os números?' })
+    const idade = idadeEm(data.dataNascimento)
+    if (idade === null || idade < 0 || idade > 120) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['dataNascimento'], message: 'Confere a data de nascimento?' })
+    } else if (idade < 16) {
+      // Abaixo de 16 o consentimento não é da própria pessoa (LGPD art. 14).
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['dataNascimento'],
+        message: 'Para criar uma conta é preciso ter 16 anos ou mais.',
+      })
     }
-    // Specialty is required for doctors (used in doctor-to-doctor sharing).
-    if (!data.especialidade || data.especialidade.length < 2) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['especialidade'], message: 'Informe sua especialidade.' })
+
+    if (data.papel === 'medico') {
+      if (!data.crm || !data.crmUf || !validarCRM(data.crm, data.crmUf)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['crm'], message: 'Informe seu CRM e a UF de registro.' })
+      }
+      // Especialidade é obrigatória: ela decide o que aparece no compartilhamento
+      // entre médicos.
+      if (!data.especialidade || data.especialidade.length < 2) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['especialidade'], message: 'Informe sua especialidade.' })
+      }
+      return
     }
+
+    // Família: o momento é o que decide em que ponto a trilha começa.
+    if (!data.momento) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['momento'], message: 'Escolha em que ponto vocês estão.' })
+      return
+    }
+    if (data.momento === 'ja-nasceu' && !data.dataNascimentoBebe) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['dataNascimentoBebe'],
+        message: 'Informe a data de nascimento do bebê.',
+      })
+    }
+    // A DPP é opcional na gestação — muita gente ainda não fez a primeira
+    // ultrassonografia quando cria a conta, e travar o cadastro nisso seria
+    // exigir um exame para poder marcar o exame.
   })
   .transform((data) => ({
     ...data,
-    cpf: data.cpf ? somenteDigitos(data.cpf) : undefined,
+    cpf: somenteDigitos(data.cpf),
+    telefone: somenteDigitos(data.telefone),
     crm: data.crm ? somenteDigitos(data.crm) : undefined,
     crmUf: data.crmUf && (UFS as readonly string[]).includes(data.crmUf) ? data.crmUf : undefined,
   }))

@@ -10,6 +10,7 @@ import {
   loginSchema,
   esqueciSenhaSchema,
   trocarSenhaSchema,
+  VERSAO_TERMOS,
 } from '../validation.js'
 import { auditar, registrar, origem } from '../services/auditoria.js'
 import { hashPassword, verifyPassword, issueSession, clearSession, requireAuth } from '../auth.js'
@@ -83,7 +84,23 @@ authRouter.post('/register', rateLimit({ key: 'register', limit: 5, windowMs: 60
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Confere os dados, por favor.' })
     return
   }
-  const { nome, email, senha, papel, cpf, crm, crmUf, especialidade } = parsed.data
+  const {
+    nome,
+    email,
+    senha,
+    papel,
+    cpf,
+    telefone,
+    dataNascimento,
+    aceiteComunicacoes,
+    crm,
+    crmUf,
+    especialidade,
+    momento,
+    dpp,
+    nomeBebe,
+    dataNascimentoBebe,
+  } = parsed.data
 
   // The admin account is provisioned/seeded server-side — never via public signup.
   if (papel === 'admin') {
@@ -103,8 +120,15 @@ authRouter.post('/register', rateLimit({ key: 'register', limit: 5, windowMs: 60
     email,
     senhaHash,
     papel,
+    // CPF é de todo mundo agora, e continua cifrado em repouso e `select: false`:
+    // ele entra no cadastro e nunca mais sai pela API.
+    cpf,
+    telefone,
+    dataNascimento: new Date(dataNascimento),
+    /** Versão + data: é isso que torna o consentimento auditável. */
+    aceiteTermos: { versao: VERSAO_TERMOS, em: new Date() },
+    aceiteComunicacoes,
     // Doctor identity: stored server-side only, verification starts pending.
-    cpf: papel === 'medico' ? cpf : undefined,
     crm: papel === 'medico' ? crm : undefined,
     crmUf: papel === 'medico' ? crmUf : undefined,
     especialidade: papel === 'medico' ? especialidade : undefined,
@@ -115,7 +139,19 @@ authRouter.post('/register', rateLimit({ key: 'register', limit: 5, windowMs: 60
   if (papel === 'medico') {
     await seedDemoPatient(String(user._id))
   } else {
-    await Crianca.create({ responsavel: user._id, momento: 'gestante' })
+    /**
+     * A jornada nasce já com o que a família contou no cadastro. Antes ela
+     * nascia sempre como `gestante` vazia, e a pessoa tinha que repetir no
+     * perfil o que acabara de digitar — a trilha começava no lugar errado para
+     * quem estava planejando ou para quem já tinha o bebê no colo.
+     */
+    await Crianca.create({
+      responsavel: user._id,
+      momento: momento ?? 'gestante',
+      nome: nomeBebe ?? '',
+      dpp: momento === 'gestante' && dpp ? new Date(dpp) : null,
+      dataNascimento: momento === 'ja-nasceu' && dataNascimentoBebe ? new Date(dataNascimentoBebe) : null,
+    })
   }
 
   const sessionUser = toSessionUser(user)
@@ -201,6 +237,9 @@ authRouter.get('/me', requireAuth, async (req, res) => {
       nome: user.nome,
       email: user.email,
       papel: user.papel,
+      /** Contato do próprio dono da conta — o CPF continua fora, de propósito. */
+      telefone: user.telefone || undefined,
+      dataNascimento: user.dataNascimento ? user.dataNascimento.toISOString().slice(0, 10) : undefined,
       crm: user.crm || undefined,
       crmUf: user.crmUf || undefined,
       especialidade: user.especialidade || undefined,

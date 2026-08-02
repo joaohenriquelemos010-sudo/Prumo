@@ -12,6 +12,10 @@ export interface AuthUser {
   nome: string
   email?: string
   papel: Papel
+  /** Contato do próprio dono da conta. O CPF nunca volta pela API. */
+  telefone?: string
+  /** `YYYY-MM-DD`. */
+  dataNascimento?: string
   crm?: string
   crmUf?: string
   especialidade?: string
@@ -29,11 +33,24 @@ export interface RegisterInput {
   email: string
   senha: string
   papel: Papel
-  /** Doctor-only. */
-  cpf?: string
+  /** Identidade e contato — pedidos de todos os perfis. */
+  cpf: string
+  telefone: string
+  /** `YYYY-MM-DD`, do titular da conta (não do bebê). */
+  dataNascimento: string
+  /** Literalmente `true`: sem aceite não existe cadastro. */
+  aceiteTermos: true
+  aceiteComunicacoes?: boolean
+  /** Só médico. */
   crm?: string
   crmUf?: string
   especialidade?: string
+  /** Só família — semeiam a jornada já no ponto certo da trilha. */
+  momento?: 'planejando' | 'gestante' | 'ja-nasceu'
+  /** Data provável do parto, `YYYY-MM-DD`. */
+  dpp?: string
+  nomeBebe?: string
+  dataNascimentoBebe?: string
 }
 
 type Status = 'idle' | 'loading' | 'authed' | 'guest'
