@@ -723,6 +723,26 @@ export const pacienteCreateSchema = z.object({
   email: z.union([z.string().trim().toLowerCase().email('E-mail inválido.'), z.literal('')]).optional(),
   nomeBebe: z.string().trim().max(80).optional(),
   cpf: z.string().trim().max(14).optional(),
+  rg: z.string().trim().max(20).optional(),
+  sexo: z.enum(['', 'feminino', 'masculino', 'outro']).optional(),
+  estadoCivil: z
+    .enum(['', 'solteira', 'casada', 'uniao-estavel', 'divorciada', 'viuva'])
+    .optional(),
+  profissao: z.string().trim().max(60).optional(),
+  telefoneSecundario: z.string().trim().max(20).optional(),
+  /**
+   * A foto chega como data URL já reduzida no cliente. O teto de 40 KB não é
+   * arbitrário: o corpo inteiro da requisição está limitado a 64 KB em
+   * `app.ts`, e o resto da ficha ocupa alguns KB — um cadastro que falhasse com
+   * "Payload Too Large" depois de vinte campos preenchidos seria pior do que
+   * não ter foto. O cliente já reduz para bem abaixo disso (`lib/imagem.ts`).
+   */
+  foto: z
+    .string()
+    .trim()
+    .max(40_000, 'Essa imagem é grande demais.')
+    .refine((v) => v === '' || /^data:image\/(png|jpe?g|webp);base64,/.test(v), 'Formato de imagem não suportado.')
+    .optional(),
   endereco: z
     .object({
       cep: z.string().trim().max(12).optional(),
@@ -734,6 +754,43 @@ export const pacienteCreateSchema = z.object({
       uf: z.string().trim().max(2).optional(),
     })
     .optional(),
+  convenio: z
+    .object({
+      operadora: z.string().trim().max(80).optional(),
+      plano: z.string().trim().max(80).optional(),
+      carteirinha: z.string().trim().max(30).optional(),
+      /** `MM/AAAA`, como vem impresso no cartão. A rota converte para data. */
+      validade: z.string().trim().max(7).optional(),
+    })
+    .optional(),
+  emergencia: z
+    .object({
+      nome: z.string().trim().max(80).optional(),
+      parentesco: z.string().trim().max(40).optional(),
+      telefone: z.string().trim().max(20).optional(),
+    })
+    .optional(),
+  familia: z
+    .object({
+      companheiro: z.string().trim().max(80).optional(),
+      filhos: z
+        .array(
+          z.object({
+            nome: z.string().trim().max(80),
+            dataNascimento: z.string().trim().max(40).optional(),
+          }),
+        )
+        .max(20, 'São muitos filhos para uma ficha só.')
+        .optional(),
+    })
+    .optional(),
+  preferencias: z
+    .object({
+      dias: z.array(z.enum(['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'])).max(7).optional(),
+      periodos: z.array(z.enum(['manha', 'tarde', 'noite'])).max(3).optional(),
+      restricoes: z.string().trim().max(200).optional(),
+    })
+    .optional(),
   observacoes: z.string().trim().max(500).optional(),
 })
 
@@ -741,6 +798,25 @@ export const pacientePatchSchema = pacienteCreateSchema.partial()
 
 export const vincularCodigoSchema = z.object({
   codigo: z.string().trim().min(6, 'O código tem 8 caracteres.').max(20),
+})
+
+/** O apelido da clínica que aparece no topo do link de pré-cadastro. */
+export const preCadastroLinkSchema = z.object({
+  nomeClinica: z.string().trim().max(60).optional(),
+})
+
+/**
+ * O que a paciente envia pelo link de pré-cadastro.
+ *
+ * Mesmos campos da ficha do consultório — é a mesma ficha, preenchida por outra
+ * pessoa — mais o aceite explícito. O consentimento é `literal(true)` e não
+ * `boolean`: uma caixa que chega desmarcada tem que fazer o envio **falhar**, e
+ * não gravar `false` num campo que ninguém mais lê.
+ */
+export const preCadastroEnvioSchema = pacienteCreateSchema.extend({
+  aceite: z.literal(true, {
+    errorMap: () => ({ message: 'Para enviar, é preciso concordar com o uso dos seus dados.' }),
+  }),
 })
 
 /** Um tipo de consulta do catálogo do médico. */

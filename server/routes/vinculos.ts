@@ -243,6 +243,17 @@ vinculosRouter.get('/pacientes', requireAuth, requireRole('medico'), async (req,
          * ninguém do outro lado está lendo o que ele escreve ainda.
          */
         temConta: Boolean(jornada?.responsavel),
+        /** A foto da ficha, quando existe — a lista vira rostos, não linhas. */
+        foto: jornada?.titular?.foto ?? '',
+        telefone: jornada?.titular?.telefone ?? '',
+        /**
+         * A paciente mandou a ficha pelo link e ninguém conferiu ainda. É o
+         * único item desta lista que pede uma ação de cadastro, e não clínica —
+         * some assim que alguém abre e salva a ficha.
+         */
+        fichaPendente: Boolean(
+          jornada?.preCadastro?.recebidoEm && !jornada?.preCadastro?.revisadoEm,
+        ),
         momento: jornada?.momento ?? null,
         dpp: jornada?.dpp ? new Date(jornada.dpp).toISOString() : null,
         dataNascimento: jornada?.dataNascimento

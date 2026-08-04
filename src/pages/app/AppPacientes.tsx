@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AlertTriangle, CalendarDays, MessageCircleQuestion, Play, Search, UserPlus, Users } from 'lucide-react'
+import {
+  AlertTriangle,
+  CalendarDays,
+  ClipboardCheck,
+  MessageCircleQuestion,
+  Play,
+  Search,
+  UserPlus,
+  Users,
+  Zap,
+} from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { useMedicoContext } from '@/lib/stores/medico-context'
 import { Button } from '@/components/Button'
@@ -24,6 +34,11 @@ interface Paciente {
   duvidas: number
   /** Falso enquanto a paciente foi cadastrada no consultório e não criou conta. */
   temConta: boolean
+  /** Data URL da foto da ficha, quando existe. */
+  foto: string
+  telefone: string
+  /** A paciente mandou a ficha pelo link e ninguém conferiu ainda. */
+  fichaPendente: boolean
 }
 
 const JANELA_INICIAR_MS = 4 * 60 * 60 * 1000
@@ -106,13 +121,27 @@ export default function AppPacientes() {
             Quem precisa de você, e o que cada uma precisa.
           </p>
         </div>
-        <Button
-          variant="secondary"
-          iconLeft={<UserPlus className="size-4" aria-hidden />}
-          onClick={() => setCadastrando(true)}
-        >
-          Cadastrar paciente
-        </Button>
+        {/*
+          Dois caminhos, e a diferença entre eles é o momento. A **ficha
+          completa** é o cadastro de verdade, feito sentado. O **rápido** existe
+          para quem chegou agora e precisa ser atendida antes de qualquer
+          formulário — só o nome, o resto depois.
+        */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="ghost"
+            iconLeft={<Zap className="size-4" aria-hidden />}
+            onClick={() => setCadastrando(true)}
+          >
+            Cadastro rápido
+          </Button>
+          <Button
+            iconLeft={<UserPlus className="size-4" aria-hidden />}
+            onClick={() => navigate('/app/pacientes/novo')}
+          >
+            Cadastrar paciente
+          </Button>
+        </div>
       </header>
 
       {erro && <AlertaErro>{erro}</AlertaErro>}
@@ -150,7 +179,7 @@ export default function AppPacientes() {
           action={
             <Button
               iconLeft={<UserPlus className="size-4" aria-hidden />}
-              onClick={() => setCadastrando(true)}
+              onClick={() => navigate('/app/pacientes/novo')}
             >
               Cadastrar paciente
             </Button>
@@ -171,22 +200,25 @@ export default function AppPacientes() {
                 className="rounded-2xl border border-line bg-paper p-md shadow-soft"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <button
-                      type="button"
-                      onClick={() => abrir(p)}
-                      className="text-left font-display text-lg font-semibold tracking-title text-ink hover:text-indigo"
-                    >
-                      {p.nome}
-                    </button>
-                    <p className="text-sm text-ink-soft">
-                      {descricao(p)}
-                      {!p.temConta && (
-                        <span className="ml-2 rounded-pill bg-paper-3 px-2 py-0.5 text-xs font-semibold text-ink-mute">
-                          sem conta
-                        </span>
-                      )}
-                    </p>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <Avatar foto={p.foto} nome={p.nome} />
+                    <div className="min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => abrir(p)}
+                        className="text-left font-display text-lg font-semibold tracking-title text-ink hover:text-indigo"
+                      >
+                        {p.nome}
+                      </button>
+                      <p className="text-sm text-ink-soft">
+                        {descricao(p)}
+                        {!p.temConta && (
+                          <span className="ml-2 rounded-pill bg-paper-3 px-2 py-0.5 text-xs font-semibold text-ink-mute">
+                            sem conta
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   </div>
 
                   {podeIniciar && p.proximo && (
@@ -199,6 +231,15 @@ export default function AppPacientes() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                  {p.fichaPendente && (
+                    <Link
+                      to={`/app/pacientes/${p.crianca}/editar`}
+                      className="inline-flex items-center gap-1.5 rounded-pill u-chip-warn px-2.5 py-0.5 text-xs font-semibold"
+                    >
+                      <ClipboardCheck className="size-3.5" aria-hidden />
+                      Ficha enviada pela paciente — conferir
+                    </Link>
+                  )}
                   {inicio && (
                     <span className="inline-flex items-center gap-1.5 text-ink-soft">
                       <CalendarDays className="size-4" aria-hidden />
@@ -249,5 +290,42 @@ export default function AppPacientes() {
         }}
       />
     </div>
+  )
+}
+
+/**
+ * O rosto antes do nome.
+ *
+ * Sem foto, mostra as iniciais em vez de um ícone genérico: numa lista de
+ * cinquenta linhas, cinquenta silhuetas iguais são ruído, e duas letras já
+ * distinguem uma paciente da outra.
+ */
+function Avatar({ foto, nome }: { foto: string; nome: string }) {
+  const iniciais = nome
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((parte) => parte[0] ?? '')
+    .join('')
+    .toUpperCase()
+
+  if (foto) {
+    return (
+      <img
+        src={foto}
+        alt=""
+        aria-hidden
+        className="size-11 shrink-0 rounded-full border border-line object-cover"
+      />
+    )
+  }
+
+  return (
+    <span
+      aria-hidden
+      className="grid size-11 shrink-0 place-items-center rounded-full [background-image:var(--grad-brand-soft)] font-display text-sm font-bold text-indigo"
+    >
+      {iniciais || '?'}
+    </span>
   )
 }

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, KeyRound, Play, UserRoundCheck } from 'lucide-react'
+import { ArrowLeft, ClipboardCheck, KeyRound, Pencil, Play, UserRoundCheck } from 'lucide-react'
 import { api } from '@/lib/api/client'
 import { useMedicoContext } from '@/lib/stores/medico-context'
 import { Button } from '@/components/Button'
@@ -176,17 +176,65 @@ export default function AppPaciente() {
             </p>
           </div>
 
-          <Button
-            onClick={() => void iniciarAtendimento()}
-            disabled={iniciando}
-            iconLeft={<Play className="size-4" aria-hidden />}
-          >
-            {iniciando ? 'Abrindo…' : 'Iniciar atendimento'}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Link to={`/app/pacientes/${paciente.id}/editar`}>
+              <Button variant="secondary" iconLeft={<Pencil className="size-4" aria-hidden />}>
+                Editar cadastro
+              </Button>
+            </Link>
+            <Button
+              onClick={() => void iniciarAtendimento()}
+              disabled={iniciando}
+              iconLeft={<Play className="size-4" aria-hidden />}
+            >
+              {iniciando ? 'Abrindo…' : 'Iniciar atendimento'}
+            </Button>
+          </div>
         </div>
       </header>
 
       {erro && <AlertaErro>{erro}</AlertaErro>}
+
+      {/*
+        A ficha veio da paciente e ninguém conferiu. Fica no topo do hub, e não
+        escondido numa aba: enquanto isso não for revisado, o CPF que está ali é
+        o que ela digitou no celular — declarado, não verificado.
+      */}
+      {paciente.preCadastro?.recebidoEm && !paciente.preCadastro?.revisadoEm && (
+        <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-[color-mix(in_oklch,var(--color-warn)_35%,transparent)] bg-[color-mix(in_oklch,var(--color-warn)_8%,transparent)] p-md">
+          <ClipboardCheck className="size-5 shrink-0 text-warn-ink" aria-hidden />
+          <p className="min-w-0 flex-1 text-sm text-ink-soft">
+            <strong className="font-semibold text-ink">Ficha preenchida pela paciente</strong> em{' '}
+            {new Date(paciente.preCadastro.recebidoEm).toLocaleDateString('pt-BR')}. Confira os
+            dados antes de usá-los para convênio ou documento.
+          </p>
+          <Link to={`/app/pacientes/${paciente.id}/editar`}>
+            <Button size="sm" variant="secondary">
+              Conferir cadastro
+            </Button>
+          </Link>
+        </section>
+      )}
+
+      {/*
+        Cadastro pela metade não trava nada, mas custa na hora de faturar e de
+        mandar lembrete. O aviso aparece só quando falta bastante — abaixo disso
+        seria cobrança por um campo opcional.
+      */}
+      {paciente.completude < 60 && (
+        <p className="flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-paper-2 px-4 py-3 text-sm text-ink-soft">
+          <span className="min-w-0 flex-1">
+            O cadastro desta paciente está {paciente.completude}% completo. Endereço, convênio e
+            contato são o que faltam para emitir guia e mandar lembrete.
+          </span>
+          <Link
+            to={`/app/pacientes/${paciente.id}/editar`}
+            className="font-semibold text-indigo hover:underline"
+          >
+            Completar agora
+          </Link>
+        </p>
+      )}
 
       {!paciente.temConta && <VincularConta paciente={paciente} onMudou={setPaciente} />}
 

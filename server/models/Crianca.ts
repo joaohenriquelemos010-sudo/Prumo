@@ -46,9 +46,69 @@ const criancaSchema = new Schema(
       nome: { type: String, trim: true, maxlength: 80, default: '' },
       dataNascimento: { type: Date, default: null },
       telefone: { type: String, trim: true, maxlength: 20, default: '' },
+      /** O segundo número — o recado do trabalho, o celular do marido. */
+      telefoneSecundario: { type: String, trim: true, maxlength: 20, default: '' },
       email: { type: String, trim: true, lowercase: true, maxlength: 120, default: '' },
       /** Cifrado em repouso, como o CPF do `User`. */
       cpf: { type: String, default: '', select: false, ...campoCifrado },
+      /**
+       * RG. Sem `select: false` de propósito: ao contrário do CPF, ele não é
+       * chave de nada fora do consultório — não abre conta, não casa com
+       * convênio, não vira busca em base vazada. Cifrar o que não paga o custo
+       * só faria a ficha demorar mais para abrir.
+       */
+      rg: { type: String, trim: true, maxlength: 20, default: '' },
+      sexo: { type: String, enum: ['', 'feminino', 'masculino', 'outro'], default: '' },
+      estadoCivil: {
+        type: String,
+        enum: ['', 'solteira', 'casada', 'uniao-estavel', 'divorciada', 'viuva'],
+        default: '',
+      },
+      profissao: { type: String, trim: true, maxlength: 60, default: '' },
+      /**
+       * A foto da ficha, como data URL já reduzida no cliente (ver
+       * `lib/imagem.ts`). Guardar o binário aqui em vez de subir para um bucket
+       * é a escolha certa **para este tamanho**: um avatar de 192px cabe em
+       * poucos KB, e uma foto de rosto no consultório é dado de saúde — menos um
+       * lugar por onde ele sai, menos uma URL para vazar.
+       */
+      foto: { type: String, default: '', maxlength: 60_000 },
+      /**
+       * Quem chamar quando a paciente não puder responder. Não é dado
+       * burocrático: é o telefone que se procura às pressas, e procurar às
+       * pressas num campo de observações é como não ter.
+       */
+      contatoEmergencia: {
+        nome: { type: String, trim: true, maxlength: 80, default: '' },
+        parentesco: { type: String, trim: true, maxlength: 40, default: '' },
+        telefone: { type: String, trim: true, maxlength: 20, default: '' },
+      },
+      /** Companheiro e filhos — contexto familiar que a consulta usa. */
+      familia: {
+        companheiro: { type: String, trim: true, maxlength: 80, default: '' },
+        filhos: {
+          type: [
+            new Schema(
+              {
+                nome: { type: String, trim: true, maxlength: 80, default: '' },
+                dataNascimento: { type: Date, default: null },
+              },
+              { _id: false },
+            ),
+          ],
+          default: [],
+        },
+      },
+      /**
+       * Quando ela consegue vir. Alimenta a sugestão de horários no agendamento:
+       * oferecer terça de manhã para quem só pode à tarde é o que transforma
+       * remarcação em rotina.
+       */
+      preferenciasHorario: {
+        dias: { type: [String], default: [] },
+        periodos: { type: [String], default: [] },
+        restricoes: { type: String, trim: true, maxlength: 200, default: '' },
+      },
       /**
        * Endereço. Campos separados e não uma linha só porque cidade e UF são o
        * que responde "de onde vêm minhas pacientes" — e um texto livre não
@@ -64,6 +124,19 @@ const criancaSchema = new Schema(
         uf: { type: String, default: '', maxlength: 2, uppercase: true },
       },
       observacoes: { type: String, maxlength: 500, default: '' },
+    },
+    /**
+     * A ficha que a própria paciente preencheu, pelo link de pré-cadastro.
+     *
+     * `revisadoEm` é o que separa "chegou" de "conferido". Dado digitado por
+     * quem não é da equipe entra no prontuário como **declarado**, não como
+     * verificado — e a diferença tem que estar visível na tela até alguém do
+     * consultório olhar. Sem esse par de datas, um CPF trocado pela paciente
+     * viraria verdade do sistema no instante em que ela apertou enviar.
+     */
+    preCadastro: {
+      recebidoEm: { type: Date, default: null },
+      revisadoEm: { type: Date, default: null },
     },
     /**
      * O código que a paciente digita para reivindicar esta jornada.

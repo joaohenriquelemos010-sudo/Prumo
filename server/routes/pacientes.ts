@@ -17,33 +17,28 @@ import {
   semConta,
 } from '../services/pacientes.js'
 import { pacienteCreateSchema, pacientePatchSchema, vincularCodigoSchema } from '../validation.js'
-import { normalizeField } from '../sanitize.js'
+import {
+  aplicarCadastro,
+  completudeCadastro,
+  serializarCadastro,
+} from '../services/cadastroPaciente.js'
 
 export const pacientesRouter = Router()
 
-/** Endereço sempre completo em forma, mesmo quando vazio em conteúdo. */
-function enderecoDe(e: Record<string, string | undefined> | undefined) {
-  return {
-    cep: normalizeField(e?.cep ?? '', 12),
-    logradouro: normalizeField(e?.logradouro ?? '', 120),
-    numero: normalizeField(e?.numero ?? '', 12),
-    complemento: normalizeField(e?.complemento ?? '', 60),
-    bairro: normalizeField(e?.bairro ?? '', 60),
-    cidade: normalizeField(e?.cidade ?? '', 60),
-    uf: normalizeField(e?.uf ?? '', 2).toUpperCase(),
-  }
+/** "José" e "jose" são a mesma paciente — em português, acento não é identidade. */
+function normalizarBusca(v: string): string {
+  return v
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
 }
 
-/** Data só quando é data. Campo bagunçado vira vazio, nunca `Invalid Date`. */
-function data(valor: unknown): Date | null {
-  if (typeof valor !== 'string' || valor.trim() === '') return null
-  const d = new Date(valor)
-  return Number.isNaN(d.getTime()) ? null : d
-}
-
-function serialize(j: HydratedDocument<JornadaDoc>) {
+export function serialize(j: HydratedDocument<JornadaDoc>) {
   const iso = (d?: Date | null) => (d ? new Date(d).toISOString() : null)
   const pendente = codigoValido(j.vinculacao)
+  const ficha = serializarCadastro(j)
   return {
     id: String(j._id),
     nome: j.titular?.nome || j.nome || 'Paciente',
@@ -52,22 +47,18 @@ function serialize(j: HydratedDocument<JornadaDoc>) {
     dpp: iso(j.dpp),
     dataNascimento: iso(j.dataNascimento),
     temConta: !semConta(j),
-    titular: {
-      nome: j.titular?.nome ?? '',
-      dataNascimento: iso(j.titular?.dataNascimento),
-      telefone: j.titular?.telefone ?? '',
-      email: j.titular?.email ?? '',
-      observacoes: j.titular?.observacoes ?? '',
-      endereco: {
-        cep: j.titular?.endereco?.cep ?? '',
-        logradouro: j.titular?.endereco?.logradouro ?? '',
-        numero: j.titular?.endereco?.numero ?? '',
-        complemento: j.titular?.endereco?.complemento ?? '',
-        bairro: j.titular?.endereco?.bairro ?? '',
-        cidade: j.titular?.endereco?.cidade ?? '',
-        uf: j.titular?.endereco?.uf ?? '',
-      },
+    /** Quanto da ficha está preenchido — ver `completudeCadastro`. */
+    completude: completudeCadastro(j),
+    /**
+     * A ficha veio da paciente e ainda não foi conferida? A tela precisa dizer
+     * isso em voz alta: até alguém do consultório revisar, aqueles dados são
+     * declarados, não verificados.
+     */
+    preCadastro: {
+      recebidoEm: iso(j.preCadastro?.recebidoEm),
+      revisadoEm: iso(j.preCadastro?.revisadoEm),
     },
+    ...ficha,
     /**
      * O código só volta enquanto vale. Um código expirado exibido na tela é uma
      * promessa que a paciente vai tentar cumprir digitando e não vai funcionar.
@@ -80,12 +71,19 @@ function serialize(j: HydratedDocument<JornadaDoc>) {
   }
 }
 
-/** A jornada precisa existir E ser deste médico. As duas coisas, sempre. */
+/**
+ * A jornada precisa existir E ser deste médico. As duas coisas, sempre.
+ *
+ * `+titular.cpf` e `+convenio.numeroCarteirinha` entram aqui de propósito: os
+ * dois são `select: false` e esta é a leitura de **uma** ficha, por quem tem
+ * vínculo ativo com ela. Sem eles, abrir o cadastro para corrigir um telefone
+ * mostraria o CPF em branco — e salvar apagaria o que estava lá.
+ */
 async function minhaOr404(id: string, medicoId: string) {
   if (!isValidObjectId(id)) return null
   const vinculo = await Vinculo.exists({ crianca: id, medicoId, status: 'ativo' })
   if (!vinculo) return null
-  return Jornada.findById(id)
+  return Jornada.findById(id).select('+titular.cpf +convenio.numeroCarteirinha')
 }
 
 /**
@@ -104,23 +102,9 @@ pacientesRouter.post('/', requireAuth, requireRole('medico'), auditar('paciente.
   }
   const d = parsed.data
 
-  const jornada = await Jornada.create({
-    responsavel: null,
-    criadaPorMedico: req.user!.id,
-    momento: d.momento,
-    dpp: data(d.dpp),
-    dataNascimento: data(d.dataNascimentoBebe),
-    nome: normalizeField(d.nomeBebe ?? '', 80),
-    titular: {
-      nome: normalizeField(d.nome, 80),
-      dataNascimento: data(d.dataNascimento),
-      telefone: normalizeField(d.telefone ?? '', 20),
-      email: d.email ?? '',
-      cpf: normalizeField(d.cpf ?? '', 14),
-      endereco: enderecoDe(d.endereco),
-      observacoes: normalizeField(d.observacoes ?? '', 500),
-    },
-  })
+  const jornada = new Jornada({ responsavel: null, criadaPorMedico: req.user!.id })
+  aplicarCadastro(jornada, d, { criando: true })
+  await jornada.save()
 
   await Vinculo.create({
     crianca: jornada._id,
@@ -143,6 +127,64 @@ pacientesRouter.post('/', requireAuth, requireRole('medico'), auditar('paciente.
   })
 
   res.status(201).json({ paciente: serialize(jornada) })
+})
+
+/**
+ * GET /api/pacientes/procurar?cpf=&nome= — essa paciente já está cadastrada?
+ *
+ * Cadastro duplicado não é erro de digitação: é a mesma pessoa com dois
+ * prontuários, metade da história em cada um. A recepção não tem como saber que
+ * a "Maria Silva" de hoje é a "Maria da Silva" de dois anos atrás, então quem
+ * precisa saber é o formulário — enquanto ela digita, e não depois de salvar.
+ *
+ * Declarada **antes** de `/:id` de propósito: o Express casa na ordem, e uma
+ * rota literal depois de um parâmetro nunca é alcançada.
+ *
+ * O CPF é comparado depois de decifrado, um a um. Não há como indexar isso: a
+ * cifra é aleatória por gravação (IV novo a cada vez), justamente para que dois
+ * CPFs iguais não gerem o mesmo texto cifrado. O custo fica no teto de jornadas
+ * do médico, e a alternativa — um hash pesquisável do CPF — devolveria a
+ * capacidade de confirmar "fulana é paciente daqui" a quem roubasse o banco.
+ */
+pacientesRouter.get('/procurar', requireAuth, requireRole('medico'), async (req, res) => {
+  const cpf = String(req.query.cpf ?? '').replace(/\D/g, '')
+  const nome = normalizarBusca(String(req.query.nome ?? ''))
+
+  // Nada específico o bastante para valer uma varredura.
+  if (cpf.length !== 11 && nome.length < 4) {
+    res.json({ encontradas: [] })
+    return
+  }
+
+  const vinculos = await Vinculo.find({ medicoId: req.user!.id, status: 'ativo' })
+    .select('crianca')
+    .limit(2000)
+    .lean()
+
+  const jornadas = await Jornada.find({ _id: { $in: vinculos.map((v) => v.crianca) } })
+    .select('+titular.cpf')
+    .limit(2000)
+
+  const encontradas = jornadas
+    .map((j) => {
+      const mesmoCpf = cpf.length === 11 && (j.titular?.cpf ?? '').replace(/\D/g, '') === cpf
+      const mesmoNome = nome.length >= 4 && normalizarBusca(j.titular?.nome ?? '') === nome
+      if (!mesmoCpf && !mesmoNome) return null
+      return {
+        id: String(j._id),
+        nome: j.titular?.nome || j.nome || 'Paciente',
+        dataNascimento: j.titular?.dataNascimento
+          ? new Date(j.titular.dataNascimento).toISOString()
+          : null,
+        // O que casou muda a mensagem: CPF igual é a mesma pessoa; nome igual é
+        // uma pergunta.
+        por: mesmoCpf ? ('cpf' as const) : ('nome' as const),
+      }
+    })
+    .filter((v): v is NonNullable<typeof v> => v !== null)
+    .slice(0, 5)
+
+  res.json({ encontradas })
 })
 
 /** GET /api/pacientes/:id — o cabeçalho do hub da paciente. */
@@ -169,38 +211,22 @@ pacientesRouter.patch('/:id', requireAuth, requireRole('medico'), async (req, re
   }
   const d = parsed.data
 
-  if (d.momento) jornada.momento = d.momento
-  if (d.dpp !== undefined) jornada.dpp = data(d.dpp)
-  if (d.dataNascimentoBebe !== undefined) jornada.dataNascimento = data(d.dataNascimentoBebe)
-  if (d.nomeBebe !== undefined) jornada.nome = normalizeField(d.nomeBebe, 80)
-
-  // Jornadas anteriores a este campo não têm o subdocumento: parte-se do que
-  // existe, e não de um objeto novo que apagaria o resto ao salvar.
-  const titular = {
-    nome: '',
-    email: '',
-    cpf: '',
-    telefone: '',
-    observacoes: '',
-    dataNascimento: null as Date | null,
-    endereco: enderecoDe(undefined),
-    ...(jornada.titular ?? {}),
+  aplicarCadastro(jornada, d)
+  /*
+   * Salvar a ficha É a revisão. Não existe um botão "conferi" separado de
+   * propósito: um segundo botão viraria um passo que ninguém aperta, e a marca
+   * de "não conferido" ficaria para sempre numa ficha já corrigida.
+   */
+  if (jornada.preCadastro?.recebidoEm && !jornada.preCadastro?.revisadoEm) {
+    jornada.set('preCadastro.revisadoEm', new Date())
   }
-  if (d.nome !== undefined) titular.nome = normalizeField(d.nome, 80)
-  if (d.dataNascimento !== undefined) titular.dataNascimento = data(d.dataNascimento)
-  if (d.telefone !== undefined) titular.telefone = normalizeField(d.telefone, 20)
-  if (d.email !== undefined) titular.email = d.email
-  if (d.observacoes !== undefined) titular.observacoes = normalizeField(d.observacoes, 500)
-  if (d.cpf !== undefined) titular.cpf = normalizeField(d.cpf, 14)
-  if (d.endereco !== undefined) titular.endereco = enderecoDe(d.endereco)
-  jornada.titular = titular
   await jornada.save()
 
   // O nome também vive no vínculo, que é o que a lista lê sem abrir a jornada.
   if (d.nome !== undefined) {
     await Vinculo.updateOne(
       { crianca: jornada._id, medicoId: req.user!.id },
-      { $set: { pacienteNome: titular.nome ?? '' } },
+      { $set: { pacienteNome: jornada.titular?.nome ?? '' } },
     )
   }
 

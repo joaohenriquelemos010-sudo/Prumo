@@ -26,6 +26,8 @@ import { disponibilidadeRouter } from './routes/disponibilidade.js'
 import { bebeRouter } from './routes/bebe.js'
 import { vinculosRouter } from './routes/vinculos.js'
 import { pacientesRouter } from './routes/pacientes.js'
+import { preCadastroRouter } from './routes/preCadastro.js'
+import { cepRouter } from './routes/cep.js'
 import { tiposAtendimentoRouter } from './routes/tiposAtendimento.js'
 import { categoriasAtendimentoRouter } from './routes/categoriasAtendimento.js'
 import { listaEsperaRouter } from './routes/listaEspera.js'
@@ -80,6 +82,8 @@ export function createApp() {
   app.use('/api/consultas', consultasRouter)
   app.use('/api/atendimento', atendimentoRouter)
   app.use('/api/pacientes', pacientesRouter)
+  app.use('/api/pre-cadastro', preCadastroRouter)
+  app.use('/api/cep', cepRouter)
   app.use('/api/tipos-atendimento', tiposAtendimentoRouter)
   app.use('/api/categorias-atendimento', categoriasAtendimentoRouter)
   app.use('/api/lista-espera', listaEsperaRouter)

@@ -1,6 +1,7 @@
 import { lazy } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import { Layout } from './Layout'
+import { LayoutFoco } from './LayoutFoco'
 import { ProtectedRoute, ProtectedFullscreen } from './ProtectedRoute'
 
 // Lazy-loaded routes → code splitting per route.
@@ -13,6 +14,7 @@ const Onboarding = lazy(() => import('@/pages/Onboarding'))
 const Entrar = lazy(() => import('@/pages/Entrar'))
 const EsqueciSenha = lazy(() => import('@/pages/EsqueciSenha'))
 const Vincular = lazy(() => import('@/pages/Vincular'))
+const PreCadastro = lazy(() => import('@/pages/PreCadastro'))
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
@@ -32,6 +34,7 @@ const AppCompartilhar = lazy(() => import('@/pages/app/AppCompartilhar'))
 const AppComunidade = lazy(() => import('@/pages/app/AppComunidade'))
 const AppAdmin = lazy(() => import('@/pages/app/AppAdmin'))
 const AppPacientes = lazy(() => import('@/pages/app/AppPacientes'))
+const AppCadastroPaciente = lazy(() => import('@/pages/app/AppCadastroPaciente'))
 const AppPaciente = lazy(() => import('@/pages/app/AppPaciente'))
 const AppAtendimento = lazy(() => import('@/pages/app/AppAtendimento'))
 const AppLembretes = lazy(() => import('@/pages/app/AppLembretes'))
@@ -57,6 +60,19 @@ export const router = createBrowserRouter(
         { path: '/painel', element: <Dashboard /> },
         { path: '*', element: <NotFound /> },
       ],
+    },
+    {
+      /*
+       * O pré-cadastro é público de propósito: exigir conta para poder se
+       * cadastrar é o círculo que faz a paciente desistir e a recepção digitar
+       * tudo de novo. A página só escreve — não lê nada de ninguém.
+       *
+       * Fora do `Layout` porque ali há menu, rodapé e o aviso de privacidade
+       * flutuante: navegação para escapar sem querer no meio da ficha, e uma
+       * faixa fixa em cima do botão de enviar no celular.
+       */
+      element: <LayoutFoco />,
+      children: [{ path: '/cadastro/paciente/:token', element: <PreCadastro /> }],
     },
     {
       /**
@@ -106,6 +122,17 @@ export const router = createBrowserRouter(
         { path: 'consultas', element: <AppConsultas /> },
         { path: 'profissionais', element: <AppProfissionais /> },
         { path: 'pacientes', element: <AppPacientes /> },
+        /*
+         * A ficha completa — cadastrar e corrigir na mesma tela, e por isso duas
+         * rotas para o mesmo componente. Larga porque o formulário tem colunas:
+         * a ficha de um lado, o índice e o link de pré-cadastro do outro.
+         */
+        { path: 'pacientes/novo', element: <AppCadastroPaciente />, handle: { largura: 'ampla' } },
+        {
+          path: 'pacientes/:jornadaId/editar',
+          element: <AppCadastroPaciente />,
+          handle: { largura: 'ampla' },
+        },
         /* O hub de uma paciente. Tudo o que é clínico mora aqui dentro, em abas. */
         { path: 'pacientes/:jornadaId', element: <AppPaciente /> },
         { path: 'compartilhar', element: <AppCompartilhar /> },

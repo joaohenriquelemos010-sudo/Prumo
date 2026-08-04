@@ -1,6 +1,11 @@
 import { useId, useState } from 'react'
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import type {
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from 'react'
+import { ChevronDown, Eye, EyeOff } from 'lucide-react'
 import { forcaSenha } from '@/lib/senha'
 import { cn } from '@/lib/cn'
 
@@ -45,24 +50,119 @@ interface BaseProps {
   ajuda?: ReactNode
   erro?: string
   className?: string
+  /** Marca o campo como exigido — asterisco visível e `required` para o leitor. */
+  obrigatorio?: boolean
 }
 
-type CampoProps = BaseProps & Omit<InputHTMLAttributes<HTMLInputElement>, 'className'>
+type CampoProps = BaseProps &
+  Omit<InputHTMLAttributes<HTMLInputElement>, 'className'> & {
+    /**
+     * O que vive na borda direita do campo: o ícone do WhatsApp, o botão de
+     * buscar CEP, o "kg" de uma medida. Fica **dentro** da caixa porque
+     * pertence ao campo — um botão solto ao lado parece agir sobre o
+     * formulário, e não sobre aquele valor.
+     */
+    sufixo?: ReactNode
+  }
 
-export function Campo({ rotulo, ajuda, erro, className, id, ...resto }: CampoProps) {
+export function Campo({
+  rotulo,
+  ajuda,
+  erro,
+  className,
+  id,
+  obrigatorio,
+  sufixo,
+  ...resto
+}: CampoProps) {
+  const gerado = useId()
+  const campoId = id ?? gerado
+  const { descricao, descritoPor } = usarDescricao(campoId, ajuda, erro)
+
+  const controle = (
+    <input
+      id={campoId}
+      className={CONTROLE}
+      aria-invalid={erro ? true : undefined}
+      aria-describedby={descritoPor}
+      required={obrigatorio}
+      {...resto}
+    />
+  )
+
+  return (
+    <div className={cn('flex min-w-0 flex-col gap-1', className)}>
+      {/*
+        Sem sufixo, a caixa inteira é o `label` — clicar em qualquer lugar dela
+        foca o campo. Com sufixo isso não pode ser: um clique no botão de buscar
+        CEP não deve virar um clique no campo, então o `label` encolhe para a
+        coluna do valor e o botão fica fora dele.
+      */}
+      {sufixo ? (
+        <div className={cn(CAIXA, 'items-center gap-2', erro ? 'border-warn' : 'border-line')}>
+          <label htmlFor={campoId} className="flex min-w-0 flex-1 flex-col">
+            <Rotulo obrigatorio={obrigatorio}>{rotulo}</Rotulo>
+            {controle}
+          </label>
+          {sufixo}
+        </div>
+      ) : (
+        <label htmlFor={campoId} className={cn(CAIXA, 'flex-col', erro ? 'border-warn' : 'border-line')}>
+          <Rotulo obrigatorio={obrigatorio}>{rotulo}</Rotulo>
+          {controle}
+        </label>
+      )}
+      {descricao}
+    </div>
+  )
+}
+
+/**
+ * O asterisco é `aria-hidden` e acompanhado de `required` no controle: quem
+ * enxerga vê o sinal, quem usa leitor de tela ouve "obrigatório" — e ninguém
+ * ouve "asterisco" no meio do nome do campo.
+ */
+function Rotulo({ children, obrigatorio }: { children: ReactNode; obrigatorio?: boolean }) {
+  return (
+    <span className={ROTULO}>
+      {children}
+      {obrigatorio && (
+        <span aria-hidden className="ml-0.5 text-warn-ink">
+          *
+        </span>
+      )}
+    </span>
+  )
+}
+
+type CampoAreaProps = BaseProps & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'className'>
+
+/** O mesmo campo, para o texto que não cabe numa linha. */
+export function CampoArea({
+  rotulo,
+  ajuda,
+  erro,
+  className,
+  id,
+  obrigatorio,
+  rows = 3,
+  ...resto
+}: CampoAreaProps) {
   const gerado = useId()
   const campoId = id ?? gerado
   const { descricao, descritoPor } = usarDescricao(campoId, ajuda, erro)
 
   return (
-    <div className={cn('flex flex-col gap-1', className)}>
+    <div className={cn('flex min-w-0 flex-col gap-1', className)}>
       <label htmlFor={campoId} className={cn(CAIXA, 'flex-col', erro ? 'border-warn' : 'border-line')}>
-        <span className={ROTULO}>{rotulo}</span>
-        <input
+        <Rotulo obrigatorio={obrigatorio}>{rotulo}</Rotulo>
+        <textarea
           id={campoId}
-          className={CONTROLE}
+          rows={rows}
+          className={cn(CONTROLE, 'resize-y leading-relaxed')}
           aria-invalid={erro ? true : undefined}
           aria-describedby={descritoPor}
+          required={obrigatorio}
           {...resto}
         />
       </label>
@@ -74,24 +174,45 @@ export function Campo({ rotulo, ajuda, erro, className, id, ...resto }: CampoPro
 type CampoSelectProps = BaseProps &
   Omit<SelectHTMLAttributes<HTMLSelectElement>, 'className'> & { children: ReactNode }
 
-export function CampoSelect({ rotulo, ajuda, erro, className, id, children, ...resto }: CampoSelectProps) {
+export function CampoSelect({
+  rotulo,
+  ajuda,
+  erro,
+  className,
+  id,
+  obrigatorio,
+  children,
+  ...resto
+}: CampoSelectProps) {
   const gerado = useId()
   const campoId = id ?? gerado
   const { descricao, descritoPor } = usarDescricao(campoId, ajuda, erro)
 
   return (
-    <div className={cn('flex flex-col gap-1', className)}>
-      <label htmlFor={campoId} className={cn(CAIXA, 'flex-col', erro ? 'border-warn' : 'border-line')}>
-        <span className={ROTULO}>{rotulo}</span>
-        <select
-          id={campoId}
-          className={cn(CONTROLE, 'cursor-pointer appearance-none')}
-          aria-invalid={erro ? true : undefined}
-          aria-describedby={descritoPor}
-          {...resto}
-        >
-          {children}
-        </select>
+    <div className={cn('flex min-w-0 flex-col gap-1', className)}>
+      <label
+        htmlFor={campoId}
+        className={cn(CAIXA, 'items-center gap-2', erro ? 'border-warn' : 'border-line')}
+      >
+        <span className="flex min-w-0 flex-1 flex-col">
+          <Rotulo obrigatorio={obrigatorio}>{rotulo}</Rotulo>
+          <select
+            id={campoId}
+            className={cn(CONTROLE, 'cursor-pointer appearance-none')}
+            aria-invalid={erro ? true : undefined}
+            aria-describedby={descritoPor}
+            required={obrigatorio}
+            {...resto}
+          >
+            {children}
+          </select>
+        </span>
+        {/*
+          `appearance-none` tira a setinha nativa junto com o resto do estilo do
+          sistema. Sem ela, um select fica visualmente igual a um campo de texto
+          — e a pessoa clica esperando digitar.
+        */}
+        <ChevronDown className="size-4 shrink-0 text-ink-mute" aria-hidden />
       </label>
       {descricao}
     </div>
